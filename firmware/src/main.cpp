@@ -8,6 +8,7 @@
 #include <time.h>
 #include "weather_store.h"
 #include "atlas_packet.h"
+#include "discovery_packet.h"
 #include "forecast_icon.h"
 #include "moon_icon.h"
 #include "nws_pressure.h"
@@ -659,6 +660,9 @@ void liveReceive(){
   for(int count=0;count<4 && radio_receiver::pop(packet,sizeof(packet));++count){
     if(replay)continue;
     StaticJsonDocument<2048>d;if(deserializeJson(d,packet))continue;
+    station_discovery::Packet candidate;
+    if(station_discovery::decodeNative(d.as<JsonVariantConst>(),candidate))services::observeDiscovery(candidate,millis());
+    if(!services::settings().station_confirmed)continue;
     weather::Sample s;if(!atlas::decode(d.as<JsonVariantConst>(),liveNow(),s))continue;
     uint32_t previous=store->session_rain_tips;auto counter=store->rainState();
     const auto result=store->ingest(s);sensor_monitor.observe(s,result);

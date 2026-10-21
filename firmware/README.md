@@ -238,6 +238,14 @@ touch alignment still need observation on the actual board.
 
 ## Validation record
 
+Version 0.5.1 adds automatic Atlas discovery in Station & Wi-Fi. Scanning can
+take up to five minutes; the user confirms live readings without typing an ID,
+then saves settings. Existing bindings keep receiving while scanning. Iris and
+Notos appear as detection previews with integration pending. New devices stay
+unbound until confirmed; existing settings migrate automatically. See
+[decoder/discovery details](../DECODER_SUPPORT.md) and the
+[short owner checklist](CONTROLS_CHECKLIST.md#quick-check-for-v051-automatic-discovery).
+
 See [VALIDATION.md](VALIDATION.md) for measured build and bench results.
 The host tests cover sparse fields/ages, zeros, station binding, exception and
 NaN rejection, backwards time, duplicate peak age, exact expiry, startup/gap

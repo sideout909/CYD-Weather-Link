@@ -2,6 +2,7 @@
 #include <Arduino.h>
 #include <array>
 #include "firmware_version.h"
+#include "station_discovery.h"
 namespace weather { class Store; }
 
 namespace services {
@@ -11,6 +12,7 @@ struct Settings {
   String timezone = "EST5EDT,M3.2.0,M11.1.0";
   uint16_t station_id = 679;
   char channel = 'A';
+  bool station_confirmed=false;
   bool radio_enabled = true, location_set = false;
   double latitude = 0, longitude = 0;
   float elevation_m = 0;
@@ -87,6 +89,7 @@ State state();
 void publish(const Observation& sample);
 // Called/read only on the application loop, never from the network worker.
 void bindHistory(const weather::Store* store,uint64_t (*now)());
+void observeDiscovery(const station_discovery::Packet& packet,uint32_t now);
 String setupWifiKey();
 String setupSsid();
 String portalAddress();

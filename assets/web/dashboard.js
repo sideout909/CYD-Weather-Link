@@ -31,10 +31,11 @@
   }
   function configure(value) {
     config = value;
-    $('onboarding').hidden = !!value.ssid && !!value.location_set;
+    $('onboarding').hidden = !!value.ssid && !!value.location_set && value.station_confirmed!==false;
     text('onboarding-title', value.ssid ? 'Add your station location' : 'Set up your weather station');
     text('onboarding-message', value.ssid ? 'Station readings work locally. Add your location in Station & Wi-Fi to enable the local forecast, alerts, sun and moon.' : 'Start with Station & Wi-Fi: join your home network, confirm the Atlas sensor and choose your location. Sharing services are optional.');
-    if (!value.ssid) tab('station');
+    if (!value.ssid || value.station_confirmed===false) tab('station');
+    if(value.station_confirmed===false){text('onboarding-title','Find your weather station');text('onboarding-message','Choose Find my station in Station & Wi-Fi. Detection can take up to 5 minutes; no sensor ID is needed.');}
     drawHistory();
   }
   function status(value) {

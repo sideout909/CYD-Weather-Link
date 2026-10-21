@@ -8,9 +8,9 @@ inline bool decode(JsonVariantConst d,uint64_t now,weather::Sample& s){
   const char* model=d["model"]|"";if(std::strcmp(model,"Acurite-Atlas"))return false;
   const char* bound_channel=d["channel"]|"";
   if(!d["id"].is<uint16_t>() || d["id"].as<unsigned>()>1023 || std::strlen(bound_channel)!=1 || !d["message_type"].is<uint8_t>())return false;
-  const unsigned type=d["message_type"].as<unsigned>();if(type<37||type>39)return false;
+  unsigned type=d["message_type"].as<unsigned>();if(type>=5&&type<=7)type+=32;if(type<37||type>39)return false;
   s=weather::Sample{};s.time_ms=now;s.station=d["id"]|uint16_t(0);const char* channel=d["channel"]|"";s.channel=channel[0];
-  s.type=d["message_type"]|uint8_t(0);s.exception=d["exception"].as<bool>();
+  s.type=uint8_t(type);s.exception=d["exception"].as<bool>();
   load(d["temperature_F"],s.temperature);
   if(!s.temperature.valid&&d["temperature_C"].is<float>()){s.temperature.valid=true;s.temperature.value=d["temperature_C"].as<float>()*1.8f+32;}
   load(d["humidity"],s.humidity);load(d["wind_avg_mi_h"],s.wind);

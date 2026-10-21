@@ -1,5 +1,48 @@
 # Core firmware validation
 
+## Automatic station discovery — v0.5.1, October 21, 2026
+
+- Added passive 433.92 MHz OOK Atlas discovery, with Iris/Notos detection
+  previews. Three independent sightings plus fresh complete Atlas fields are
+  required before selection. Settings save rechecks the scan session/token.
+- Existing saved binding migrates as confirmed. New devices remain unbound;
+  only trusted native RF callbacks enter discovery. Replay/foreign candidates
+  do not enter operational archives or uploads. Existing bound reception keeps
+  running during a scan. Broader profiles and FSK remain unimplemented.
+- Host checks passed for burst deduplication, unchanged valid weather,
+  identity/channel separation, per-field expiration, cancellation/session
+  invalidation, five-minute timeout, capacity bounds, timer wrap and parser
+  mappings. All previous model/reporting checks, nine console regressions and
+  host replay of 24,075 private Atlas reference packets passed.
+- Headless browser checks used the actual embedded HTML and local scripts:
+  setup-first onboarding, hidden manual ID fields, authenticated/CSRF requests,
+  eligible/unsupported candidates, staged selection, preserved unsaved Wi-Fi,
+  cancellation, timeout, mobile width and no JavaScript errors. Existing full
+  setup/dashboard and mocked ZIP/map/elevation checks passed.
+- Build: 1,589,725 application bytes (47.6% of OTA slot), 69,844 static RAM
+  bytes (21.3%). USB installed on the owner's PanelLan board after an
+  acknowledged checkpoint save/archive flush; no filesystem erase.
+- Boot restored 701 populated minute buckets and 147 archive intervals;
+  protected HTTP self-test Passed on attempt 1, including discovery schema and
+  CSRF rejection. External unauthenticated GET/POST discovery endpoints and JS
+  asset all returned HTTP 401.
+- A subsequent 60-second native RF monitor captured 18 packet copies: six
+  each of Atlas types 37, 38 and 39. Capture/decoder/application queue drops
+  remained zero; final required field/type ages were below 25 seconds and
+  health Current. Running those exact packets through the host discovery
+  model yielded six independent sightings and an eligible Atlas candidate.
+- Final board status: v0.5.1, 702 populated history buckets, 147 archive
+  intervals, no archive failures, Current, Wi-Fi and APRS connected. Free heap
+  138,436 bytes, free PSRAM 1,725,623 bytes, loop stack minimum free 11,052 bytes.
+  RF baseline remains 433.92 MHz / 9 dB adaptive capture margin.
+- Owner phone scan/select/save and touch checklist remain open; synthetic
+  browser tests and host-fed native RF are not an actual phone confirmation.
+  See [priority checks](CONTROLS_CHECKLIST.md#quick-check-for-v051-automatic-discovery).
+  Corrected hosted OTA validation and additional-station hardware tests remain
+  open. This update was USB-installed, not published as a new OTA release.
+
+The earlier records below remain as historical validation for prior versions.
+
 October 21, 2026 · version 0.4.0 · `panellan_sc05_x` · owned
 `ZX2D80CE02S-V10`, USB serial `68:B6:B3:34:82:48`.
 

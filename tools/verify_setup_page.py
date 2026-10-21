@@ -49,7 +49,8 @@ def main():
     errors = []
     def route(request):
         path = request.request.url.split('weatherlink.test', 1)[-1]
-        files = {'/assets/dashboard.js': ('assets/web/dashboard.js', 'text/javascript'),
+        files = {'/assets/discovery.js': ('assets/web/discovery.js', 'text/javascript'),
+                 '/assets/dashboard.js': ('assets/web/dashboard.js', 'text/javascript'),
                  '/assets/location.js': ('assets/web/location.js', 'text/javascript'),
                  '/assets/leaflet-1.9.4.js': ('assets/web/leaflet/leaflet.js', 'text/javascript'),
                  '/assets/leaflet-1.9.4.css': ('assets/web/leaflet/leaflet.css', 'text/css')}

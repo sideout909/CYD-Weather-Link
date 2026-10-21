@@ -8,6 +8,8 @@ This repository contains hardware and firmware planning documents, display conce
 - `PARTS.md` proposes an ESP32-S3 hardware baseline and purchasing specifications.
 - `HOME_SCREEN.md` specifies the main display; `SCREENS.md` defines swipe navigation, rolling 24-hour trends, and the proposed local NWS forecast page.
 - `WEATHER_SHARING.md` records current sharing-network research, exporter priorities, and APRS/CWOP routing/registration validation requirements.
+- `DECODER_SUPPORT.md` documents pinned-library field/unit/integrity review and proposed confirmed-owner discovery; `tools/inventory-decoders.py` regenerates the complete and reviewed 433 MHz inventories in `reference/decoder-inventory/`. Library presence is not enabled firmware compatibility.
+- `firmware/include/station_discovery.h` and `discovery_packet.h` implement bounded native-only Atlas discovery and Iris/Notos detection previews; `assets/web/discovery.js` provides the protected setup flow. `tools/verify_discovery_setup.py` validates the actual embedded page with synthetic candidates. Never send unconfirmed/discovery-only samples to history or exporters.
 - `firmware/src/` contains the Arduino application; `firmware/include/` contains the weather model, packet/report adapters, service contracts and embedded setup page.
 - `firmware/include/rolling_rain.h` tracks bounded rain-counter intervals for hour/24-hour coverage; checkpoint schema 3 persists them alongside minute history.
 - `firmware/include/history_archive.h` and `firmware/src/archive_storage.cpp` implement the fixed seven-day/five-minute archive; `firmware/RECORDING.md` documents bounded storage and protected CSV/USB export. Replay must never enter the archive.

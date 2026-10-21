@@ -398,6 +398,12 @@ These are predicted astronomical/forecast values, not local sky observations.
 
 ## Deferred multi-station discovery and community validation
 
+Implementation update: v0.5.1 provides user-confirmed Atlas discovery on the
+existing 433.92 MHz OOK profile, with Iris/Notos detection previews. It retains
+the existing station until settings are saved. Broader adapters, FSK profiles
+and community hardware validation remain follow-up work; the following gates
+continue to apply to those additions.
+
 Owner direction: first verify the existing Atlas over the physical CC1101.
 Broader weather-station support is a follow-up milestone, not a claim about
 current firmware. Preserve manual configuration alongside discovery.
@@ -408,6 +414,23 @@ frequency/modulation and integrity gates. These are engineering priorities,
 not a measured popularity ranking or a change to the hardware baseline.
 
 Proposed setup flow:
+
+The owner's clarified flow is to listen during setup, count several independent
+valid transmissions from the same device, then ask whether it is their station.
+The [decoder/discovery contract](DECODER_SUPPORT.md#confirmed-owner-discovery-during-setup)
+proposes three independent sightings as an initial confidence threshold. The
+owner approved a setup prompt explaining automatic detection can take up to
+five minutes, with automatic/manual choices, visible progress, early candidate
+suggestions and scan-again/manual choices at timeout. Keep the existing binding until confirmation;
+discovery data must not enter operational archives or external uploads. Limit
+initial candidates to reviewed 433 MHz profiles. These are specified behaviors,
+not a claim that discovery has been implemented or RF-validated.
+
+Automatic discovery is the default user path. Manual configuration belongs
+under Advanced; normal setup must not require the user to know or enter a sensor
+ID. Lead confirmation with the detected family and live readings, with technical
+identity/confidence information in expandable details. Save the decoded identity
+automatically only after the user confirms the candidate.
 
 - Listen on the selected supported RF frequency/modulation for a bounded scan
   window. The scan duration and required observation count remain to be tuned

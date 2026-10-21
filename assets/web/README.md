@@ -1,5 +1,12 @@
 # Embedded setup map assets
 
+`discovery.js` supplies the local automatic-station setup flow in v0.5.1. It
+contacts only authenticated device APIs, never an external discovery service.
+Candidates require repeated native RF transmissions; Use this station stages
+the selection for the existing Save settings action. Manual IDs stay under
+Advanced. See [decoder/discovery behavior](../../DECODER_SUPPORT.md) and run
+`tools/verify_discovery_setup.py` with the project's browser-test environment.
+
 `location.js` runs in the phone/desktop browser. The ESP32 serves the page and
 local scripts; it does not render maps, proxy tiles or perform location lookups.
 Assets are packed with `python tools/pack-setup-assets.py` into

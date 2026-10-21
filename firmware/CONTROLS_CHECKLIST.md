@@ -4,6 +4,27 @@ Board: PanelLan ZX2D80CE02S-V10, 320×240 landscape. Record date/build and mark
 each result. These checks use touch and a phone/browser; the CC1101 is not
 needed for navigation. Missing local readings are expected until reception.
 
+## Quick check for v0.5.1 automatic discovery
+
+These are the priority owner checks; the remaining checklist can wait.
+
+- [ ] Open the setup webpage on your phone, refresh it, and choose Station & Wi-Fi.
+      Find my station is prominent; sensor ID entry is hidden under Advanced.
+- [ ] Start detection. The five-minute progress indicator advances while the
+      display continues receiving your currently configured Atlas.
+- [ ] Your Atlas appears with sensible live readings. After at least three
+      separate transmissions and a complete current measurement cycle, it asks
+      “Is this your weather station?” and offers Use this station / Keep looking.
+- [ ] Cancel once. Existing reception, history and sharing remain unchanged.
+- [ ] Scan again, choose your Atlas, then Save settings. Confirm readings return
+      after restart and the existing history remains available for the same ID.
+- [ ] Swipe left and right through Home, Trends and Forecast and verify wraparound.
+- [ ] On the phone Overview, check readings, Trends, forecast/alerts and download
+      the seven-day CSV. Report any failed step; no need to test during bad weather.
+
+Iris and Notos are detection previews in v0.5.1; they cannot yet be bound for
+recording or uploads. Other library protocols are not enabled by this change.
+
 ## Display and navigation
 
 - [ ] Home has the v2 compact header, no page-switching banner, and RAIN TODAY.
@@ -24,8 +45,8 @@ needed for navigation. Missing local readings are expected until reception.
 - [ ] Tap Humidity: percentage, age, source and sensor binding are visible.
 - [ ] Tap Rain: Today, Last hour and Last 24 hours are separate; reset says
       00:00 local. Missing readings show unavailable, not invented rain.
-- [ ] Tap Sea level: Pressure says Not fitted and both pressure values are
-      unavailable. Back returns Home.
+- [ ] Tap Baro: Pressure identifies the nearby NWS station and observation age
+      when available, or says unavailable. Back returns Home.
 - [ ] Swipe horizontally inside Outdoor/Wind/Humidity details: the matching
       temperature/wind/humidity trend opens. Tap the chart to cycle metrics.
 - [ ] Home still shows the downloaded NWS icon/phase when eligible; local
@@ -78,9 +99,9 @@ needed for navigation. Missing local readings are expected until reception.
       rolling totals in details retain prior rain until their windows expire.
 - [ ] A reception outage produces stale fields/partial coverage rather than
       refreshing old data. Reconnect reception and check recovery.
-- [ ] If the Atlas keeps repeating one packet type, Data stale appears after
-      the grace period even though packets still arrive. A stopped transmitter
-      instead shows No signal. Check/cycle the outdoor station if needed.
+- [ ] If required data is missing or unchanged for ten minutes, the main
+      temperature turns orange. After five minutes without a bound packet,
+      status instead says Disconnected. Neither condition refreshes old fields.
 
 ## Optional firmware updates
 

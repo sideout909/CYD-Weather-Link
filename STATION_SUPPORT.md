@@ -4,6 +4,10 @@ Research date: October 21, 2026. This is a development shortlist, not a verified
 sales or installed-base ranking. Atlas remains the only station family enabled
 in CYD Weather Link. No receiver settings or firmware were changed by this research.
 
+See [DECODER_SUPPORT.md](DECODER_SUPPORT.md) for the complete source inventory,
+the reviewed 433 MHz CSV, actual emitted fields/unit mappings and the proposed
+user-confirmed discovery contract.
+
 ## What popularity evidence can establish
 
 Current manufacturer catalogs, regional RF specifications, active decoder source
@@ -101,6 +105,58 @@ changed; the single-controller architecture remains in place.
 
 ## Decoder and model work required before release
 
+### Inventory of the pinned ESP library
+
+Direct source inspection confirmed the following decoder entry points at
+`f0a81569b58a60ea8b3a5efd8e9b39670e8d8df8`. This is a weather-focused inventory,
+not a claim that every retail product under these brands is supported. Entries
+can cover multiple models; several sensor decoders together may be needed for
+one station. Frequency must be checked for each exact outdoor sensor/revision.
+
+| Family / documented models | Decoder entry point(s) | Modulation | Scope / remaining gate |
+| --- | --- | --- | --- |
+| AcuRite Atlas, 5-in-1/Iris, 3-in-1/Notos | `acurite_txr` | OOK | Already registered; only Atlas accepted by application. Iris/Notos adapters and field-specific health required. |
+| AcuRite 592TXR/592TX tower, 6045 lightning, 899 rain | `acurite_txr` | OOK | Same registered decoder, separate output models; no application integration yet. |
+| AcuRite 896 rain, 609TXC, 606TX, 590TX, 00275/00276, 986 | `acurite_rain_896`, `acurite_th`, `acurite_606`, `acurite_590tx`, `acurite_00275rm`, `acurite_986` | OOK | Separate decoders for rain, temperature/humidity, probes and refrigerator sensors. Not complete wind/rain stations. |
+| Sainlogic SA8 / Gevanti SA8 | `sainlogic_sa8` | OOK | Explicit model evidence; fix CRC rejection and validate rain units before use. |
+| Fine Offset WH1050 | `fineoffset_wh1050` | OOK | Station adapter and exact RF validation required. |
+| Fine Offset WH1080 / WH3080 | `fineoffset_wh1080`, `fineoffset_wh1080_fsk` | OOK or FSK variants | Determine actual variant; names do not select receiver mode automatically. |
+| Fine Offset WH24 / WH65 / WS69, HP1000, MISOL WS2320; WH25/WH32 family | `fineoffset_WH25` | FSK | Includes station arrays and separate temperature/humidity/pressure products; verify RF band and model-specific fields. |
+| Ecowitt / Fine Offset WS80, WS85, WS90 | `fineoffset_ws80`, `fineoffset_ws85`, `fineoffset_ws90` | FSK | Decoder source exists for each; band, rain capabilities and semantics differ. |
+| Ecowitt WH53 / WH0280 / WH0281A | `ecowitt` | OOK | Outdoor temperature products; not all-in-one stations. |
+| Ambient WH31E / Ecowitt WH40, WN20, WS68 | `ambientweather_wh31e` | FSK | Several sensor types share the decoder; verify regional band and associate sensors explicitly. |
+| Oregon Scientific legacy weather sensors | `oregon_scientific` | OOK | Explicit IDs include THGR810, PCR800, WGR800, WGR968, UV800 and many others. Separate wind/rain/temperature sensors need user-confirmed grouping. |
+| Oregon Scientific WMR500 | `oregon_scientific_wmr500` | FSK | Separate protocol from legacy Oregon devices; exact band validation required. |
+| La Crosse WS-2310 / WS-3600 | `lacrossews` | OOK | Older station family; adapters and captures required. |
+| La Crosse WS7000 / WS2500 | `lacrosse_ws7000` | OOK | Sensor family; association and field availability required. |
+| La Crosse TX22U-IT | `lacrosse_tx22uit`, `lacrosse_tx22uit_ook` | FSK or OOK variants | Determine actual sensor variant and band. |
+| La Crosse View LTV wind/rain/temp families, WS6868 | `lacrosse_breezepro`, `lacrosse_r1`, `lacrosse_th3`, `lacrosse_wr1`, `lacrosse_ws6868_tx232th`, `lacrosse_ws6868_tx231rw` | FSK | Source support does not establish 433 MHz; inspect exact hardware band. |
+| Bresser 5/6/7-in-1; documented Froggit WH6000 / Ventus C8488A | `bresser_5in1`, `bresser_6in1`, `bresser_7in1` | FSK | Often another RF band; brand/model revisions require checking. |
+| VEVOR YT60231 / YT60234 | `vevor_7in1` | FSK | Source explicitly documents 868 MHz EU and 915 MHz US. Requires appropriate band-specific receiver hardware/profile. |
+| Holman WS5029 / AOK-5056 / Optex 990018 / BIOWIN 270208 | `holman_ws5029pcm`, `holman_ws5029pwm`, `holman_ws5029pwm_ook` | FSK and OOK variants | Multiple incompatible RF profiles under related branding; exact revision required. |
+| Alecto WS3500 / WS4500, Ventus W155 / W044 | `alectov1` | OOK | Decoder lists these names; check sensor set and band. |
+| Cotech 36-7959 / SwitchDocLabs FT020T; Cotech FT0203 | `cotech_36_7959`, `cotech_ft0203` | OOK | Weather-station and anemometer decoders respectively. |
+| Hideki TS04; Thermor DG950; EMOS E6016 | `hideki_ts04`, `thermor`, `emos_e6016`, `emos_e6016_rain` | OOK | Separate sensors/rain decoder where applicable; adapters and association required. |
+| Emax W6 / Newentor Q9 and documented rebrands | `emax` | FSK | Explicit model/rebrand list exists; does not establish support for Newentor Q3 or every Newentor product. |
+| BALDR E0666TH, BALDR/RainPoint rain gauges | `baldr_therm`, `baldr_rain`, `rainpoint_hcs012arf` | OOK | Specific sensor support; not proof that every BALDR console kit uses these protocols. |
+
+Sources: [pinned decoder directory](https://github.com/NorthernMan54/rtl_433_ESP/tree/f0a81569b58a60ea8b3a5efd8e9b39670e8d8df8/src/rtl_433/devices),
+[library receiver/decoder documentation](https://github.com/NorthernMan54/rtl_433_ESP/blob/f0a81569b58a60ea8b3a5efd8e9b39670e8d8df8/README.md).
+
+The library documents that OOK and FSK cannot be received simultaneously by
+one receiver demodulator. Its default is OOK, with FSK marked experimental in
+the header. A configured station profile can select an appropriate mode;
+discovery across modes/bands would require measured time-sharing, not an
+assumption of continuous reception on every profile. This does not require
+changing the project's single-controller architecture.
+
+Generic ingestion is feasible: normalize supported decoder output into a
+common observation with model-specific capability, identity, cadence and rain
+rules. Missing measurements must remain unavailable; unchanged valid readings
+must not be discarded. Validate fields and integrity before updating health,
+history or exporters. Decoder presence is the starting point for this work,
+not a hardware-tested compatibility badge.
+
 The installed library is pinned at
 `f0a81569b58a60ea8b3a5efd8e9b39670e8d8df8`, inspected without local modifications.
 The build registers only `acurite_txr`; the application then accepts Atlas only.
@@ -134,3 +190,88 @@ A decoder being present in the library is not a CYD compatibility claim.
 Keep decoder-present, fixture-tested, RF-verified, and soak-validated labels
 separate. Prioritize Iris capture volunteers first, then a verified SA8/Gevanti
 unit, followed by 433 MHz Fine Offset FSK volunteers.
+
+## Budget 433 MHz purchase and volunteer targets
+
+Checked October 21, 2026. Prices below are advertised USD prices before tax,
+shipping and batteries, not completed checkout quotes. Coupons and inventory
+can change. This is a broad budget shortlist, not an exhaustive catalog of
+changing marketplace brands. Manufacturer-direct prices are distinguished from
+Amazon; Amazon pricing could not be reliably verified for the main candidates.
+None of these findings enables another station in the firmware.
+
+### Wind and rain stations, including sensor-only options
+
+| Candidate | Advertised price / availability | Measurements and RF evidence | Development status |
+| --- | --- | --- | --- |
+| Ecowitt WS69 outdoor array only | $63.99; shipping extra; choose the **433 MHz** option explicitly | Temperature, humidity, wind speed/direction, rain, UV and light. Manufacturer offers separate 433/868/915 variants and specifies 16-second updates. | Strong sensor-only budget candidate. Existing Fine Offset decoder family uses FSK; receive-profile work and exact hardware validation remain required. Default North American selection is 915 MHz. |
+| MISOL WS1080 complete station | $79.35 sale, $99.19 regular; seller page says in stock | Seller specifies 433 MHz, wind speed/direction, rain, temperature/humidity and console pressure; includes USB console. | Capture candidate. WH1080 OOK/FSK decoder variants exist, but the seller's WS1080 naming does not establish which protocol/revision ships. Verify delivered hardware and total shipping cost. |
+| Sainlogic SA8 complete station | $80 advertised with `SA50OFF`; manufacturer currently sold out | Manufacturer manual: 433 MHz, 60-second outdoor updates; temperature/humidity, wind speed/direction and rain. No UV/light in this base model. | Existing SA8 decoder, with CRC rejection and rain-scaling blockers described above. Amazon listing ASIN `B0FFN4QJNQ` exists; no current Amazon price verified. |
+| Sainlogic SA68 complete station | $84 advertised with `SA40OFF`; manufacturer page currently permits adding to cart | Manufacturer manual: 433 MHz, 60-second updates; temperature/humidity, wind speed/direction and rain. | Good budget capture target. Similar appearance and cadence do **not** establish compatibility with the SA8 decoder. |
+| Sainlogic SA6 complete station | $108.99; manufacturer currently sold out | Manufacturer manual: 433 MHz, 60-second updates; temperature/humidity, wind speed/direction and rain. | Separate revision/protocol verification required. Do not infer support for SA6 Plus. |
+| AcuRite Iris 5-in-1 outdoor array only, 06014MA2BK | $126.49 in manufacturer replacement-sensor catalog | 433 MHz family; temperature/humidity, wind speed/direction and rain; no UV/light. | Existing registered decoder offers a relatively short integration path. Confirm exact sensor revision, especially new 2026 units. |
+| AcuRite Atlas outdoor array only, 06059M | $129.99 in manufacturer replacement-sensor catalog | Existing project's 433 MHz family; temperature/humidity, wind speed/direction, rain, UV and light. | Only family currently enabled and owner bench-verified. Catalog availability and individual product pages can differ; verify before ordering. |
+| Raddy WF-100C complete station | $151.99 sale, $189.99 regular at Radioddity | Manufacturer/distributor specifies 433 MHz; wind, rain, temperature/humidity, UV and light. | Slightly above the roughly $150 budget ceiling; exact decoder association still unverified. Check destination/variant before purchase. |
+
+Price/specification sources:
+
+- [Ecowitt WS69, selectable frequency and sensor-only contents](https://shop.ecowitt.com/en-gb/products/ws69?variant=41418883465378).
+- [MISOL WS1080 complete station](https://www.misolie.net/products/misol-professional-weather-station-pc-connection-wind-speed-wind-direction-rain-meter-pressure-temperature-humidity-with-solar-charge-functionoutdoor).
+- [SA8 price/stock](https://www.sainlogic.com/products/sainlogic-wireless-weather-station-sa8),
+  [SA8 RF manual](https://cdn.shopify.com/s/files/1/0912/1280/8488/files/SA8_User_Manual.pdf?v=1756797250),
+  [Amazon SA8 listing](https://www.amazon.com/dp/B0FFN4QJNQ).
+- [SA68 price/stock](https://www.sainlogic.com/products/sainlogic-wireless-weather-station-sa68),
+  [SA68 RF manual, printed page 47](https://cdn.shopify.com/s/files/1/0912/1280/8488/files/SA68_User_Manual.pdf?v=1756797249).
+- [SA6 price/stock](https://www.sainlogic.com/products/sainlogic-wireless-weather-station-sa6),
+  [SA6 RF manual, printed page 47](https://cdn.shopify.com/s/files/1/0912/1280/8488/files/SA6_User_Manual.pdf?v=1756797249).
+- [AcuRite replacement-sensor catalog](https://www.acurite.com/collections/replacement-sensors).
+- [Raddy WF-100C price and 433 MHz specification](https://www.radioddity.com/products/raddy-wf100c-weather-station),
+  [manufacturer WF-100C manual hosted by Amazon](https://m.media-amazon.com/images/I/C1jIRwWH0eL.pdf).
+
+### Cheaper partial-weather options
+
+- **AcuRite Notos 06008M: $54.99 sensor only.** Temperature, humidity and wind
+  speed; no rain or wind direction. Existing `acurite_txr` decoder is promising,
+  but the application still needs a partial-capability station profile.
+  [Price catalog](https://www.acurite.com/collections/replacement-sensors),
+  [Notos family RF/measurement specification](https://www.acurite.com/collections/notos/products/acurite-notos-3-in-1-weather-station-with-digital-display-2nd-gen).
+- **BALDR WS0341BL4US: $19.99; WS0359BL5US: $34.99.** Manufacturer catalog
+  currently marks these sold out. These are temperature/humidity-type systems,
+  not wind-and-rain arrays. Manufacturer FAQ says its weather sensors use
+  433 MHz; exact model/revision and decoder remain unverified. Keep them as
+  low-cost capture leads rather than recommended supported purchases.
+  [Catalog/prices](https://baldr.com/collections/weather-station),
+  [manufacturer frequency FAQ](https://baldr.com/pages/weather-station-faq).
+- **La Crosse WS9130: EUR32 sale on the French manufacturer site.** Explicit
+  433 MHz, outdoor temperature only; a regional installed-base target rather
+  than a complete APRS weather station.
+  [Manufacturer price/specification](https://en.lacrossetechnology.fr/P-6-A1-WS9130.html).
+
+### Marketplace leads that are not yet purchase recommendations
+
+- **Sainlogic FT0835 / WS-0835 Plus:** documented 433 MHz manuals, but no
+  reliable current US price obtained. Amazon FT0835 ASIN `B08P5VZKKJ` is a
+  search lead; old deal prices must not be presented as live offers.
+- **Gevanti SA8:** explicitly named by the existing SA8 decoder, but exact
+  current listing, delivered revision and price still need checking.
+- **Urageuxy:** Amazon ASIN `B0F8VGQ8D3` advertises wind/rain equipment, but
+  frequency/protocol was not established from a matching primary manual.
+  Do not transfer a 433 MHz claim from another Urageuxy model.
+- **Newentor Q3 and generic Geevon/other inexpensive thermometer stations:**
+  treat as model-specific research leads. A colorful forecast screen and
+  a "weather station" title do not establish measured wind/rain or RF band.
+- **MISOL MS-WH-5300:** inexpensive marketplace leads exist, but a matching
+  manufacturer manual, dependable delivered price and decoder evidence were
+  not verified in this pass. Do not merge it with WS1080 automatically.
+
+Budget-looking alternatives can be on a different band: the
+[Logia LOWSC510WB](https://logiaweatherstations.com/products/5-in-1-wireless-weather-station-with-wi-fi)
+specifies 915 MHz US / 868 MHz EU-UK / 917 MHz AU. The
+[Ambient WS-1965 manual](https://ambientweather.com/mwdownloads/download/link/id/1164)
+specifies 915 MHz. These do not belong on a confirmed 433 MHz list.
+
+For an eventual low-cost CYD bundle, evaluate the **WS69 array alone** and a
+**Sainlogic SA8/SA68** sample. The standalone array could eliminate a redundant
+vendor console once CYD compatibility is validated. Retain Iris as the first
+engineering addition; budget research does not remove the Atlas validation gate
+or change the single-controller hardware requirements.

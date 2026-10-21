@@ -284,7 +284,7 @@ bool portalSelftest(String& failure){
      !expect("Unauthenticated updater","/api/update",401,none)||
      !expect("Unauthenticated archive","/api/archive",401,none)||
      !expect("Unauthenticated CSV","/api/archive.csv?end=1&offset=0",401,none))return false;
-  for(const char* path:{"/api/history","/api/forecast","/api/alerts"})if(!expect("Dashboard authentication",path,401,none))return false;
+  for(const char* path:{"/api/history","/api/forecast","/api/alerts","/api/discovery","/assets/discovery.js"})if(!expect("Dashboard authentication",path,401,none))return false;
   String response;
   if(!expect("Authenticated config","/api/config",200,config.setup_key,nullptr,none,&response))return false;
   DynamicJsonDocument d(4096);
@@ -294,6 +294,10 @@ bool portalSelftest(String& failure){
   }
   const String token=d["csrf"].as<String>();
   if(!token.length()){failure="Config CSRF token missing";return false;}
+  if(!expect("Discovery schema","/api/discovery",200,config.setup_key,nullptr,none,&response))return false;
+  if(deserializeJson(d,response)||d["duration_s"]!=300||!d["candidates"].is<JsonArray>()){failure="Discovery schema";return false;}
+  if(!expect("Discovery CSRF rejection","/api/discovery/start",403,config.setup_key,""))return false;
+  if(!expect("Discovery cancel CSRF rejection","/api/discovery/cancel",403,config.setup_key,""))return false;
   if(!expect("Authenticated archive","/api/archive",200,config.setup_key,nullptr,none,&response))return false;
   if(deserializeJson(d,response)||d["schema"]!=1||d["retention_days"]!=7){failure="Archive schema";return false;}
   if(config.admin_custom){

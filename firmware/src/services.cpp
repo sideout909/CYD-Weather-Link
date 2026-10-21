@@ -11,6 +11,7 @@
 #include "nws_pressure.h"
 #include "weather_icons.h"
 #include "web_history.h"
+#include "radio_receiver.h"
 #include <ArduinoJson.h>
 #include <Preferences.h>
 #include <WebServer.h>
@@ -39,6 +40,7 @@ Preferences prefs;
 String csrf,ap_name;
 uint32_t restart_at=0,last_link_check=0;
 bool scan_started=false;
+station_discovery::Scan discovery;
 const weather::Store* history_source=nullptr;
 uint64_t (*history_now)()=nullptr;
 const char* headers[]={"X-CSRF-Token"};
@@ -57,6 +59,7 @@ void error(const char* message,int code=400) {
 void encodeConfig(JsonDocument& d,bool secrets,const Settings& c=detail::config) {
   d["ssid"]=c.ssid;d["timezone"]=c.timezone;d["station_id"]=c.station_id;
   d["channel"]=String(c.channel);d["radio_enabled"]=c.radio_enabled;
+  d["station_confirmed"]=c.station_confirmed;
   d["location_set"]=c.location_set;d["latitude"]=c.latitude;d["longitude"]=c.longitude;d["elevation_m"]=c.elevation_m;
   d["wu_enabled"]=c.wu_enabled;d["wu_id"]=c.wu_id;
   d["weathercloud_enabled"]=c.weathercloud_enabled;d["weathercloud_id"]=c.weathercloud_id;
@@ -118,6 +121,16 @@ void configPost() {
   const auto update=firmware_updates::state();
   if(update.busy||update.boot_pending){error(update.boot_pending?"Wait for updated firmware to pass startup checks before saving.":"Wait for the firmware update operation to finish.",409);return;}
   Settings next=detail::config;readConfig(d,next,true);
+  if(d.containsKey("discovery_session")&&(!d["discovery_session"].is<uint32_t>())){error("Invalid discovery session.");return;}
+  const uint32_t discovery_session=d["discovery_session"]|uint32_t(0);
+  if(discovery_session){
+    if(!d["discovery_candidate"].is<uint32_t>()){error("Choose a detected station.");return;}
+    const auto* chosen=discovery.choose(discovery_session,d["discovery_candidate"].as<uint32_t>(),millis());
+    if(!chosen){error("That detection expired or is unavailable. Find your station again.",409);return;}
+    next.station_id=chosen->packet.id;next.channel=chosen->packet.channel;next.station_confirmed=true;
+    if(!next.radio_enabled){error("Enable reception before using a detected station.");return;}
+  }else if(d["manual_binding"]==true){next.station_confirmed=true;}
+  else if(next.station_id!=detail::config.station_id||next.channel!=detail::config.channel){error("Find your station, or choose manual binding under Advanced.");return;}
   if(const char* message=validate(next)){error(message);return;}
   if(d["setup_key"].is<const char*>())setup_credentials::chooseAdmin(next.setup_wifi_key,next.setup_key,next.admin_custom,String(d["setup_key"].as<const char*>()),randomKey);
   DynamicJsonDocument saved(4096);encodeConfig(saved,true,next);String body;serializeJson(saved,body);
@@ -131,6 +144,7 @@ void statusGet() {
   DynamicJsonDocument d(4096);
   d["wifi"]=WiFi.status()==WL_CONNECTED;d["ip"]=portalAddress();d["clock_valid"]=clockValid();
   d["source"]=o.live?"radio":(o.epoch_ms?"usb_replay":"none");d["radio_ready"]=o.radio_ready;
+  d["station_confirmed"]=detail::config.station_confirmed;
   d["sensor_status"]=sensor_health::label(sensor_health::State(o.sensor_health));
   if(o.sensor_packet_age_s>=0)d["sensor_packet_age_s"]=o.sensor_packet_age_s;
   d["aprs_connected"]=s.aprs_connected&&WiFi.status()==WL_CONNECTED;d["aprs_verified"]=s.aprs_verified&&s.aprs_connected&&WiFi.status()==WL_CONNECTED;
@@ -230,6 +244,37 @@ void archiveCsvGet(){
   String csv=(offset==0?String(archive_storage::csvHeader()):String(""))+archive_storage::csvPage(end,offset);
   server.sendHeader("X-Content-Type-Options","nosniff");server.send(200,"text/csv; charset=utf-8",csv);
 }
+bool discoveryMutation(){
+  if(!authorize())return false;
+  if(server.header("X-CSRF-Token")!=csrf){error("Refresh this page before finding your station.",403);return false;}
+  const auto update=firmware_updates::state();
+  if(update.busy||update.boot_pending||restart_at){error("Wait for the current save or update to finish.",409);return false;}
+  return true;
+}
+void discoveryGet(){
+  if(!authorize())return;
+  const uint32_t now=millis();
+  DynamicJsonDocument d(8192);
+  d["session"]=discovery.session();d["active"]=discovery.active(now);d["expired"]=discovery.expired(now);
+  d["elapsed_s"]=discovery.elapsed(now)/1000;d["duration_s"]=300;
+  d["ready"]=detail::config.radio_enabled&&radio_receiver::ready();d["overflow"]=discovery.overflow();
+  d["profile"]="433.92 MHz OOK";d["station_confirmed"]=detail::config.station_confirmed;
+  auto candidates=d.createNestedArray("candidates");
+  for(const auto& candidate:discovery.candidates()){
+    if(!candidate.occupied)continue;const auto& p=candidate.packet;
+    auto c=candidates.createNestedObject();c["token"]=candidate.token;c["name"]=station_discovery::name(p.model);
+    c["id"]=p.id;char channel[]={p.channel,0};c["channel"]=channel;
+    c["sightings"]=candidate.sightings;c["age_s"]=uint32_t(now-candidate.last_ms)/1000;
+    c["suggested"]=candidate.suggested(now);c["selectable"]=candidate.selectable(now);
+    c["supported"]=p.model==station_discovery::Model::Atlas;
+    const auto fields=candidate.freshFields(now);c["fields"]=fields;
+    if(fields&station_discovery::Temperature)c["temperature_F"]=p.temperature_f;
+    if(fields&station_discovery::Humidity)c["humidity"]=p.humidity;
+    if(fields&station_discovery::Wind)c["wind_mph"]=p.wind_mph;
+  }
+  if(d.overflowed()){error("Detection status unavailable.",503);return;}
+  String body;serializeJson(d,body);server.send(200,"application/json",body);
+}
 }
 const Settings& settings(){return detail::config;}
 State state(){State copy;if(detail::state_mutex && xSemaphoreTake(detail::state_mutex,pdMS_TO_TICKS(10))==pdTRUE){copy=detail::current;xSemaphoreGive(detail::state_mutex);}return copy;}
@@ -242,10 +287,11 @@ void publish(const Observation& sample){
   if(detail::observations)xQueueOverwrite(detail::observations,&sample);
 }
 void bindHistory(const weather::Store* store,uint64_t (*now)()){history_source=store;history_now=now;}
+void observeDiscovery(const station_discovery::Packet& packet,uint32_t now){discovery.observe(packet,now);}
 void begin(){
   detail::state_mutex=xSemaphoreCreateMutex();detail::observations=xQueueCreate(1,sizeof(Observation));
   prefs.begin("wxlink",false);String saved=prefs.getString("settings","");
-  if(saved.length()){DynamicJsonDocument d(6144);if(!deserializeJson(d,saved)){readConfig(d,detail::config,false);detail::config.setup_wifi_key=d["setup_wifi_key"]|String("");detail::config.admin_custom=d["admin_custom"]|true;}}
+  if(saved.length()){DynamicJsonDocument d(6144);if(!deserializeJson(d,saved)){readConfig(d,detail::config,false);detail::config.station_confirmed=d["station_confirmed"]|d.containsKey("station_id");detail::config.setup_wifi_key=d["setup_wifi_key"]|String("");detail::config.admin_custom=d["admin_custom"]|true;}}
   if(setup_credentials::ensure(detail::config.setup_wifi_key,detail::config.setup_key,detail::config.admin_custom,randomKey)){
     DynamicJsonDocument d(4096);encodeConfig(d,true);String body;serializeJson(d,body);prefs.putString("settings",body);
   }
@@ -260,6 +306,7 @@ void begin(){
   server.on("/",HTTP_GET,[]{if(authorize()){server.sendHeader("X-Content-Type-Options","nosniff");server.send_P(200,"text/html; charset=utf-8",kSetupPage);}});
   server.on("/assets/location.js",HTTP_GET,[]{if(authorize()){server.sendHeader("Content-Encoding","gzip");server.sendHeader("X-Content-Type-Options","nosniff");server.send_P(200,"text/javascript",reinterpret_cast<const char*>(setup_assets::location_js),sizeof(setup_assets::location_js));}});
   server.on("/assets/dashboard.js",HTTP_GET,[]{if(authorize()){server.sendHeader("Content-Encoding","gzip");server.sendHeader("X-Content-Type-Options","nosniff");server.send_P(200,"text/javascript",reinterpret_cast<const char*>(setup_assets::dashboard_js),sizeof(setup_assets::dashboard_js));}});
+  server.on("/assets/discovery.js",HTTP_GET,[]{if(authorize()){server.sendHeader("Content-Encoding","gzip");server.sendHeader("X-Content-Type-Options","nosniff");server.send_P(200,"text/javascript",reinterpret_cast<const char*>(setup_assets::discovery_js),sizeof(setup_assets::discovery_js));}});
   server.on("/assets/weather.png",HTTP_GET,[]{
     if(!authorize())return;const String name=server.arg("name");
     struct Icon{const char* name;const uint8_t* bytes;size_t size;};
@@ -272,6 +319,14 @@ void begin(){
   server.on("/api/config",HTTP_GET,configGet);server.on("/api/config",HTTP_POST,configPost);server.on("/api/status",HTTP_GET,statusGet);
   server.on("/api/archive",HTTP_GET,archiveStatusGet);server.on("/api/archive.csv",HTTP_GET,archiveCsvGet);
   server.on("/api/history",HTTP_GET,historyGet);server.on("/api/forecast",HTTP_GET,forecastGet);server.on("/api/alerts",HTTP_GET,alertsGet);
+  server.on("/api/discovery",HTTP_GET,discoveryGet);
+  server.on("/api/discovery/start",HTTP_POST,[]{
+    if(!discoveryMutation())return;
+    if(!detail::config.radio_enabled||!radio_receiver::ready()){error("Receiver unavailable. Enable reception, save, and check CC1101 wiring/power.",409);return;}
+    if(discovery.active(millis())){error("A scan is already running. Cancel it before starting again.",409);return;}
+    discovery.start(millis(),esp_random());server.send(202,"application/json","{\"started\":true}");
+  });
+  server.on("/api/discovery/cancel",HTTP_POST,[]{if(!discoveryMutation())return;discovery.cancel();server.send(200,"application/json","{\"cancelled\":true}");});
   server.on("/api/update",HTTP_GET,[]{if(!authorize())return;auto s=firmware_updates::state();StaticJsonDocument<1024>d;d["current_version"]=firmware_version::current;d["available_version"]=s.available_version;d["message"]=s.message;d["busy"]=s.busy;d["available"]=s.available;d["progress"]=s.progress;d["boot_pending"]=s.boot_pending;d["last_checked"]=s.last_checked;String body;serializeJson(d,body);server.send(200,"application/json",body);});
   server.on("/api/update/check",HTTP_POST,[]{if(!authorize())return;if(server.header("X-CSRF-Token")!=csrf){error("Refresh this page before checking.",403);return;}if(!firmware_updates::requestCheck()){error("An update operation is already pending.",409);return;}server.send(202,"application/json","{\"queued\":true}");});
   server.on("/api/update/install",HTTP_POST,[]{if(!authorize())return;if(server.header("X-CSRF-Token")!=csrf){error("Refresh this page before installing.",403);return;}if(!firmware_updates::requestInstall()){error("Check for a compatible update first, or wait for the current operation.",409);return;}server.send(202,"application/json","{\"queued\":true}");});
