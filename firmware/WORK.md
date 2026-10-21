@@ -6,7 +6,7 @@ SD logging and D710 serial are optional. PC RTL-SDR recording stays stopped.
 
 ## Running board
 
-The board now runs v0.3.2. It includes the callsign/speaker/APRS header,
+The board now runs v0.4.0. It includes the callsign/speaker/APRS header,
 Link status details, Atlas stale-cycle/no-signal monitoring, persistent APRS/CWOP
 sessions and opt-in GitHub OTA, alongside the earlier map/security features.
 USB upload preserved Wi-Fi/location/custom admin settings. Display, portal,
@@ -18,6 +18,10 @@ tabs, accepts fractional saved elevation, enlarges the callsign and uses spaced
 + / X connection indicators. Browser regressions and USB upload passed.
 Both automatic update settings default off. The GitHub repository and v0.3.1
 release are published; no device update setting was changed by publishing.
+The seven-day archive is installed: fixed 126 KiB storage, five-minute summaries,
+protected browser/USB CSV and a 512 KiB free-space reserve. Existing minute
+history/checkpoint schema and OTA layout are preserved. Real CSV export and
+saved-record recovery across restart passed; see RECORDING.md.
 Hosted OTA/rollback remains unverified. The owner confirmed correct-location
 APRS.fi weather display with CYDWeatherLink identification and visible WU
 uploads. CWOP/MADIS collection and Weathercloud ingestion remain unverified.

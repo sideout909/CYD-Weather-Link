@@ -231,12 +231,21 @@ bool portalSelftest(){
   bool ok=http.GET()==401;http.end();
   if(!http.begin(client,root+"/api/update"))return false;
   ok=ok&&http.GET()==401;http.end();
+  if(!http.begin(client,root+"/api/archive"))return false;
+  ok=ok&&http.GET()==401;http.end();
+  if(!http.begin(client,root+"/api/archive.csv?end=1&offset=0"))return false;
+  ok=ok&&http.GET()==401;http.end();
   if(!http.begin(client,root+"/api/config"))return false;
   http.setAuthorization("admin",config.setup_key.c_str());
   if(http.GET()!=200){http.end();return false;}
   DynamicJsonDocument d(4096);auto parsed=deserializeJson(d,http.getString());http.end();
   ok=ok&&!parsed&&d["station_id"].as<unsigned>()==config.station_id&&!d.containsKey("setup_key")&&!d.containsKey("setup_wifi_key")&&!d.containsKey("wifi_password")&&!d.containsKey("wu_key");
   const String token=d["csrf"].as<String>();
+  if(!http.begin(client,root+"/api/archive"))return false;
+  http.setAuthorization("admin",config.setup_key.c_str());
+  if(http.GET()!=200){http.end();return false;}
+  const bool archive_parsed=!deserializeJson(d,http.getString());http.end();
+  ok=ok&&archive_parsed&&d["schema"]==1&&d["retention_days"]==7;
   if(config.admin_custom){
     ok=ok&&config.setup_wifi_key!=config.setup_key;
     if(!http.begin(client,root+"/api/config"))return false;

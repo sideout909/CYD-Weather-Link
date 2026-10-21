@@ -8,7 +8,8 @@ from optional D710 serial output. No Pi/gateway or SD card is required.
 Development firmware includes a v2 Home display, swipeable 24-hour trends and
 NWS forecasts/alerts, local-midnight rain, five-minute received wind peaks,
 field-age/connection details, callsign/status header, protected browser setup,
-embedded ZIP/map/elevation selection, persistence and opt-in sharing. Weather
+embedded ZIP/map/elevation selection, persistence and opt-in sharing. A separate
+seven-day archive retains five-minute summaries with browser/USB CSV export. Weather
 Underground and Weathercloud adapters are implemented. Live CC1101 reception,
 APRS.fi location/weather display and WU uploads are observed. CWOP/Weathercloud
 ingestion, reference comparison and a full soak remain validation gates. Windy is later work; D710, pressure and sound are
@@ -21,6 +22,7 @@ optional additions.
 - [Owner touch/browser controls checklist](firmware/CONTROLS_CHECKLIST.md)
 - [Current bench evidence and remaining checks](firmware/VALIDATION.md)
 - [Embedded map sources, privacy and offline fallback](assets/web/README.md)
+- [On-device recording, storage limits and CSV download](firmware/RECORDING.md)
 - [Opt-in GitHub updates and release packaging](firmware/UPDATES.md)
 - [Manufacturer PDFs](reference/README.md)
 

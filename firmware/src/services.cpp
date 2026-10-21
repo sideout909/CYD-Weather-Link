@@ -7,6 +7,7 @@
 #include "firmware_updates.h"
 #include "firmware_version.h"
 #include "update_policy.h"
+#include "archive_storage.h"
 #include <ArduinoJson.h>
 #include <Preferences.h>
 #include <WebServer.h>
@@ -143,6 +144,26 @@ void statusGet() {
   d["wu_last_success"]=s.wu_success;d["weathercloud_last_success"]=s.weathercloud_success;d["aprs_last_success"]=s.aprs_success;
   String body;serializeJson(d,body);server.send(200,"application/json",body);
 }
+void archiveStatusGet(){
+  if(!authorize())return;
+  const uint64_t now=clockValid()?uint64_t(time(nullptr))*1000:0;const auto s=archive_storage::state(now);
+  StaticJsonDocument<1536>d;d["schema"]=1;d["ready"]=s.ready;d["clock_valid"]=bool(now);d["message"]=s.message;
+  d["records"]=s.records;d["capacity"]=history_archive::kRecords;d["interval_seconds"]=300;d["retention_days"]=7;
+  d["end_interval"]=archive_storage::endInterval(now);d["oldest_ms"]=s.oldest_ms;d["latest_ms"]=s.latest_ms;
+  d["bytes"]=s.bytes;d["free_bytes"]=s.free_bytes;d["write_failures"]=s.write_failures;d["invalid_records"]=s.invalid_records;
+  String body;serializeJson(d,body);server.send(200,"application/json",body);
+}
+void archiveCsvGet(){
+  if(!authorize())return;
+  const uint32_t now=clockValid()?uint64_t(time(nullptr))*1000/history_archive::kIntervalMs:0;
+  const auto digits=[](const String& s){if(!s.length()||s.length()>10)return false;for(char c:s)if(c<'0'||c>'9')return false;return true;};
+  if(!now||!digits(server.arg("end"))||!digits(server.arg("offset"))){error("Archive download needs valid time and pagination.",400);return;}
+  const uint64_t end=strtoull(server.arg("end").c_str(),nullptr,10),offset=strtoull(server.arg("offset").c_str(),nullptr,10);
+  if(!end||end>now||now-end>=history_archive::kRecords||offset>=history_archive::kRecords){error("Invalid archive download window.",400);return;}
+  if(!archive_storage::state(uint64_t(now)*history_archive::kIntervalMs).ready){error("Archive storage unavailable.",503);return;}
+  String csv=(offset==0?String(archive_storage::csvHeader()):String(""))+archive_storage::csvPage(end,offset);
+  server.sendHeader("X-Content-Type-Options","nosniff");server.send(200,"text/csv; charset=utf-8",csv);
+}
 }
 const Settings& settings(){return detail::config;}
 State state(){State copy;if(detail::state_mutex && xSemaphoreTake(detail::state_mutex,pdMS_TO_TICKS(10))==pdTRUE){copy=detail::current;xSemaphoreGive(detail::state_mutex);}return copy;}
@@ -174,6 +195,7 @@ void begin(){
   server.on("/assets/leaflet-1.9.4.js",HTTP_GET,[]{if(authorize()){server.sendHeader("Content-Encoding","gzip");server.sendHeader("X-Content-Type-Options","nosniff");server.send_P(200,"text/javascript",reinterpret_cast<const char*>(setup_assets::leaflet_js),sizeof(setup_assets::leaflet_js));}});
   server.on("/assets/leaflet-1.9.4.css",HTTP_GET,[]{if(authorize()){server.sendHeader("Content-Encoding","gzip");server.sendHeader("X-Content-Type-Options","nosniff");server.send_P(200,"text/css",reinterpret_cast<const char*>(setup_assets::leaflet_css),sizeof(setup_assets::leaflet_css));}});
   server.on("/api/config",HTTP_GET,configGet);server.on("/api/config",HTTP_POST,configPost);server.on("/api/status",HTTP_GET,statusGet);
+  server.on("/api/archive",HTTP_GET,archiveStatusGet);server.on("/api/archive.csv",HTTP_GET,archiveCsvGet);
   server.on("/api/update",HTTP_GET,[]{if(!authorize())return;auto s=firmware_updates::state();StaticJsonDocument<1024>d;d["current_version"]=firmware_version::current;d["available_version"]=s.available_version;d["message"]=s.message;d["busy"]=s.busy;d["available"]=s.available;d["progress"]=s.progress;d["boot_pending"]=s.boot_pending;d["last_checked"]=s.last_checked;String body;serializeJson(d,body);server.send(200,"application/json",body);});
   server.on("/api/update/check",HTTP_POST,[]{if(!authorize())return;if(server.header("X-CSRF-Token")!=csrf){error("Refresh this page before checking.",403);return;}if(!firmware_updates::requestCheck()){error("An update operation is already pending.",409);return;}server.send(202,"application/json","{\"queued\":true}");});
   server.on("/api/update/install",HTTP_POST,[]{if(!authorize())return;if(server.header("X-CSRF-Token")!=csrf){error("Refresh this page before installing.",403);return;}if(!firmware_updates::requestInstall()){error("Check for a compatible update first, or wait for the current operation.",409);return;}server.send(202,"application/json","{\"queued\":true}");});
@@ -189,7 +211,7 @@ void begin(){
 }
 void loop(){
   dns.processNextRequest();server.handleClient();
-  if(restart_at && int32_t(millis()-restart_at)>=0)ESP.restart();
+  if(restart_at && int32_t(millis()-restart_at)>=0){archive_storage::flush();ESP.restart();}
   if(millis()-last_link_check>1000){last_link_check=millis();
     if(xSemaphoreTake(detail::state_mutex,pdMS_TO_TICKS(2))==pdTRUE){auto& s=detail::current;s.wifi=WiFi.status()==WL_CONNECTED;s.clock_valid=clockValid();s.ap=true;s.ap_name=ap_name;s.ip=portalAddress();xSemaphoreGive(detail::state_mutex);}
   }

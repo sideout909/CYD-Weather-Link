@@ -94,3 +94,17 @@ needed for navigation. Missing local readings are expected until reception.
 
 Record failed action, expected/actual result, page and approximate time.
 Full reception, outage, persistence and sharing gates are in [VALIDATION.md](VALIDATION.md).
+
+
+## Seven-day recording
+
+- [ ] Overview shows recording ready, saved interval count and free storage.
+- [ ] After a UTC five-minute boundary, the saved interval count increases.
+- [ ] Download seven-day CSV succeeds and opens with UTC timestamps, real zeros,
+      blank missing measurements, received wind peaks and explicit coverage flags.
+- [ ] Normal RF readings/swipes remain responsive during the download.
+- [ ] Move to independent USB power; Wi-Fi/Atlas recover, earlier archived rows
+      remain available and any restart gap stays partial. Allow up to five
+      minutes of uncommitted data loss on an abrupt disconnect.
+- [ ] Bring the board back after the soak and export the rolling week via USB
+      or browser. Keep that CSV separately to preserve it beyond seven days.

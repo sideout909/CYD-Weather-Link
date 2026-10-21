@@ -59,6 +59,7 @@ def main():
             request.fulfill(content_type='application/json', body='{"saved":true}')
         elif url.path == '/api/config': request.fulfill(content_type='application/json', body=json.dumps(config))
         elif url.path == '/api/status': request.fulfill(content_type='application/json', body='{"wifi":true,"source":"none"}')
+        elif url.path == '/api/archive': request.fulfill(content_type='application/json', body='{"ready":true,"clock_valid":true,"records":0,"capacity":2016,"free_bytes":1000000,"message":"Recording five-minute summaries"}')
         else: raise AssertionError(url.path)
 
     artifacts = ROOT/'captures/firmware-validation'

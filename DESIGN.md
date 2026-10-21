@@ -440,3 +440,19 @@ Community validation TODO:
   ask volunteers to compare the display with their reference receiver/console.
 - Keep discovery and broader decoder work deferred until the owner's Atlas
   validates reception, supply stability and simultaneous network/display load.
+
+
+## Seven-day on-device summaries — October 21 owner update
+
+Retain the rolling 24-hour minute history for display and add a separate bounded
+seven-day archive of five-minute summaries. Preserve temperature mean/min/max,
+humidity mean, light mean/peak, received wind mean/peak, observed rain increments
+and reception/coverage counters. Missing readings, restart gaps and uncertain
+rain must remain identifiable. Only live bound-station data with valid UTC may
+enter the archive; replay must not write it or change uploader eligibility.
+Use fixed 64-byte CRC records (2,016 slots, 126 KiB payload), protect a 512 KiB
+filesystem reserve and preserve both OTA slots and existing checkpoint schema.
+Provide authenticated browser CSV and USB download for later analysis. Keep
+archive writes bounded and reception responsive; document flash-block overhead
+and partial current-interval loss on power interruption. See
+[RECORDING.md](firmware/RECORDING.md) for format, recovery and export behavior.

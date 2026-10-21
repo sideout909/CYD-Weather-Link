@@ -24,6 +24,8 @@ def main():
     saves = []
     update_requests = []
     update_state = dict(current_version='0.3.0', available=False, busy=False, message='Updates off', progress=0)
+    archive_requests = []
+    archive_failure = dict(enabled=False)
     errors = []
     def route(request):
         path = request.request.url.split('weatherlink.test', 1)[-1]
@@ -43,6 +45,18 @@ def main():
             result = dict(saved=True, restarting=True)
         elif path == '/api/config': result = config
         elif path == '/api/status': result = status
+        elif path == '/api/archive': result = dict(ready=True, clock_valid=True, message='Recording five-minute summaries', records=2, capacity=64, end_interval=5000000, free_bytes=1000000)
+        elif path.startswith('/api/archive.csv?'):
+            from urllib.parse import parse_qs, urlsplit
+            query = parse_qs(urlsplit(path).query)
+            assert query['end'] == ['5000000']
+            offset = int(query['offset'][0]); archive_requests.append(offset)
+            if archive_failure['enabled'] and offset == 32:
+                request.fulfill(status=503, content_type='text/plain', body='Unavailable')
+                return
+            body = 'utc_start,value\n2026-10-21T00:00:00Z,0\n' if offset == 0 else '2026-10-21T00:05:00Z,1\n'
+            request.fulfill(status=200, content_type='text/csv', body=body)
+            return
         elif path == '/api/update': result = update_state
         elif path in ('/api/update/check', '/api/update/install'):
             assert request.request.method == 'POST' and request.request.headers['x-csrf-token'] == config['csrf']
@@ -63,6 +77,21 @@ def main():
         assert page.locator('#rain').inner_text() == '0.12 in *'
         assert page.get_by_text('Rain · today', exact=True).is_visible()
         page.screenshot(path=str(artifacts/'setup-desktop.png'), full_page=True)
+        page.wait_for_function("!document.querySelector('#archive-download').disabled")
+        with page.expect_download() as pending:
+            page.locator('#archive-download').click()
+        download = pending.value
+        archive_file = artifacts/'synthetic-seven-day.csv'
+        download.save_as(str(archive_file))
+        assert archive_requests == [0, 32]
+        assert archive_file.read_text().count('utc_start') == 1
+        assert '2026-10-21T00:05:00Z,1' in archive_file.read_text()
+        page.wait_for_function("!document.querySelector('#archive-download').disabled")
+        archive_failure['enabled'] = True
+        page.locator('#archive-download').click()
+        page.wait_for_function("document.querySelector('#archive-feedback').textContent==='Download interrupted. Try again.'")
+        page.wait_for_function("!document.querySelector('#archive-download').disabled")
+        archive_failure['enabled'] = False
         page.get_by_role('button', name='Station & Wi-Fi', exact=True).click()
         assert page.locator('#station_id').input_value() == '679'
         assert page.locator('#wu_key').input_value() == ''

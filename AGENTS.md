@@ -10,6 +10,7 @@ This repository contains hardware and firmware planning documents, display conce
 - `WEATHER_SHARING.md` records current sharing-network research, exporter priorities, and APRS/CWOP routing/registration validation requirements.
 - `firmware/src/` contains the Arduino application; `firmware/include/` contains the weather model, packet/report adapters, service contracts and embedded setup page.
 - `firmware/include/rolling_rain.h` tracks bounded rain-counter intervals for hour/24-hour coverage; checkpoint schema 3 persists them alongside minute history.
+- `firmware/include/history_archive.h` and `firmware/src/archive_storage.cpp` implement the fixed seven-day/five-minute archive; `firmware/RECORDING.md` documents bounded storage and protected CSV/USB export. Replay must never enter the archive.
 - `firmware/include/daily_rain.h` supplies local-day rain with an immediate midnight display reset, independent of when the next radio packet arrives.
 - `tools/pack-weather-icons.py` packs existing original assets; `tools/verify_setup_page.py` optionally checks the embedded page in headless Brave/Playwright.
 - `tools/pack-home-fonts.py` packs the v2 study's DejaVu glyphs into `firmware/include/home_fonts.h`; source font licensing lives in `assets/fonts/`.

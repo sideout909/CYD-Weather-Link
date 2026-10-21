@@ -1,6 +1,6 @@
 # Core firmware validation
 
-October 20, 2026 · version 0.3.2 · `panellan_sc05_x` · owned
+October 21, 2026 · version 0.4.0 · `panellan_sc05_x` · owned
 `ZX2D80CE02S-V10`, USB serial `68:B6:B3:34:82:48`.
 
 ## Hardware and preservation
@@ -354,3 +354,51 @@ socket write, while maintaining the logged-in connection. Failed sends back
 off up to one hour. WU normally uploads every 60 seconds after acceptance,
 with failure backoff up to 30 minutes. Both remain gated on fresh live station
 data and valid time; request duration/scheduling can lengthen these intervals.
+
+
+## Seven-day archive — v0.4.0, October 21
+
+Kept the existing 1,440-minute display ring and checkpoint schema 3. Added
+2,016 fixed 64-byte five-minute records (129,024 bytes) in internal LittleFS,
+CRC/bound-station checks, coverage flags, observed rain increments, temperature
+mean/min/max, humidity mean, wind mean/peak, light mean/peak and reception counts.
+Archive allocation/commits preserve a 512 KiB free-space reserve. No partition,
+NVS secret, radio pin, uploader cadence or live-data gate changed.
+
+Host archive tests pass for fixed layout, means/peaks, genuine zero versus
+missing, elapsed coverage with normal 1.01-second loop jitter, actual pauses,
+backwards time, seven-day expiry, CRC, binding, ambiguous rain boundaries,
+partial restart merging, rejected/other-station frames and count saturation.
+All existing firmware checks and 16 Python tests pass. Browser setup/map checks
+pass, including CSV page assembly and a failed-page retry. The pinned build
+uses 1,535,501 application bytes and 68,276 static RAM bytes (45.9% / 20.8%).
+
+USB upload restored the existing real minute-history checkpoint. The archive
+allocated successfully and the actual protected portal self-test passes,
+including unauthorized archive/CSV rejection and authenticated archive metadata.
+On-device checkpoint and archive read/replacement/CRC diagnostics passed.
+Native USB commands now synchronize with an acknowledged status and request
+exclusive serial access; diagnostic reply timeout is 45 seconds. Only one
+process may use the port. These are host transport fixes, not station resets.
+
+Exported real CSV through the paged USB path. Saved three real records, updated/
+restarted the board, then exported again: every saved row matched field for
+field. Filesystem free space is 1,298,432 bytes (about 1.24 MiB), well above
+the reserve; archive write failures remain zero. Live Atlas reception and the
+APRS connection recover after startup, with no replay or artificial weather
+injected. A second save/export confirmed the resumed interval continued adding
+live samples while older completed rows stayed identical. Current partial
+intervals deliberately retain restart/rain-gap flags.
+
+Private evidence: `archive-before-runtime.json`, `archive-v040-runtime.json`,
+`archive-v040-diagnostics.json`, `archive-v040-before-reboot-save.json`,
+`archive-v040-{first,before-reboot,after-reboot}.csv`,
+`archive-v040-after-reboot.json` and `archive-v040-final-runtime.json` under
+captures/firmware-validation/. Browser fixtures/screenshots there are synthetic.
+
+Actual on-board browser CSV downloading still needs the owner's phone check;
+USB uses the same CSV-page formatter and browser assembly was tested headlessly.
+A physical power interruption during a slot write and full seven-day runtime/
+rollover remain soak acceptance checks. See RECORDING.md for retention, loss
+bounds, UTC, precision, storage reserve and export semantics. The PC receiver
+logger remains stopped and no cloud archive upload was added.

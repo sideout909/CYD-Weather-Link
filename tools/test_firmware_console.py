@@ -1,9 +1,56 @@
 import unittest
-from firmware_console import sample_command, response, screenshot
+from firmware_console import sample_command, response, screenshot, download_archive, synchronize
 from pathlib import Path
+import json
+import tempfile
 
 
 class ReplayAdapterTests(unittest.TestCase):
+    def test_console_synchronizes_before_commands_and_retries_stale_error(self):
+        class Port:
+            def __init__(self): self.attempts = 0
+            def reset_input_buffer(self): pass
+            def write(self, data):
+                if data != b'\n':
+                    self.command = json.loads(data); self.attempts += 1
+                return len(data)
+            def readline(self):
+                if self.attempts == 1: return b'{"event":"error","reason":"invalid_json"}\n'
+                return json.dumps(dict(event='status', request_id=self.command['request_id'])).encode()
+        port = Port()
+        self.assertEqual(synchronize(port)['event'], 'status')
+        self.assertEqual(port.attempts, 2)
+
+    def test_archive_download_preserves_window_and_publishes_only_complete_file(self):
+        class Port:
+            def __init__(self): self.pending = None; self.requests = []
+            def write(self, data):
+                command = json.loads(data); self.requests.append(command)
+                offset = command['offset']
+                if offset: self.assert_snapshot = command['end'] == 5000000
+                self.pending = dict(event='archive', request_id=command['request_id'], end=5000000,
+                                    next_offset=32 if offset == 0 else 2016,
+                                    csv='utc_start,value\n2026-10-21T00:00:00Z,0\n' if offset == 0 else '')
+                return len(data)
+            def readline(self): return (json.dumps(self.pending)+'\n').encode()
+        port = Port()
+        with tempfile.TemporaryDirectory() as tmp:
+            output = Path(tmp)/'history.csv'
+            self.assertEqual(download_archive(port, output), output)
+            self.assertEqual(output.read_text(), 'utc_start,value\n2026-10-21T00:00:00Z,0\n')
+            self.assertFalse(output.with_suffix('.csv.partial').exists())
+            self.assertTrue(port.assert_snapshot)
+
+    def test_archive_rejects_nonadvancing_pagination(self):
+        class Port:
+            def write(self, data): self.command = json.loads(data); return len(data)
+            def readline(self): return json.dumps(dict(event='archive', request_id=self.command['request_id'], end=5000000, next_offset=0, csv='utc_start,value\n')).encode()
+        with tempfile.TemporaryDirectory() as tmp:
+            output = Path(tmp)/'history.csv'
+            with self.assertRaisesRegex(RuntimeError, 'pagination'):
+                download_archive(Port(), output)
+            self.assertFalse(output.exists())
+
     def packet(self, **extra):
         return dict(model='Acurite-Atlas', id=679, channel='A',
                     message_type=39, time='2026-10-18T00:00:00', **extra)

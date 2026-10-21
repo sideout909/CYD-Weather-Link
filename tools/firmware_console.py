@@ -55,6 +55,52 @@ def response(port, event, timeout=5, request_id=None):
     raise TimeoutError(f'No {event} response from firmware')
 
 
+def download_archive(port, output):
+    """Page the fixed archive without pausing RF or loading it all on the ESP32."""
+    output.parent.mkdir(parents=True, exist_ok=True)
+    partial = output.with_suffix(output.suffix+'.partial')
+    offset = 0
+    end = None
+    with partial.open('w', encoding='utf-8', newline='') as stream:
+        while offset < 2016:
+            command = dict(op='archive', offset=offset)
+            if end is not None:
+                command['end'] = end
+            rid = send(port, command)
+            reply = response(port, 'archive', timeout=10, request_id=rid)
+            if end is None:
+                end = reply['end']
+            if reply['end'] != end:
+                raise RuntimeError('Archive window changed during download')
+            next_offset = reply['next_offset']
+            if not isinstance(next_offset, int) or not offset < next_offset <= 2016:
+                raise RuntimeError('Invalid archive pagination')
+            csv = reply['csv']
+            if not isinstance(csv, str) or (offset == 0 and not csv.startswith('utc_start,')):
+                raise RuntimeError('Invalid archive CSV response')
+            stream.write(csv)
+            offset = next_offset
+    partial.replace(output)
+    return output
+
+
+def synchronize(port):
+    # Native USB can still be finishing its control-line transition when open
+    # returns. Establish an acknowledged connection before any stateful command.
+    time.sleep(.1)
+    port.reset_input_buffer()
+    for attempt in range(3):
+        port.write(b'\n')
+        rid = send(port, {'op': 'status'})
+        try:
+            return response(port, 'status', timeout=5, request_id=rid)
+        except (TimeoutError, RuntimeError) as error:
+            if error.args and isinstance(error.args[0], dict) and error.args[0].get('event') == 'fatal':
+                raise
+            if attempt == 2:
+                raise
+
+
 def screenshot(port, output):
     send(port, {'op': 'screen'})
     deadline = time.monotonic()+8
@@ -92,6 +138,8 @@ def main():
     sub.add_parser('status')
     sub.add_parser('diagnostics')
     sub.add_parser('reset')
+    sub.add_parser('checkpoint-save')
+    archive = sub.add_parser('archive'); archive.add_argument('output', type=Path)
     page = sub.add_parser('page'); page.add_argument('page', choices=['home', 'trends', 'forecast'])
     detail = sub.add_parser('detail'); detail.add_argument('detail', choices=['outdoor', 'wind', 'humidity', 'rain', 'pressure', 'link'])
     screen = sub.add_parser('screen'); screen.add_argument('output', type=Path)
@@ -103,11 +151,13 @@ def main():
     args = parser.parse_args()
     # The S3 native USB bridge resets with both lines deasserted. Keeping
     # DTR/RTS asserted together preserves the running app on this board.
-    port = serial.Serial(port=None, baudrate=115200, timeout=3, write_timeout=5)
+    port = serial.Serial(port=None, baudrate=115200, timeout=3, write_timeout=5, exclusive=True)
     port.dtr = True; port.rts = True; port.port = args.port
     with port:
-        port.reset_input_buffer()
-        if args.command == 'screen':
+        synchronize(port)
+        if args.command == 'archive':
+            print(download_archive(port, args.output))
+        elif args.command == 'screen':
             screenshot(port, args.output)
         elif args.command == 'replay':
             rid = send(port, {'op': 'reset'}); response(port, 'reset', request_id=rid)
@@ -140,14 +190,14 @@ def main():
             rid = send(port, {'op': 'status'})
             print(json.dumps({'sent': sent, 'results': outcomes, 'status': response(port, 'status', request_id=rid)}, indent=2))
         else:
-            op = {'op': args.command}
+            op = {'op': args.command.replace('-', '_')}
             if args.command == 'page': op['page'] = ['home', 'trends', 'forecast'].index(args.page)
             if args.command == 'detail': op['detail'] = ['outdoor', 'wind', 'humidity', 'rain', 'pressure', 'link'].index(args.detail)
             rid = send(port, op)
             # Flash write/replace/CRC diagnostics can exceed the ordinary
             # five-second reply budget while network work is also running.
-            timeout = 15 if args.command == 'diagnostics' else 5
-            print(json.dumps(response(port, args.command, timeout=timeout, request_id=rid), indent=2))
+            timeout = 45 if args.command == 'diagnostics' else 15 if args.command == 'checkpoint-save' else 5
+            print(json.dumps(response(port, op['op'], timeout=timeout, request_id=rid), indent=2))
 
 
 if __name__ == '__main__':

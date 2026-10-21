@@ -13,6 +13,7 @@
 #include "home_fonts.h"
 #include "daily_rain.h"
 #include "checkpoint.h"
+#include "archive_storage.h"
 #include "services.h"
 #include "radio_receiver.h"
 #include "sensor_health.h"
@@ -449,7 +450,7 @@ void draw() {
   dirty=false;last_draw=uptimeMs();
 }
 void status(const char* event = "status") {
-  StaticJsonDocument<2048> out;
+  StaticJsonDocument<3072> out;
   out["event"]=event;out["request_id"]=request_id;out["version"]=kVersion;out["board"]="panellan_sc05_x";
   out["display_initialized"]=display_ok;out["width"]=display.width();out["height"]=display.height();
   out["flash_bytes"]=ESP.getFlashChipSize();out["psram_bytes"]=ESP.getPsramSize();
@@ -474,11 +475,14 @@ void status(const char* event = "status") {
   out["sensor_status"]=sensor_health::label(sensorState());out["bound_packets_heard"]=sensor_monitor.received;
   out["aprs_connected"]=network.aprs_connected&&network.wifi;
   out["accepted"]=store->accepted;out["duplicates"]=store->duplicates;out["rejected"]=store->rejected;
+  const auto archive=archive_storage::state(clock_anchored?liveNow():0);
+  out["archive_ready"]=archive.ready;out["archive_records"]=archive.records;out["archive_state"]=archive.message;
+  out["archive_bytes"]=archive.bytes;out["filesystem_free_bytes"]=archive.free_bytes;out["archive_write_failures"]=archive.write_failures;
   out["rain_session_in"]=store->session_rain_tips/100.0;out["rain_discontinuities"]=store->rain_discontinuities;
   auto peak=store->gust(dataNow());if(peak.valid)out["gust_5m_mph"]=peak.value;
   if(store->temperature.valid)out["temperature_F"]=store->temperature.value;
   if(store->lux.valid)out["lux"]=store->lux.value;
-  char buffer[2048];
+  char buffer[3072];
   const size_t length=serializeJson(out,buffer,sizeof(buffer));
   Serial.write(reinterpret_cast<const uint8_t*>(buffer),length);Serial.println();
 }
@@ -501,7 +505,22 @@ void command(const char* input) {
   const char* op=doc["op"]|"";
   if (!strcmp(op,"status")) status();
   else if(!strcmp(op,"theme_preview") && replay){int theme=doc["theme"]|-1;if(theme>=-1 && theme<=3){theme_preview=theme;dirty=true;status("theme_preview");}}
-  else if(!strcmp(op,"diagnostics")){bool passed=checkpoint::selftest();Serial.printf("{\"event\":\"diagnostics\",\"request_id\":%u,\"checkpoint_passed\":%s,\"portal_passed\":%s}\n",request_id,passed?"true":"false",network.portal_passed?"true":"false");}
+  else if(!strcmp(op,"diagnostics")){bool passed=checkpoint::selftest();bool archive=archive_storage::selftest();Serial.printf("{\"event\":\"diagnostics\",\"request_id\":%u,\"checkpoint_passed\":%s,\"archive_passed\":%s,\"portal_passed\":%s}\n",request_id,passed?"true":"false",archive?"true":"false",network.portal_passed?"true":"false");}
+  else if(!strcmp(op,"checkpoint_save")){
+    const bool live=!replay&&clock_anchored&&store->accepted;
+    const bool saved=live&&checkpoint::save(history,*store,daily_rain,liveNow(),services::settings().station_id,services::settings().channel);
+    const bool archived=live&&archive_storage::flush();
+    Serial.printf("{\"event\":\"checkpoint_save\",\"request_id\":%u,\"weather_saved\":%s,\"archive_saved\":%s}\n",request_id,saved?"true":"false",archived?"true":"false");
+  }
+  else if(!strcmp(op,"archive")){
+    const uint32_t current=services::clockValid()?uint64_t(time(nullptr))*1000/history_archive::kIntervalMs:0;
+    const uint32_t end=doc["end"]|archive_storage::endInterval(uint64_t(time(nullptr))*1000);const uint32_t offset=doc["offset"]|uint32_t(0);
+    if(!current||!end||end>current||current-end>=history_archive::kRecords||offset>=history_archive::kRecords||!archive_storage::state(liveNow()).ready){Serial.println("{\"event\":\"error\",\"reason\":\"invalid_archive_window_or_storage\"}");}
+    else{DynamicJsonDocument reply(16384);reply["event"]="archive";reply["request_id"]=request_id;reply["end"]=end;
+      reply["next_offset"]=std::min(uint32_t(history_archive::kRecords),uint32_t(offset+archive_storage::kPageSize));
+      reply["csv"]=(offset==0?String(archive_storage::csvHeader()):String(""))+archive_storage::csvPage(end,offset);
+      serializeJson(reply,Serial);Serial.println();}
+  }
   else if (!strcmp(op,"reset")) {resetData();status("reset");}
   else if (!strcmp(op,"page")) {
     if (doc["page"].is<unsigned>() && doc["page"].as<unsigned>()<3) {page=doc["page"];measurement_detail=-1;dirty=true;status("page");}
@@ -603,6 +622,8 @@ void liveReceive(){
     weather::Sample s;if(!atlas::decode(d.as<JsonVariantConst>(),liveNow(),s))continue;
     uint32_t previous=store->session_rain_tips;auto counter=store->rainState();
     const auto result=store->ingest(s);sensor_monitor.observe(s,result);
+    if(clock_anchored)archive_storage::observe(s,result,store->session_rain_tips-previous,counter.time,
+      counter.baseline&&s.time_ms>=counter.time&&s.time_ms-counter.time<weather::kStaleMs&&counter.discontinuities==store->rain_discontinuities);
     if(result==weather::Result::Accepted){
       if(s.rain_tips.valid && clock_anchored)daily_rain.observe(localDay(s.time_ms),s.time_ms,store->session_rain_tips-previous,counter.baseline && s.time_ms>=counter.time && s.time_ms-counter.time<weather::kStaleMs && counter.discontinuities==store->rain_discontinuities);
       dirty=true;
@@ -646,7 +667,7 @@ void setup() {
   display_ok=display_ok && canvas.createSprite(320,240)!=nullptr;
   canvas.setTextDatum(textdatum_t::top_left);
   if(display_ok)draw();
-  services::begin();checkpoint::begin();
+  services::begin();checkpoint::begin();archive_storage::begin(services::settings().station_id,services::settings().channel);
   store->~Store();new(store)weather::Store(history,services::settings().station_id,services::settings().channel,rain_history);
   if(services::settings().radio_enabled)radio_receiver::begin();
   status("boot");
@@ -656,13 +677,14 @@ void loop() {
   receive();touch();services::loop();radio_receiver::loop();
   firmware_updates::confirmBoot(display_ok&&network.portal_passed);
   if(firmware_updates::restartPending()){
+    archive_storage::flush();
     if(!replay&&clock_anchored&&store->accepted)checkpoint::save(history,*store,daily_rain,liveNow(),services::settings().station_id,services::settings().channel);
     ESP.restart();
   }
   liveReceive();
   const uint64_t now=uptimeMs();
   if(services::clockValid() && !clock_anchored){clock_epoch=uint64_t(time(nullptr))*1000;clock_uptime=now;clock_anchored=true;if(!replay){resetData();checkpoint_restored=checkpoint::restore(history,*store,daily_rain,liveNow(),services::settings().station_id,services::settings().channel);}}
-  if(now-last_publish>=1000){publishWeather();last_publish=now;}
+  if(now-last_publish>=1000){if(!replay&&clock_anchored)archive_storage::loop(liveNow(),sensorState()==sensor_health::State::Current);publishWeather();last_publish=now;}
   if(!replay && clock_anchored && store->accepted && now-last_checkpoint>=300000){checkpoint::save(history,*store,daily_rain,liveNow(),services::settings().station_id,services::settings().channel);last_checkpoint=now;}
   if((dirty && now-last_draw>=100) || now-last_draw>=1000)draw();
   if(now-last_status>=10000){status();last_status=now;}

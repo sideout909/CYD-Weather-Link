@@ -125,3 +125,12 @@ alternative. See the wiring guide for the distinction between this proposal
 and bench-verified operation. This pin allocation implements the single-controller design without
 an SD requirement. It uses every external GPIO; adding a barometer or D710
 requires a separate verified interface allocation, not an assumed free pin.
+
+
+### Seven-day recording storage update
+
+The owned 8 MB PanelLan profile retains its 1.5 MiB internal data partition and
+both OTA slots. The seven-day/five-minute archive adds 126 KiB of logical
+record storage plus filesystem overhead, with a 512 KiB free-space reserve.
+No SD card or additional controller is required. See the matching requirement
+in DESIGN.md and [device recording](firmware/RECORDING.md).

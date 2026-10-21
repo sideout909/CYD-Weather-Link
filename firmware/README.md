@@ -1,6 +1,6 @@
 # PanelLan weather firmware
 
-October 21, 2026 · development source version 0.3.2 · owned PanelLan
+October 21, 2026 · development source version 0.4.0 · owned PanelLan
 `ZX2D80CE02S-V10` / `SC05_X`. This profile is specific to its parallel ST7789
 LCD and FT5x06 touch, 8 MB flash and 2 MB PSRAM. Do not flash a generic CYD or
 SC01 Plus with this profile. See [validation](VALIDATION.md) for the distinction
@@ -31,6 +31,9 @@ between implemented software, bench results, and remaining hardware checks.
 - 1,440 minute buckets in PSRAM, temperature/humidity/lux means and wind peaks,
   gap-preserving charts and bounded internal-flash checkpoints every five
   minutes. CRC/schema/station/time checks gate restoring weather checkpoints.
+- [Seven-day recording](RECORDING.md): fixed five-minute summaries, 126 KiB
+  logical ring, CRC/coverage flags, protected browser and paged USB CSV export.
+  It preserves the 24-hour charts and a 512 KiB filesystem reserve.
 - Atlas rain increments, initial counter baseline, reset/wrap uncertainty,
   RAIN TODAY main tile with local-midnight reset plus separate rolling hour/24-hour totals. Rolling totals become eligible for interval uploads only with full window
   coverage; calendar-day uploads require uninterrupted midnight/day coverage. Counter
@@ -215,7 +218,9 @@ the configured POSIX timezone (Detroit by default). A new replay resets this clo
 
 One JSON object per line, maximum 1,023 bytes. Main-loop serial consumption
 and rendering are bounded. Operations: `status`, `diagnostics`, `reset`, `page` (0–2),
-`sample`, and `screen`. `sample` is a USB replay input, not a production radio
+`sample`, `screen`, `archive` and `checkpoint_save`. `archive` pages the
+seven-day CSV; `checkpoint_save` saves only live history and its partial archive
+interval. The host CLI uses `archive OUTPUT.csv` and `checkpoint-save`. `sample` is a USB replay input, not a production radio
 interface. Its fields are defined by `tools/firmware_console.py`.
 
 Sample acknowledgement results: 0 accepted, 1 duplicate, 2 wrong station,

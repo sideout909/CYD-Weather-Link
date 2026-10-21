@@ -10,6 +10,10 @@ g++ -std=c++17 -Wall -Wextra -Werror \
 "$test_binary"
 g++ -std=c++17 -Wall -Wextra -Werror \
     -I"$project_dir/firmware/include" \
+    "$project_dir/firmware/tests/history_archive_test.cpp" -o "$test_binary"
+"$test_binary"
+g++ -std=c++17 -Wall -Wextra -Werror \
+    -I"$project_dir/firmware/include" \
     "$project_dir/firmware/tests/update_policy_test.cpp" -o "$test_binary"
 "$test_binary"
 g++ -std=c++17 -Wall -Wextra -Werror \

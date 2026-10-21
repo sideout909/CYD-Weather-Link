@@ -1,5 +1,9 @@
 # Continuous Atlas reference capture
 
+The device itself now keeps rolling 24-hour charts plus seven days of
+five-minute summaries; see [device recording/export](firmware/RECORDING.md).
+That recording works without this PC.
+
 This PC-side development tool records the existing RTL-SDR reference receiver.
 It does not change the single-controller appliance architecture in `DESIGN.md`
 or the component choices in `PARTS.md`.
