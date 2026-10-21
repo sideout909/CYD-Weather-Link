@@ -10,3 +10,6 @@ Public manufacturer documents downloaded October 20, 2026.
 The CC1101 document describes TI's chip. The owner's module header pinout is
 recorded separately from their photo in [the wiring guide](../firmware/WIRING.md).
 Module connector numbering is not the TI chip's package pin numbering.
+
+See [the enclosure reference](ENCLOSURE.md) for the exact-board CAD search
+and the display's mechanical drawing on printed page 9 of its datasheet.
