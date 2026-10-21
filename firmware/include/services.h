@@ -2,6 +2,7 @@
 #include <Arduino.h>
 #include <array>
 #include "firmware_version.h"
+namespace weather { class Store; }
 
 namespace services {
 struct Settings {
@@ -33,7 +34,12 @@ struct Observation {
   uint32_t packets=0,dropped=0;
   uint8_t sensor_health=0;
   int32_t sensor_packet_age_s=-1;
+  // Display presence/age is independent of strict exporter validity above.
+  uint8_t display_present=0,display_stale=0;
+  bool gust_observed=false,gust_partial=true;
+  bool display_rain_partial=true;
 };
+enum DisplayField : uint8_t { Temperature=1,Humidity=2,Wind=4,Direction=8,Light=16,UV=32 };
 struct ForecastPeriod {
   String name, short_text, detail, wind;
   int temperature=0, rain_probability=-1;
@@ -79,6 +85,8 @@ void loop();
 const Settings& settings();
 State state();
 void publish(const Observation& sample);
+// Called/read only on the application loop, never from the network worker.
+void bindHistory(const weather::Store* store,uint64_t (*now)());
 String setupWifiKey();
 String setupSsid();
 String portalAddress();

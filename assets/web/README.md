@@ -44,3 +44,11 @@ a bounded elevation lookup; obsolete responses are ignored. Use this location
 copies the point to the form and explicitly selects Location is configured.
 Save and restart is still required to persist it. Sharing switches and station
 identity are preserved; timezone remains an explicit user choice.
+
+## Local dashboard
+
+`dashboard.js` renders the protected Overview using device status, paginated
+minute history, and cached NWS forecasts/alerts. It requests only same-origin
+device endpoints and local weather icons; it sends no provider requests or
+credentials elsewhere. Pack it with `tools/pack-setup-assets.py`. The display
+contract and test commands are in `firmware/WEB_DASHBOARD.md`.

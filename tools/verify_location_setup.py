@@ -46,7 +46,8 @@ def main():
             return
         if url.hostname != 'weatherlink.test':
             raise AssertionError('Unexpected external request: '+request.request.url)
-        files = {'/assets/location.js': ('assets/web/location.js', 'text/javascript'),
+        files = {'/assets/dashboard.js': ('assets/web/dashboard.js', 'text/javascript'),
+                 '/assets/location.js': ('assets/web/location.js', 'text/javascript'),
                  '/assets/leaflet-1.9.4.js': ('assets/web/leaflet/leaflet.js', 'text/javascript'),
                  '/assets/leaflet-1.9.4.css': ('assets/web/leaflet/leaflet.css', 'text/css')}
         if url.path in files:
@@ -59,6 +60,9 @@ def main():
             request.fulfill(content_type='application/json', body='{"saved":true}')
         elif url.path == '/api/config': request.fulfill(content_type='application/json', body=json.dumps(config))
         elif url.path == '/api/status': request.fulfill(content_type='application/json', body='{"wifi":true,"source":"none"}')
+        elif url.path == '/api/history': request.fulfill(status=503,content_type='application/json',body='{"error":"Waiting for clock"}')
+        elif url.path == '/api/forecast': request.fulfill(content_type='application/json',body='{"periods":[],"total":0,"next_offset":0,"state":"Not configured","fresh":false}')
+        elif url.path == '/api/alerts': request.fulfill(content_type='application/json',body='{"alerts":[],"total":0,"next_offset":0,"state":"Not configured","fresh":false}')
         elif url.path == '/api/archive': request.fulfill(content_type='application/json', body='{"ready":true,"clock_valid":true,"records":0,"capacity":2016,"free_bytes":1000000,"message":"Recording five-minute summaries"}')
         else: raise AssertionError(url.path)
 

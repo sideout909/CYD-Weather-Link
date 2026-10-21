@@ -14,8 +14,9 @@ This repository contains hardware and firmware planning documents, display conce
 - `firmware/include/daily_rain.h` supplies local-day rain with an immediate midnight display reset, independent of when the next radio packet arrives.
 - `tools/pack-weather-icons.py` packs existing original assets; `tools/verify_setup_page.py` optionally checks the embedded page in headless Brave/Playwright.
 - `tools/pack-home-fonts.py` packs the v2 study's DejaVu glyphs into `firmware/include/home_fonts.h`; source font licensing lives in `assets/fonts/`.
-- `assets/web/` contains local Leaflet 1.9.4 and the browser ZIP/map/elevation module; `tools/pack-setup-assets.py` creates deterministic gzip firmware assets. Optional `tools/verify_location_setup.py` mocks every map tile/provider request.
+- `assets/web/` contains local Leaflet 1.9.4 and the browser ZIP/map/elevation and phone dashboard modules; `tools/pack-setup-assets.py` creates deterministic gzip firmware assets. Optional `tools/verify_location_setup.py` mocks every map tile/provider request.
 - `firmware/include/setup_credentials.h` separates the visible generated AP key from custom admin credentials; legacy migration must preserve private admin login.
+- `firmware/include/web_history.h` bounds the protected browser minute-history pages; `firmware/WEB_DASHBOARD.md` documents the phone overview, cached forecast/alerts and setup-first behavior.
 - `firmware/include/sensor_health.h` distinguishes missing hardware, stale station cycles and silent transmitters; do not infer a freeze from stable weather values alone.
 - `firmware/src/firmware_updates.cpp` handles opt-in GitHub OTA; `tools/package-firmware-release.py` creates ignored `dist/` artifacts without publishing. Keep image/manifest/rollback validation requirements in `firmware/UPDATES.md`.
 - `firmware/WIRING.md` maps the owner's CC1101 photo to exact expansion pins and power constraints.

@@ -290,3 +290,10 @@ rendered saved history after restart before new RF data arrived; see
 RECORDING.md for the measured counts and archive comparison. RF follow-up is in
 RADIO_DIAGNOSTICS.md. Timed live stale/disconnected appearance and a multiday
 soak remain bench checks; an actual post-update OTA boot is still unverified.
+
+### Local phone dashboard, v0.5.0
+
+Overview now mirrors the main readings/status, followed by 24-hour trends with
+real gaps, full day/night and hourly NWS forecasts, and expandable alert details.
+New devices open setup first. See [WEB_DASHBOARD.md](WEB_DASHBOARD.md) for phone
+access, formatting, source/freshness labels, refresh behavior and API bounds.

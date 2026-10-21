@@ -167,3 +167,12 @@ continue without internet or an additional PC/gateway.
   endpoint-specific failures, rate limiting, and extended internet loss.
 - Confirm expired periods disappear, cached data is labeled, alert priority
   remains visible, and TLS/JSON/chart memory stays bounded with all tasks active.
+
+## Local browser overview
+
+The protected phone overview follows At your station → 24-hour Trends → local
+forecast/alerts → recording and setup. It mirrors Home readings and provenance
+and keeps detailed trend gaps visible. Only the small Home-equivalent
+temperature sparkline connects across missed minutes. New devices open setup
+first; configured devices open Overview. See [firmware/WEB_DASHBOARD.md](firmware/WEB_DASHBOARD.md)
+for data, paging, refresh and validation behavior.

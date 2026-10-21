@@ -7,6 +7,7 @@ import json
 from pathlib import Path
 import re
 import shutil
+import time
 
 ROOT = Path(__file__).resolve().parents[1]
 
@@ -21,7 +22,25 @@ def main():
     status = dict(wifi=False, radio_ready=False, source='none', forecast_state='Not configured',
                   alert_state='Not configured', packets=0, free_heap=200000,
                   rain_today_in=.12, rain_partial=True, rain_24h_in=.85, rain_24h_partial=False,
-                  temperature_F=55.200000076)
+                  temperature_F=55.200000076, gust_mph=8.299999237,
+                  display=dict(temperature_F=55.200000076, gust_mph=8.299999237, gust_partial=False,
+                               wind_mph=6.19999981, direction_deg=225, humidity=75, lux=0, uv=0),
+                  callsign='N0CALL', clock_valid=True, sensor_status='Current',
+                  nws_pressure_valid=True, nws_pressure_pa=101325, nws_pressure_station='KTEST')
+    end_minute = int(time.time() // 60)
+    history_rows = [[end_minute-1439+i, None if 500 <= i < 506 else 50+i/1000,
+                     5+i%7, 0 if i < 700 else 15000+i, 75] for i in range(1440)]
+    forecast_periods = {}
+    now = int(time.time())
+    for kind, count, duration in [('daily',14,43200),('hourly',24,3600)]:
+        forecast_periods[kind] = [dict(name=('Today' if i==0 else 'Period '+str(i)) if kind=='daily' else 'Hour '+str(i),
+            short='Partly Sunny', detail='Full local forecast detail '+str(i)+' <b>plain text</b>',
+            wind='SW 5 to 10 mph', temperature_F=65-i, rain_probability=20,
+            daytime=True, daytime_known=True, start=now-900+i*duration,
+            end=now-900+(i+1)*duration) for i in range(count)]
+    alert_entries = []
+    freshness = dict(forecast=True, alerts=True)
+    api_offline = dict(enabled=False)
     saves = []
     update_requests = []
     update_state = dict(current_version='0.3.0', available=False, busy=False, message='Updates off', progress=0)
@@ -30,7 +49,8 @@ def main():
     errors = []
     def route(request):
         path = request.request.url.split('weatherlink.test', 1)[-1]
-        files = {'/assets/location.js': ('assets/web/location.js', 'text/javascript'),
+        files = {'/assets/dashboard.js': ('assets/web/dashboard.js', 'text/javascript'),
+                 '/assets/location.js': ('assets/web/location.js', 'text/javascript'),
                  '/assets/leaflet-1.9.4.js': ('assets/web/leaflet/leaflet.js', 'text/javascript'),
                  '/assets/leaflet-1.9.4.css': ('assets/web/leaflet/leaflet.css', 'text/css')}
         if path in files:
@@ -45,7 +65,29 @@ def main():
             saves.append(request.request.post_data_json)
             result = dict(saved=True, restarting=True)
         elif path == '/api/config': result = config
-        elif path == '/api/status': result = status
+        elif path == '/api/status':
+            if api_offline['enabled']:
+                request.fulfill(status=503, content_type='application/json', body='{}'); return
+            result = status
+        elif path.startswith('/api/history?'):
+            from urllib.parse import parse_qs, urlsplit
+            q = parse_qs(urlsplit(path).query); offset = int(q['offset'][0])
+            assert q['count'] == ['120']
+            if 'end' in q: assert q['end'] == [str(end_minute)]
+            result = dict(end=end_minute,total=1440,next_offset=min(1440,offset+120),rows=history_rows[offset:offset+120])
+        elif path.startswith('/api/forecast?'):
+            from urllib.parse import parse_qs, urlsplit
+            q = parse_qs(urlsplit(path).query); kind=q['type'][0]; offset=int(q['offset'][0])
+            entries=forecast_periods[kind]
+            result=dict(total=len(entries),next_offset=min(len(entries),offset+4),periods=entries[offset:offset+4],
+                        fresh=freshness['forecast'],fetched=now,issued=now,state='Current' if freshness['forecast'] else 'Cached / refresh pending')
+        elif path.startswith('/api/alerts?'):
+            from urllib.parse import parse_qs, urlsplit
+            q=parse_qs(urlsplit(path).query);offset=int(q['offset'][0])
+            result=dict(total=len(alert_entries),next_offset=min(len(alert_entries),offset+1),alerts=alert_entries[offset:offset+1],
+                        fresh=freshness['alerts'],checked=now,state='Current' if freshness['alerts'] else 'Connection unavailable',theme=3 if alert_entries else 0,truncated=False,revision=len(alert_entries))
+        elif path.startswith('/assets/weather.png?'):
+            request.fulfill(status=200,content_type='image/png',body=(ROOT/'assets/weather/sunny.png').read_bytes());return
         elif path == '/api/archive': result = dict(ready=True, clock_valid=True, message='Recording five-minute summaries', records=2, capacity=64, end_interval=5000000, free_bytes=1000000)
         elif path.startswith('/api/archive.csv?'):
             from urllib.parse import parse_qs, urlsplit
@@ -76,7 +118,27 @@ def main():
         page.route('http://weatherlink.test/**', route)
         page.goto('http://weatherlink.test/')
         page.wait_for_function("document.querySelector('#connection').textContent==='Setup Wi-Fi active'")
+        page.wait_for_function("document.querySelector('#station-callsign').textContent==='N0CALL'")
         assert page.locator('#temperature').inner_text() == '55.2 °F'
+        assert page.locator('#gust').inner_text() == '8.3 mph'
+        assert page.locator('#wind').inner_text() == '6.2 mph'
+        assert page.locator('#humidity').inner_text() == '75 %'
+        assert page.locator('#lux').inner_text() == '0 lx'
+        assert page.locator('#pressure').inner_text() == '29.92 inHg'
+        page.wait_for_function("document.querySelectorAll('#forecast-periods article').length===14")
+        assert '<b>plain text</b>' in page.locator('#forecast-periods').inner_text()
+        assert page.locator('#forecast-periods b').count() == 0
+        page.wait_for_function("document.querySelector('#history-chart path')!==null")
+        assert page.locator('#history-chart path').get_attribute('d').count('M') == 2
+        assert page.locator('#home-trend path').get_attribute('d').count('M') == 1
+        page.locator('[data-metric="2"]').click()
+        assert 'Wind peaks' in page.locator('#trend-status').inner_text()
+        page.locator('[data-metric="3"]').click()
+        assert '0.0 to' in page.locator('#trend-status').inner_text()
+        page.locator('[data-metric="1"]').click()
+        page.locator('[data-forecast="hourly"]').click()
+        assert page.locator('#forecast-periods article').count() == 24
+        page.locator('[data-forecast="daily"]').click()
         assert '55.200000076' not in page.locator('#statusdetail').inner_text()
         assert page.locator('#rain').inner_text() == '0.12 in *'
         assert page.get_by_text('Rain · today', exact=True).is_visible()
@@ -170,9 +232,51 @@ def main():
         page.get_by_role('button', name='Wiring & health', exact=True).click()
         assert page.evaluate('document.documentElement.scrollWidth <= window.innerWidth')
         page.screenshot(path=str(artifacts/'setup-mobile.png'), full_page=True)
+        page.get_by_role('button', name='Overview', exact=True).click()
+        assert page.evaluate('document.documentElement.scrollWidth <= window.innerWidth')
+        page.screenshot(path=str(artifacts/'dashboard-mobile.png'), full_page=True)
+        status['sensor_status'] = 'Data stale'
+        page.evaluate('status()')
+        page.wait_for_function("document.querySelector('#temperature').classList.contains('stale-reading')")
+        saved_display = status['display']
+        status['display'] = {}
+        page.evaluate('status()')
+        page.wait_for_function("document.querySelector('#temperature').textContent==='—'")
+        assert page.locator('#gust').inner_text() == '—'
+        assert page.locator('#humidity').inner_text() == '—'
+        assert page.locator('#wind').inner_text() == '—'
+        status['display'] = saved_display
+        api_offline['enabled'] = True
+        page.evaluate('status()')
+        page.wait_for_function("document.querySelector('#source').textContent.includes('Device unavailable')")
+        assert 'unverified' in page.locator('#alerts').inner_text()
+        api_offline['enabled'] = False
+        status['wifi'] = True
+        alert_entries.append(dict(id='synthetic-warning',event='Tornado Warning',headline='Synthetic warning <script>bad()</script>',description='Official description <b>text</b>',instruction='Test instruction',expires=now+7200,category=3))
+        page.reload()
+        page.wait_for_function("document.querySelector('#station-alert').textContent.includes('Tornado Warning')")
+        assert page.locator('#station-alert').get_attribute('class').find('alert-warning') >= 0
+        assert page.locator('#alert-details script').count() == 0
+        assert page.locator('#alert-details summary').inner_text() == 'Synthetic warning <script>bad()</script>'
+        page.wait_for_function("!document.querySelector('#sky').hidden")
+        freshness['alerts'] = False; freshness['forecast'] = False
+        page.reload()
+        page.wait_for_function("document.querySelector('#station-alert').textContent.includes('UNVERIFIED')")
+        assert page.locator('#station-alert').get_attribute('class').find('alert-warning') >= 0
+        page.wait_for_function("document.querySelector('#forecast-status').textContent.includes('Cached / unverified')")
+        assert page.locator('#sky').is_hidden()
+        config['ssid'] = ''
+        page.reload()
+        page.wait_for_function("document.querySelector('#station').classList.contains('active')")
+        assert page.locator('#onboarding').is_visible()
+        assert 'Set up your weather station' in page.locator('#onboarding').inner_text()
+        config['ssid'] = 'Example Wi-Fi'; config['location_set'] = True
+        page.reload()
+        page.wait_for_function("document.querySelector('#onboarding').hidden")
+        assert page.locator('#overview').is_visible()
         assert not errors, errors
         browser.close()
-    print('Setup browser checks passed: tabs, settings ownership, secret masking, scan text, CSRF save, repeated saves, cross-tab validation, fractional elevation, mobile layout, no JavaScript errors.')
+    print('Setup browser checks passed: dashboard rounding, live/partial/missing fields, gapped history, complete day/hourly forecasts, alert text safety, stale/offline states, setup-first onboarding, tabs, settings ownership, secret masking, scan text, CSRF save, repeated saves, cross-tab validation, fractional elevation, mobile layout, no JavaScript errors.')
 
 
 if __name__ == '__main__': main()

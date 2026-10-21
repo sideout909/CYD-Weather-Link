@@ -1,4 +1,5 @@
 #include "services_internal.h"
+#include "web_history.h"
 #include <ArduinoJson.h>
 #include <HTTPClient.h>
 #include <WiFi.h>
@@ -283,6 +284,7 @@ bool portalSelftest(String& failure){
      !expect("Unauthenticated updater","/api/update",401,none)||
      !expect("Unauthenticated archive","/api/archive",401,none)||
      !expect("Unauthenticated CSV","/api/archive.csv?end=1&offset=0",401,none))return false;
+  for(const char* path:{"/api/history","/api/forecast","/api/alerts"})if(!expect("Dashboard authentication",path,401,none))return false;
   String response;
   if(!expect("Authenticated config","/api/config",200,config.setup_key,nullptr,none,&response))return false;
   DynamicJsonDocument d(4096);
@@ -300,6 +302,18 @@ bool portalSelftest(String& failure){
   }
   if(!expect("Local map asset","/assets/location.js",200,config.setup_key,nullptr,none,&response))return false;
   if(response.length()<=100||uint8_t(response[0])!=0x1f||uint8_t(response[1])!=0x8b){failure="Local map asset content";return false;}
+  if(!expect("Dashboard asset","/assets/dashboard.js",200,config.setup_key,nullptr,none,&response))return false;
+  if(response.length()<=100||uint8_t(response[0])!=0x1f||uint8_t(response[1])!=0x8b){failure="Dashboard asset content";return false;}
+  if(!expect("Dashboard forecast","/api/forecast?type=daily&offset=0",200,config.setup_key,nullptr,none,&response))return false;
+  if(deserializeJson(d,response)||!d["periods"].is<JsonArray>()){failure="Forecast dashboard schema";return false;}
+  if(!expect("Dashboard alerts","/api/alerts?offset=0",200,config.setup_key,nullptr,none,&response))return false;
+  if(deserializeJson(d,response)||!d["alerts"].is<JsonArray>()){failure="Alert dashboard schema";return false;}
+  if(clockValid()){
+    if(!expect("Dashboard history","/api/history?offset=1320&count=120",200,config.setup_key,nullptr,none,&response))return false;
+    DynamicJsonDocument history_page(web_history::kDocumentBytes);
+    if(deserializeJson(history_page,response)||history_page["total"]!=1440||history_page["next_offset"]!=1440||history_page["rows"].size()!=120){failure="History dashboard schema";return false;}
+  }
+  if(!expect("Dashboard invalid page","/api/forecast?offset=bad",400,config.setup_key))return false;
   if(!expect("Updater CSRF rejection","/api/update/install",403,config.setup_key,""))return false;
   if(!expect("Settings CSRF rejection","/api/config",403,config.setup_key,"{}"))return false;
   if(!expect("Invalid station rejection","/api/config",400,config.setup_key,"{\"station_id\":65536}",token))return false;

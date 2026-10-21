@@ -38,6 +38,10 @@ g++ -std=c++17 -Wall -Wextra -Werror -Wno-misleading-indentation \
 "$test_binary"
 json_headers="$project_dir/firmware/.pio/libdeps/panellan_sc05_x/ArduinoJson/src"
 if [[ -d "$json_headers" ]]; then
+  g++ -std=c++17 -Wall -Wextra -Werror \
+      -I"$project_dir/firmware/include" -I"$json_headers" \
+      "$project_dir/firmware/tests/web_history_test.cpp" -o "$test_binary"
+  "$test_binary"
   g++ -std=c++17 -Wall -Wextra -Werror -Wno-misleading-indentation \
       -I"$project_dir/firmware/include" -I"$json_headers" \
       "$project_dir/firmware/tests/atlas_packet_test.cpp" -o "$test_binary"

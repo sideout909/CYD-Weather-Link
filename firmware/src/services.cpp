@@ -8,6 +8,9 @@
 #include "firmware_version.h"
 #include "update_policy.h"
 #include "archive_storage.h"
+#include "nws_pressure.h"
+#include "weather_icons.h"
+#include "web_history.h"
 #include <ArduinoJson.h>
 #include <Preferences.h>
 #include <WebServer.h>
@@ -36,6 +39,8 @@ Preferences prefs;
 String csrf,ap_name;
 uint32_t restart_at=0,last_link_check=0;
 bool scan_started=false;
+const weather::Store* history_source=nullptr;
+uint64_t (*history_now)()=nullptr;
 const char* headers[]={"X-CSRF-Token"};
 String randomKey() {
   const char alphabet[]="23456789ABCDEFGHJKLMNPQRSTUVWXYZ";
@@ -123,7 +128,7 @@ void statusGet() {
   if(!authorize())return;
   State s=state();Observation o;
   if(xSemaphoreTake(detail::state_mutex,pdMS_TO_TICKS(10))==pdTRUE){o=detail::latest;xSemaphoreGive(detail::state_mutex);}
-  StaticJsonDocument<2048>d;
+  DynamicJsonDocument d(4096);
   d["wifi"]=WiFi.status()==WL_CONNECTED;d["ip"]=portalAddress();d["clock_valid"]=clockValid();
   d["source"]=o.live?"radio":(o.epoch_ms?"usb_replay":"none");d["radio_ready"]=o.radio_ready;
   d["sensor_status"]=sensor_health::label(sensor_health::State(o.sensor_health));
@@ -136,17 +141,73 @@ void statusGet() {
   if(o.temperature_valid)d["temperature_F"]=o.temperature_f;
   if(o.humidity_valid)d["humidity"]=o.humidity;
   if(o.gust_valid)d["gust_mph"]=o.gust_mph;
+  d["callsign"]=detail::config.callsign;d["aprs_profile"]=detail::config.aprs_profile;d["sound_enabled"]=false;
+  auto display=d.createNestedObject("display");
+  auto reading=[&](const char* name,uint8_t bit,float value){if(o.display_present&bit)display[name]=value;};
+  reading("temperature_F",Temperature,o.temperature_f);reading("humidity",Humidity,o.humidity);
+  reading("wind_mph",Wind,o.wind_mph);reading("direction_deg",Direction,o.direction_deg);
+  if(o.display_present&Light)display["lux"]=o.lux;
+  reading("uv",UV,o.uv);display["stale_fields"]=o.display_stale;
+  if(o.gust_observed)display["gust_mph"]=o.gust_mph;
+  display["gust_partial"]=o.gust_partial;
+  display["rain_partial"]=o.display_rain_partial;
   if(o.rain_today_observed)d["rain_today_in"]=o.rain_today_in;
   d["rain_partial"]=o.rain_today_observed&&!o.rain_today_valid;
   if(o.rain_24h_observed)d["rain_24h_in"]=o.rain_24h_in;
   d["rain_24h_partial"]=o.rain_24h_observed&&!o.rain_24h_valid;
   d["nws_pressure_pa"]=s.pressure_pa;d["nws_pressure_observed"]=s.pressure_observed;d["nws_pressure_station"]=s.pressure_station;d["nws_pressure_sea_level"]=s.pressure_sea_level;d["nws_pressure_state"]=s.pressure_error;
+  d["nws_pressure_valid"]=s.wifi&&clockValid()&&nws_pressure::fresh(s.pressure_observed,time(nullptr));
   d["sunrise"]=s.sunrise;d["sunset"]=s.sunset;d["sun_day"]=s.sun_day;d["sun_state"]=s.sun_error;d["moon_phase"]=s.moon_phase;d["moon_illumination"]=s.moon_illumination;
-  d["forecast_state"]=s.forecast_error;d["alert_state"]=s.alert_error;d["alert_last_check"]=s.alert_fetched;d["alert_poll_s"]=s.alert_poll_ms/1000;
+  d["solar_mode"]=s.sun_status;
+  d["forecast_state"]=s.forecast_error;d["forecast_fetched"]=s.forecast_fetched;d["hourly_state"]=s.hourly_error;d["hourly_fetched"]=s.hourly_fetched;d["alert_state"]=s.alert_error;d["alert_last_check"]=s.alert_fetched;d["alert_poll_s"]=s.alert_poll_ms/1000;
   if(s.forecast_count)d["forecast"]=s.forecast[0].name+": "+s.forecast[0].short_text;
   if(s.alert_count)d["alert"]=s.alerts[0].headline;
   d["wu_state"]=s.wu_state;d["weathercloud_state"]=s.weathercloud_state;d["aprs_state"]=s.aprs_state;
   d["wu_last_success"]=s.wu_success;d["weathercloud_last_success"]=s.weathercloud_success;d["aprs_last_success"]=s.aprs_success;
+  if(d.overflowed()){error("Status response unavailable.",503);return;}
+  String body;serializeJson(d,body);server.send(200,"application/json",body);
+}
+void historyGet(){
+  if(!authorize())return;
+  if(!history_source||!history_now||!clockValid()){error("History waits for a valid station clock.",503);return;}
+  const uint64_t now=history_now()/60000;
+  auto number=[&](const char* name,uint64_t fallback,uint64_t& out){if(!server.hasArg(name)){out=fallback;return true;}String value=server.arg(name);if(!value.length()||value.length()>12)return false;out=0;for(char ch:value){if(ch<'0'||ch>'9')return false;out=out*10+ch-'0';}return true;};
+  uint64_t end,offset,count;
+  if(!number("end",now,end)||!number("offset",0,offset)||!number("count",120,count)||end>now||now-end>=1440||offset>=1440||count<1||count>120||end<1439){error("Invalid history page.");return;}
+  DynamicJsonDocument d(web_history::kDocumentBytes);
+  if(!web_history::encode(d,*history_source,end,unsigned(offset),unsigned(count))){error("History response unavailable.",503);return;}
+  String body;serializeJson(d,body);server.send(200,"application/json",body);
+}
+bool pageOffset(unsigned limit,unsigned& value){
+  value=0;if(!server.hasArg("offset"))return true;const String input=server.arg("offset");
+  if(!input.length()||input.length()>3)return false;
+  for(char ch:input){if(ch<'0'||ch>'9')return false;value=value*10+ch-'0';}return value<limit;
+}
+void forecastGet(){
+  if(!authorize())return;const State s=state();const bool hourly=server.arg("type")=="hourly";
+  if(server.hasArg("type")&&server.arg("type")!="daily"&&!hourly){error("Invalid forecast type.");return;}
+  unsigned offset;
+  const unsigned total=hourly?s.hourly_count:s.forecast_count;
+  if(!pageOffset(hourly?24:14,offset)){error("Invalid forecast page.");return;}
+  DynamicJsonDocument d(4096);d["total"]=total;d["next_offset"]=std::min(unsigned(offset+4),total);
+  const auto fetched=hourly?s.hourly_fetched:s.forecast_fetched;const String& message=hourly?s.hourly_error:s.forecast_error;
+  d["state"]=message.c_str();d["fetched"]=fetched;d["issued"]=hourly?s.hourly_issued:s.forecast_issued;
+  d["fresh"]=s.wifi&&clockValid()&&fetched&&time(nullptr)>=fetched&&time(nullptr)-fetched<7200&&message=="Current";
+  auto periods=d.createNestedArray("periods");
+  for(unsigned i=unsigned(offset);i<std::min(unsigned(offset+4),total);++i){const auto& f=hourly?s.hourly[i]:s.forecast[i];auto p=periods.createNestedObject();p["name"]=f.name.c_str();p["short"]=f.short_text.c_str();p["detail"]=f.detail.c_str();p["wind"]=f.wind.c_str();if(f.temperature_valid)p["temperature_F"]=f.temperature;else p["temperature_F"]=nullptr;p["rain_probability"]=f.rain_probability;p["daytime"]=f.is_daytime;p["daytime_known"]=f.daytime_known;p["start"]=f.start;p["end"]=f.end;}
+  if(d.overflowed()||measureJson(d)>24576){error("Forecast response exceeds supported size.",503);return;}
+  String body;serializeJson(d,body);server.send(200,"application/json",body);
+}
+void alertsGet(){
+  if(!authorize())return;const State s=state();unsigned offset;
+  if(!pageOffset(8,offset)){error("Invalid alert page.");return;}
+  uint32_t revision=2166136261u;for(unsigned i=0;i<s.alert_count;++i)for(const String* value:{&s.alerts[i].id,&s.alerts[i].headline})for(char ch:*value){revision^=uint8_t(ch);revision*=16777619u;}
+  StaticJsonDocument<2048>d;d["total"]=s.alert_count;d["next_offset"]=std::min(unsigned(offset+1),unsigned(s.alert_count));d["state"]=s.alert_error.c_str();d["checked"]=s.alert_fetched;d["truncated"]=s.alerts_truncated;
+  d["revision"]=revision;
+  d["fresh"]=s.wifi&&clockValid()&&s.alerts_valid&&!s.alerts_truncated&&s.alert_fetched&&time(nullptr)>=s.alert_fetched&&time(nullptr)-s.alert_fetched<180;
+  d["theme"]=s.alert_theme;auto alerts=d.createNestedArray("alerts");
+  if(unsigned(offset)<s.alert_count){const auto& a=s.alerts[offset];auto v=alerts.createNestedObject();v["id"]=a.id.c_str();v["event"]=a.event.c_str();v["headline"]=a.headline.c_str();v["description"]=a.description.c_str();v["instruction"]=a.instruction.c_str();v["expires"]=a.expires;v["category"]=a.category;}
+  if(d.overflowed()||measureJson(d)>24576){error("Alert response exceeds supported size.",503);return;}
   String body;serializeJson(d,body);server.send(200,"application/json",body);
 }
 void archiveStatusGet(){
@@ -180,6 +241,7 @@ void publish(const Observation& sample){
   if(xSemaphoreTake(detail::state_mutex,pdMS_TO_TICKS(2))==pdTRUE){detail::latest=sample;xSemaphoreGive(detail::state_mutex);}
   if(detail::observations)xQueueOverwrite(detail::observations,&sample);
 }
+void bindHistory(const weather::Store* store,uint64_t (*now)()){history_source=store;history_now=now;}
 void begin(){
   detail::state_mutex=xSemaphoreCreateMutex();detail::observations=xQueueCreate(1,sizeof(Observation));
   prefs.begin("wxlink",false);String saved=prefs.getString("settings","");
@@ -197,10 +259,19 @@ void begin(){
   server.collectHeaders(headers,1);
   server.on("/",HTTP_GET,[]{if(authorize()){server.sendHeader("X-Content-Type-Options","nosniff");server.send_P(200,"text/html; charset=utf-8",kSetupPage);}});
   server.on("/assets/location.js",HTTP_GET,[]{if(authorize()){server.sendHeader("Content-Encoding","gzip");server.sendHeader("X-Content-Type-Options","nosniff");server.send_P(200,"text/javascript",reinterpret_cast<const char*>(setup_assets::location_js),sizeof(setup_assets::location_js));}});
+  server.on("/assets/dashboard.js",HTTP_GET,[]{if(authorize()){server.sendHeader("Content-Encoding","gzip");server.sendHeader("X-Content-Type-Options","nosniff");server.send_P(200,"text/javascript",reinterpret_cast<const char*>(setup_assets::dashboard_js),sizeof(setup_assets::dashboard_js));}});
+  server.on("/assets/weather.png",HTTP_GET,[]{
+    if(!authorize())return;const String name=server.arg("name");
+    struct Icon{const char* name;const uint8_t* bytes;size_t size;};
+    const Icon icons[]={{"sunny",weather_icons::sunny,sizeof(weather_icons::sunny)},{"partly-cloudy",weather_icons::partly_cloudy,sizeof(weather_icons::partly_cloudy)},{"cloudy",weather_icons::cloudy,sizeof(weather_icons::cloudy)},{"rain",weather_icons::rain,sizeof(weather_icons::rain)},{"thunderstorm",weather_icons::thunderstorm,sizeof(weather_icons::thunderstorm)},{"snow",weather_icons::snow,sizeof(weather_icons::snow)},{"fog",weather_icons::fog,sizeof(weather_icons::fog)},{"windy",weather_icons::windy,sizeof(weather_icons::windy)},{"unknown",weather_icons::unknown,sizeof(weather_icons::unknown)}};
+    for(const auto& icon:icons)if(name==icon.name){server.send_P(200,"image/png",reinterpret_cast<const char*>(icon.bytes),icon.size);return;}
+    error("Unknown weather icon.",404);
+  });
   server.on("/assets/leaflet-1.9.4.js",HTTP_GET,[]{if(authorize()){server.sendHeader("Content-Encoding","gzip");server.sendHeader("X-Content-Type-Options","nosniff");server.send_P(200,"text/javascript",reinterpret_cast<const char*>(setup_assets::leaflet_js),sizeof(setup_assets::leaflet_js));}});
   server.on("/assets/leaflet-1.9.4.css",HTTP_GET,[]{if(authorize()){server.sendHeader("Content-Encoding","gzip");server.sendHeader("X-Content-Type-Options","nosniff");server.send_P(200,"text/css",reinterpret_cast<const char*>(setup_assets::leaflet_css),sizeof(setup_assets::leaflet_css));}});
   server.on("/api/config",HTTP_GET,configGet);server.on("/api/config",HTTP_POST,configPost);server.on("/api/status",HTTP_GET,statusGet);
   server.on("/api/archive",HTTP_GET,archiveStatusGet);server.on("/api/archive.csv",HTTP_GET,archiveCsvGet);
+  server.on("/api/history",HTTP_GET,historyGet);server.on("/api/forecast",HTTP_GET,forecastGet);server.on("/api/alerts",HTTP_GET,alertsGet);
   server.on("/api/update",HTTP_GET,[]{if(!authorize())return;auto s=firmware_updates::state();StaticJsonDocument<1024>d;d["current_version"]=firmware_version::current;d["available_version"]=s.available_version;d["message"]=s.message;d["busy"]=s.busy;d["available"]=s.available;d["progress"]=s.progress;d["boot_pending"]=s.boot_pending;d["last_checked"]=s.last_checked;String body;serializeJson(d,body);server.send(200,"application/json",body);});
   server.on("/api/update/check",HTTP_POST,[]{if(!authorize())return;if(server.header("X-CSRF-Token")!=csrf){error("Refresh this page before checking.",403);return;}if(!firmware_updates::requestCheck()){error("An update operation is already pending.",409);return;}server.send(202,"application/json","{\"queued\":true}");});
   server.on("/api/update/install",HTTP_POST,[]{if(!authorize())return;if(server.header("X-CSRF-Token")!=csrf){error("Refresh this page before installing.",403);return;}if(!firmware_updates::requestInstall()){error("Check for a compatible update first, or wait for the current operation.",409);return;}server.send(202,"application/json","{\"queued\":true}");});

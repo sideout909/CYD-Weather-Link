@@ -470,3 +470,13 @@ in details. Prefer sea-level pressure and distinguish the reported barometric
 fallback. Apply a 90-minute observation-age limit; missing, invalid, future,
 offline or expired values display unavailable. This external observation is not
 Atlas data and must not enter local archives or observation uploads.
+
+## Local browser dashboard
+
+The owner requested phone visibility using the protected setup page. Version
+0.5.0 adds main-screen readings, gapped 24-hour trends, full cached local NWS
+forecast/alert details and setup-first onboarding. Read-only paging reuses
+existing history and provider caches; display presence is separate from strict
+upload validity. No additional controller, storage or component requirement is
+introduced, so PARTS.md needs no hardware change. The dashboard contract and
+validation are in [firmware/WEB_DASHBOARD.md](firmware/WEB_DASHBOARD.md).

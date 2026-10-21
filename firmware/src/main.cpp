@@ -683,8 +683,14 @@ void publishWeather(){
   o.humidity_valid=store->humidity.fresh(now);o.humidity=store->humidity.value;
   o.wind_valid=store->wind.fresh(now);o.wind_mph=store->wind.value;o.direction_valid=store->direction.fresh(now);o.direction_deg=store->direction.value;
   auto gust=store->gust(now);o.gust_valid=gust.valid && store->gustComplete(now);o.gust_mph=gust.value;
+  o.gust_observed=gust.valid;o.gust_partial=gust.valid&&!store->gustComplete(now);
+  auto displayed=[&](const auto& field,uint8_t bit){if(field.valid)o.display_present|=bit;if(field.valid&&!field.fresh(now,sensor_health::kDataStaleMs))o.display_stale|=bit;};
+  displayed(store->temperature,services::Temperature);displayed(store->humidity,services::Humidity);
+  displayed(store->wind,services::Wind);displayed(store->direction,services::Direction);
+  displayed(store->lux,services::Light);displayed(store->uv,services::UV);
   o.lux_valid=store->lux.fresh(now);o.lux=store->lux.value;o.uv_valid=store->uv.fresh(now);o.uv=store->uv.value;
   const auto rain_today=todayRain(now);o.rain_today_observed=rain_today.valid;
+  o.display_rain_partial=!rain_today.complete;
   const auto counter=store->rainState();
   auto rain24=store->rain_timeline.window(now,weather::kRainDayMs);
   auto rain_hour=store->rain_timeline.window(now,3600000);
@@ -708,6 +714,7 @@ void setup() {
   rain_history=static_cast<weather::RainInterval*>(heap_caps_calloc(weather::kRainIntervals,sizeof(weather::RainInterval),MALLOC_CAP_SPIRAM|MALLOC_CAP_8BIT));
   if(!rain_history){Serial.println("{\"event\":\"fatal\",\"reason\":\"rain_history_allocation_failed\"}");return;}
   store=new weather::Store(history,679,'A',rain_history);
+  services::bindHistory(store,dataNow);
   display_ok=display.init();display.setRotation(1);display.setBrightness(160);
   canvas.setPsram(true);canvas.setColorDepth(16);
   display_ok=display_ok && canvas.createSprite(320,240)!=nullptr;
