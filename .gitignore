@@ -1,0 +1,15 @@
+__pycache__/
+*.pyc
+captures/
+.venv/
+firmware/.pio/
+firmware/.cache/
+dist/
+
+# Local credentials and private exports
+.env
+.env.*
+.ssh/
+*.key
+*.p12
+*.pfx

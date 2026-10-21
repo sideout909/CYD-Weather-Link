@@ -1,0 +1,392 @@
+# CYD Weather Link — initial design
+
+Status: October 20, 2026. Development firmware source version 0.3.0 targets the owned
+PanelLan `ZX2D80CE02S-V10`; see [scope and commands](firmware/README.md) and
+[measured validation](firmware/VALIDATION.md). Display/touch and recorded Atlas
+processing are bench tested. Receiver/queue, setup/configuration, network
+clients, flash checkpoints and initial exporters are implemented; live CC1101
+reception, configured network/service ingestion and multiday operation still
+require validation. Windy remains follow-up work; D710 serial output, sound
+and barometer are optional additions. The PC RTL-SDR capture service stays stopped.
+
+## Goal
+
+Reuse the existing AcuRite Atlas outdoor sensor with a replacement local display, local history, Weather Underground uploads, and APRS weather reporting. Provide swipe navigation between current conditions, rolling 24-hour trends, and a local internet forecast. Local readings and available history should remain usable when the internet is down.
+
+## Selected architecture: all-in-one CYD
+
+The user prefers one self-contained touchscreen appliance, with no Pi, separate receiver processor, or MQTT gateway in the operating path. The Pi is available but is not part of the selected architecture. On October 20, 2026 the owner identified the connected display/controller as PanelLan `ZX2D80CE02S-V10`, matching the vendor's `SC05_X` profile. It is an owned ESP32-S3 prototype candidate; the chip probe confirms 8 MB flash and 2 MB PSRAM. Display/touch and simultaneous-peripheral validation are recorded separately in [firmware/VALIDATION.md](firmware/VALIDATION.md); expansion wiring remains unverified. Documented specifications and their sources are in [PARTS.md](PARTS.md#owned-displaycontroller-candidate-panellan-zx2d80ce02s-v10).
+
+```text
+Atlas outdoor sensor
+    | 433 MHz broadcasts
+    v
+CC1101 receiver + antenna -- SPI/interrupts --> CYD ESP32
+                                              |-> local touchscreen display
+                                              |-> weather calculations/state
+                                              |-> Weather Underground over Wi-Fi
+                                              |-> direct APRS-IS / CWOP over Wi-Fi
+                                              |-> selectable Weathercloud/Windy/PWSWeather over Wi-Fi
+                                              |<- local NWS alerts/forecast over Wi-Fi
+                                              `-> optional UART -> serial level interface
+                                                          -> D710 GPS/weather port
+
+Optional pressure sensor -- I2C -------------> CYD
+Optional amplifier + speaker <---- I2S ------ CYD
+```
+
+One enclosure and one controller, with the CC1101, optional pressure sensor, and optional serial interface as peripheral hardware. The existing SDR remains a development reference only. There is no cloud dependency for local weather reception/display or the serial weather output.
+
+## Hardware and feasibility gates
+
+- Owned PanelLan `ZX2D80CE02S-V10`: start from the documented `SC05_X` configuration (ST7789 8080 parallel display and FT5x06 touch), not a generic ILI9341 CYD profile. Verify actual flash/PSRAM, board revision, schematic, and exposed GPIO before pin assignment. Resolve the six expansion GPIO budget without reserving pins for SD; verify access to I2C and, if the optional D710 output is fitted, a correctly interfaced UART.
+- Add a 433 MHz CC1101 module with antenna. Use rtl_433_ESP as the initial decoder candidate, restricted to the required AcuRite decoder where practical. Confirm this Atlas works on the selected build.
+- Add a BMP280/BME280 pressure sensor to replace the original console barometer if pressure is wanted.
+- Optional D710 output: add a serial electrical interface matched to the exact port; a MAX3232-class interface is a candidate if RS-232 levels are required. No USB host or Pi adapter is assumed in the final appliance.
+- Check GPIO availability for receiver SPI and interrupt lines, pressure I2C, and weather-output UART alongside the display, touch, backlight, boot straps, and programming port.
+- If sound is fitted, budget I²S/audio GPIO and amplifier power alongside all required peripherals; inspect any existing board audio circuit before adding hardware. Keep receiver access intact; any optional serial output must share the verified GPIO budget.
+- SD packet logging is optional following the owner's October 20, 2026 requirement change. Normal reception, display, history, and outputs must work without a card. Allocate GPIO to required peripherals first; any later SD option needs its own verified bus/pin budget.
+- If the particular CYD lacks enough usable pins or memory, select a more suitable ESP32 display board for the same all-in-one design. Do not silently reintroduce a gateway.
+- Verify receiver range, antenna placement, power supply capacity, and interference from the display/Wi-Fi in the assembled enclosure.
+- For the owned PanelLan, the owner selected debug pin 2 (+3.3 V), with
+  debug pin 7 ground, as the direct-power CC1101 bench option. The manufacturer
+  does not specify spare current; verify loaded voltage and reception with
+  Wi-Fi/display running before accepting it. The 5 V expansion rail plus a
+  separate 3.3 V regulator remains an alternative. Exact parts/pins are in
+  [PARTS.md](PARTS.md#implemented-cc1101-pin-allocation) and
+  [firmware/WIRING.md](firmware/WIRING.md#power-from-the-panellan).
+
+## Firmware responsibilities
+
+Use a single embedded application, initially targeting PlatformIO/Arduino with rtl_433_ESP and a suitable display library. Select the exact display stack after identifying the CYD. This replaces WeeWX and its uploaders in the final device.
+
+1. Capture and decode Atlas broadcasts without blocking on screen rendering or internet requests.
+2. Merge packet types into a timestamped observation store with validity and age per field.
+3. Maintain rain deltas/totals, defined wind averaging windows, and the displayed maximum wind reading over the trailing five minutes.
+4. Refresh the touchscreen from observation snapshots, with swipe navigation between Home, 24-hour Trends, and Forecast. Build timestamped history summaries without blocking capture or logging.
+5. Upload fresh observations to Weather Underground using HTTPS.
+6. Maintain an authenticated APRS-IS session with bounded queues, reconnect/backoff, and a configurable reporting interval.
+7. Optional addition: emit a verified Peet Bros.-compatible serial stream for the D710 independently of internet connectivity. This is not a core acceptance requirement.
+8. Save configuration and essential persistent weather state with controlled flash-write frequency. Raw decoded-packet logging is optional and disabled by default; no SD card is required.
+9. Retrieve active local NWS alerts for configured station coordinates without blocking reception. Track alert-fetch health separately from local measurements and output connections.
+10. Apply orange full-screen watch and red warning themes; optionally play locally generated alert tones through verified audio hardware, with volume, test, mute, and per-alert silence controls.
+11. Retrieve a local NWS day/night and hourly forecast for configured station coordinates in a bounded background task. Cache the last good forecast, expose its source/age, and track forecast health independently of alerts and local measurements.
+12. Support configured CWOP participation and selectable Weathercloud, Windy.com, and later PWSWeather observation uploaders, reusing the observation model while keeping destination identity, scheduling, credentials, and health separate. Focus initial PWS upload work on Weather Underground, Weathercloud, and Windy. Validate APRS/CWOP routing to avoid duplicate uploads.
+
+Use separate tasks or nonblocking scheduling with explicit ownership of shared state. Network outages, TLS handshakes, and screen updates must not stall receiver processing or serial output. Benchmark memory with display buffers, decoder, Wi-Fi, and TLS active together. Watchdog recovery and brownout/restart behavior are acceptance requirements.
+
+Timekeeping: use UTC internally, NTP when available, and configured local timezone rules for daily totals. After a cold start without valid time, show time validity and withhold outputs requiring trustworthy timestamps until time is established; an optional RTC can support offline cold starts.
+
+## Why this is feasible but needs validation
+
+The ESP32 can host these functions in principle, and a CC1101 avoids the SDR. Feasibility on the owned CYD depends on its exposed pins, memory, library compatibility, and reception under simultaneous display/network activity. This is custom firmware, not a confirmed drop-in configuration.
+
+## Storage and optional packet logging
+
+The owner removed SD logging as a requirement on October 20, 2026. The appliance
+must operate without an SD card or raw packet archive. Existing PC reference
+captures and reports remain preserved; their logger remains stopped unless
+explicitly restarted.
+
+Keep the rolling 24-hour observation summaries in bounded RAM/PSRAM. Plan compact
+history checkpoints and forecast caching in a bounded internal-flash partition,
+with schema/version checks, original timestamps, controlled write frequency,
+and visible recovery gaps after abrupt power loss. Choose the partition layout
+and measure space/wear before implementation. Essential configuration and rain
+state remain persistent; do not write every received packet to flash.
+
+A later opt-in packet logger may use SD or a development interface. If added,
+retain decoder fields/units, UTC validity and receive timing, preserve repeated
+copies for analysis, and keep diagnostics separate. Bound queues and expose
+write/drop errors without stalling reception. Exclude raw RF/IQ, secrets,
+network payloads, and configuration dumps. No SD pin allocation, purchase,
+connection indicator, or logging task is required by the baseline.
+
+## Observation handling
+
+- Bind to the household sensor ID and channel; ignore neighbors' stations.
+- Combine Atlas packet types into one observation without treating absent fields as zero.
+- Track receive time and age per field because different readings arrive in different packets.
+- Store explicit units internally and convert at display/upload boundaries.
+- Deduplicate repeated broadcasts.
+- Persist rain-counter state; handle resets, wraparound, restart, local midnight, and daylight-saving transitions.
+- Calculate rain for the last hour, last 24 hours, and local day separately.
+- Use documented wind averaging and gust windows for each output; do not rename a raw sample a gust.
+- Preserve measured station pressure separately from derived sea-level pressure; configure elevation and validate the conversion.
+- Treat missing/invalid/stale measurements as unavailable. Never upload old readings with a new timestamp.
+- Keep credentials in device configuration rather than source code; redact them from logs and exports.
+
+### Atlas rain counter and useful totals
+
+The [rtl_433 25.12 Atlas decoder](https://github.com/merbanan/rtl_433/blob/25.12/src/devices/acurite.c)
+extracts a nine-bit bucket-tip counter, scaled by 0.01 in per count. Its range
+is 0.00–5.11 in; the next tip wraps to 0.00 in, a modulo period of 5.12 in
+(512 tips). This is a running sensor counter, not a calendar-day total.
+The rollover is documented by the decoder; a rollover or power-reset event
+has not yet been observed on this station during our capture.
+
+- Preserve the source `rain_in` field/units when optional logging is enabled; calculate using integer tips
+  internally to avoid floating-point accumulation errors.
+- Maintain a persistent last accepted counter and accumulated increments.
+  Deduplicate repeats; the first counter is a baseline, not newly fallen rain.
+- For a credible wrap, use `(new_count - old_count) modulo 512`. For example,
+  5.10 → 0.02 in represents four tips, or 0.04 in. Require continuity and
+  plausible rate/timing before accepting a wrap. A decrease alone cannot
+  distinguish rollover from sensor reset, replacement, or bad data.
+- Flag ambiguous discontinuities and re-establish a baseline without adding
+  an invented wrap or subtracting from prior rainfall. Record the event and
+  affected totals' incomplete status. Verify battery/power-reset behavior on
+  hardware later; do not reset the outdoor station just to clear a display.
+- Derive `Rain today` using local civil midnight, independently of the raw
+  sensor counter. Retain separate rolling hour/24-hour totals and capture-total
+  diagnostics. Archive the previous day and preserve totals across restarts.
+  A day may contain 23 or 25 hours at daylight-saving transitions.
+- Mark startup partway through a day as partial; pre-capture rain cannot be
+  assigned to that day from the starting counter alone. During reception gaps,
+  counter differences can recover accumulation only when reset/wrap ambiguity
+  is excluded. Preserve the interval of uncertainty; do not silently allocate
+  a gap-spanning increment to one side of midnight or a rolling-window boundary.
+- Validate repeated counts, normal increase, 5.11 → 0.00, skipped-count wrap,
+  unexpected decrease, receiver reboot, sensor replacement, gaps spanning a
+  boundary, local midnight, and daylight-saving changes before uploading totals.
+
+### Displayed five-minute wind gust
+
+The requested home-screen value is `Gust 5m`: the highest valid wind-speed
+reading received from the bound Atlas during the trailing 300 seconds. Use the
+decoded `wind_avg_mi_h` field from all supported Atlas packet types that carry
+it, retaining its source name and units in any optional packet log. The
+[rtl_433 Atlas decoder](https://github.com/merbanan/rtl_433/blob/25.12/src/devices/acurite.c)
+supplies that wind-speed field in each Atlas message. This display statistic
+is a maximum of received station readings. AcuRite's
+[wind-speed glossary](https://www.acurite.com/pages/learn-glossary-wind-speed)
+describes the Atlas as transmitting every ten seconds with the highest speed
+from that interval. This manufacturer description supports using the reports
+for peak tracking; it is not a bench verification of the sensor's internal
+sampling or a claim of a standard three-second meteorological gust.
+
+The five-minute window also matches the APRS weather `g` field: the
+[APRS protocol reference, chapter 12](https://www.aprs.org/doc/APRS101.PDF#page=74)
+defines it as peak wind speed over the preceding five minutes. The protocol's
+wind-speed field uses a separate sustained one-minute value. Keep their
+calculations distinct when implementing uploads.
+
+- Use a sliding window `(now - 300 seconds, now]`, rather than fixed five-minute
+  blocks. Recalculate as time passes, including when no new packet arrives.
+  Expire an old maximum at 300 seconds and allow the displayed value to fall.
+- Deduplicate each broadcast's repeated copies for observation calculations;
+  preserve copies when optional packet logging is enabled. Keep the original observation
+  time so repeated copies cannot extend a peak's lifetime. Accept any received
+  copy when earlier copies were missed.
+- Track wind sample time independently of temperature, rain, and other fields.
+  Use monotonic elapsed time for the live window and timestamped valid records
+  for offline review. Preserve the selected maximum's observation time for
+  the wind detail page.
+- Flag incomplete history during the first five minutes after startup and
+  after reception gaps; validate the gap threshold against Atlas cadence.
+  Apply the wind field's freshness rule independently: show an in-window cached
+  peak as stale when current wind reception is stale. With no valid samples
+  left in the window, show `—`; a valid measured zero remains zero.
+- Keep current wind speed and `Gust 5m` distinct on screen. Upload and serial
+  outputs retain their separately documented protocol-specific wind windows.
+
+The preserved PC reference captures contain the wind samples needed to replay
+this calculation alongside lux and rain; see [CAPTURE.md](CAPTURE.md). This is
+a firmware/display requirement, not an implemented embedded display. It adds
+no hardware requirement and does not change the specifications in `PARTS.md`.
+
+## Display draft
+
+Provide three primary pages in order: **Home**, **Trends**, and **Forecast**.
+Swipe horizontally between them, with visible page controls and position;
+scroll lists vertically. [SCREENS.md](SCREENS.md) defines gesture handling,
+shared layout, rolling 24-hour charts, history persistence, and forecast cache
+behavior. Keep the alert strip and orange/red alert themes on every page.
+History summaries use bounded RAM/PSRAM with compact internal-flash checkpoints;
+forecast caches use bounded internal flash separately from any optional packet
+log. Size buffers and benchmark memory, flash-write latency, and bus contention
+on the chosen profile. No additional controller or peripheral
+is required by these pages; see the hardware reconciliation in [PARTS.md](PARTS.md).
+
+The proposed 320×240 landscape home screen is specified in [HOME_SCREEN.md](HOME_SCREEN.md), with [normal, watch, and warning previews](concepts/home-screen-v2.png) and the [original offline preview](concepts/home-screen.png). Show large outdoor temperature and trend, a wind compass/speed/gust, humidity, daily rain, pressure, and per-field freshness. The station has a lux sensor: show its reading alongside a small estimated-sky graphic. A calibrated clear-sky brightness comparison may support coarse estimated cloudiness; label the inference, validate it against observed conditions, and show unknown when uncalibrated, at night, or with insufficient inputs. Lux is not a direct cloud-fraction measurement. Secondary pages expose history, UV/lighting detail, lightning if fitted, battery status, and upload status. Source-aware [weather assets](assets/weather/README.md) provide twelve SVG/PNG variants without implying unsupported sensing capabilities.
+
+Show sensor reception, local network connection, and external upload health separately. Display a visible stale indicator after a configurable timeout. On boot, saved readings must retain their original age and must not appear as fresh observations.
+
+Reserve a persistent, tappable strip for the highest-priority NWS alert and alert count. Full alert text and instructions open on a detail page. When no alerts are returned, show the last successful check; on a failed or stale check, show unavailable/stale status and retain previous alerts as unverified. Never equate an internet outage with an all-clear.
+
+An active local NWS watch makes the full screen orange; any active warning makes it red, overriding watches. Retain matching card colors and readable text. Classify product type independently of CAP severity; advisories/statements stay distinctly labeled. A failed check retains the last known alert theme with `NWS UNVERIFIED` and check age until a complete fresh snapshot resolves it. Silence and acknowledgement do not clear the alert or theme.
+
+## Local NWS forecast
+
+NWS is the proposed forecast source, sharing the configured location with
+alerts. Resolve `https://api.weather.gov/points/{latitude},{longitude}` and
+follow its `forecast` and `forecastHourly` links, as documented by the
+[NWS API](https://www.weather.gov/documentation/services-web-api). Retain seven
+days of day/night periods and the next 24 hours of hourly forecasts for the
+Forecast page. Proposed refresh is every 30 minutes, honoring caching and
+retry headers; alert checks take priority. Show issue time separately from
+last successful check, preserve valid cached periods offline, and label stale
+or unavailable forecasts. Location remains unconfigured until supplied.
+Full UI, memory bounds, and failure behavior are in [SCREENS.md](SCREENS.md).
+
+## Local NWS alerts
+
+Add a configurable HTTPS client for `https://api.weather.gov/alerts/active?point={latitude},{longitude}&status=actual`, with an identifying User-Agent and GeoJSON response. Use station coordinates, not IP geolocation. Normal polling is every 30 seconds, following the owner's October 20 update, with caching, bounded parsing, timeouts, and retry/backoff. See [HOME_SCREEN.md](HOME_SCREEN.md) for update/cancellation, priority, freshness, pagination, and cache rules. All fetching remains on the device; no gateway is required.
+
+Validate memory and reception with NWS TLS/JSON processing, all configured uploaders, history checkpointing, and the display active. Local weather reception, display, and serial output remain operational when the alert service is unreachable. Prototype validation is still required before considering this feature implemented.
+
+## Optional audible alerts
+
+Use verified board audio or an I²S amplifier such as MAX98357A plus a matched speaker; see [PARTS.md](PARTS.md). Do not connect a speaker directly to ESP32 GPIO. GPIO mapping, amplifier supply, speaker load, enclosure audibility, power headroom, and RF interference remain hardware validation gates.
+
+After audio is enabled and tested, new watches play a short original chime; warnings use a distinct tone. Immediate severe/extreme warnings may repeat until silenced while fresh. Provide volume, Test sound, persistent Mute all, optional quiet hours with explicit warning override, and a large Silence this alert control. Display sound status. Deduplicate update lineages; re-alert on a genuine escalation, not unchanged polls/reconnects. Cached/stale alerts cannot start or continue repeats. Generate tones nonblockingly, independent of SD/network audio. Full behavior is specified in [HOME_SCREEN.md](HOME_SCREEN.md); this is planned, not implemented firmware.
+
+## External reporting
+
+Weather Underground: register a personal weather station and use its station ID and upload key with the embedded HTTPS uploader. Start with a proposed 60-second upload interval, subject to service settings and available fresh observations.
+
+APRS internet: direct APRS-IS remains the requested primary ham route. Configure callsign/SSID, authenticated login, station coordinates, and weather symbol. The proposed internet reporting interval is now five minutes, aligning with NWS CWOP guidance and APRS-IS weather-beacon limits; this replaces the earlier ten-minute internet default. Implement reconnect/backoff and suppress stale reports. Keep radio beacon timing separately configurable.
+
+CWOP / NOAA MADIS: support participation as an intended distribution target, requiring configured registration and verified ingestion. Reuse APRS weather encoding and evaluate whether the existing registered ham APRS feed provides the required collection before adding another send path. Assigned-CWOP-ID and authenticated ham/APRS-IS profiles have distinct identity, server, and authentication settings; do not treat them as interchangeable or send duplicate observations blindly. The WeeWX CWOP uploader is a reference, not the embedded implementation or proof of direct APRS-IS compatibility.
+
+Additional PWS destinations: prioritize Weathercloud alongside Weather Underground, then Windy.com Stations using its current 2026 API. Weathercloud's documented standard cadence is ten minutes, with one-minute uploads limited to Pro/Premium accounts. Plan PWSWeather as a later adapter. Make each destination independently selectable and require station configuration before enabling it. This order uses published size evidence where available and project fit where comparable counts are absent; it is not a verified popularity ranking of ham users. Met Office WOW is removed as a new target following its announced 2026 retirement. WeatherWise.app advertises live station viewing, but its owner-upload/API path is unverified. A Meshtastic bridge depends on a demonstrated local mesh need and a separate hardware/interface study. Detailed sources, priorities, and validation gates are in [WEATHER_SHARING.md](WEATHER_SHARING.md).
+
+Each configured exporter has bounded scheduling/retry work and its own health state. Respect destination-specific field semantics, wind/rain windows, units, and timestamp handling. Keep reception and history independent of every uploader and any optional packet logger. The internet destinations reuse existing Wi-Fi and add no component requirement to [PARTS.md](PARTS.md); no mesh radio or additional controller is selected.
+
+Optional radio output: emulate a weather station into the D710 GPS/weather port, allowing the radio's built-in APRS function to create and transmit weather beacons. No additional TNC is needed for this path. Direct APRS-IS and serial output are independently switchable. Decide station identity and beacon coordination before operating both, since RF reports may also reach APRS-IS through an IGate.
+
+## Optional Kenwood D710 serial emulation
+
+Kenwood documents Davis and Peet Bros. weather inputs. Select Peet Bros. ULTIMETER emulation as the first implementation target: its published ASCII format is simpler to generate than a Davis logger protocol. Kenwood specifies 2400 baud for the ULTIMETER 2100 on the TM-D710A/E, using Menu 602 WEATHER (Peet Bros.) with output OFF.
+
+Peet Bros. documents 2400 baud, 8 data bits, no parity, one stop bit. Candidate record formats are data logging (`!!`) and packet mode (`$ULTW`). The Kenwood documentation reviewed establishes station compatibility, but does not establish which record variants its parser accepts. Bench-test both; select and document the verified format before calling the emulator compatible.
+
+The emulator must perform the documented fixed-width hexadecimal encoding, field scaling, signed-temperature handling, rain-counter conversion, and CR/LF termination. Missing fields must use a supported unavailable representation, or the record must be withheld; do not fabricate zero pressure or humidity. Verify the radio's behavior after serial input stops, since it may retain previously received weather.
+
+Use a proper serial electrical interface. The ESP32 UART is 3.3 V logic; do not connect it directly to the radio based only on a matching baud rate. Verify the exact D710 model's GPS-port pinout, polarity, and signal levels. Use an appropriate UART transceiver such as MAX3232 if the verified port requires RS-232 levels. This is the GPS/weather input, not the packet-data connector or PC control port.
+
+First validate encoded records on a serial capture, then confirm all six weather measurements on the D710, then inspect an actual transmitted weather packet. Allow the acquisition delay Kenwood documents (5–10 minutes).
+
+Local operation during an internet outage requires local Wi-Fi/LAN and gateway power. RF reporting during an outage additionally requires the radio path and backup power if desired.
+
+## Build sequence and acceptance criteria
+
+1. Identify CYD and, if optional serial output is selected, D710 variants. Obtain the CYD schematic and map all required peripherals before wiring.
+2. Compile a minimal CYD + CC1101 receiver build. Compare its Atlas output with the existing SDR over at least a day.
+3. Add the display and pressure sensor; verify packet reception remains reliable under screen activity.
+4. Implement persistent rain state, averaging, timestamps, and stale-data handling. Validate resets and counter wraparound with meaningful packet fixtures. Replay wind packets to verify the rolling five-minute maximum, expiry exactly at 300 seconds, a lower value after the peak expires, repeated copies, a missing first copy, invalid/missing wind, zero wind, startup coverage, reception loss, and service/device restarts.
+5. Add direct APRS-IS with validated CWOP participation and selectable PWS uploads: Weather Underground and Weathercloud first, Windy third, and PWSWeather later. Test encoding, registration/actual ingestion, destination-specific cadence and failures, retry/backoff, duplicate routing, stale fields, memory use, and continued reception with all configured uploaders active.
+6. Optional D710 path: implement Peet Bros. UART emulation. Capture and validate records, then check measurements and weather packets on the D710.
+7. Test sensor loss, Wi-Fi loss, internet loss, restarts, invalid time, and stale serial-input behavior at the radio.
+8. Package as one appliance and run a multiday soak test with all outputs enabled.
+9. Validate NWS empty/active/multiple/updated/cancelled alerts, stale cache, invalid time, location changes, payload limits, and network failures while reception and serial output continue. Calibrate and assess lux-based sky estimates independently before enabling them by default.
+10. Validate whole-screen orange/red theme priority and stale-state labels. If sound is fitted, test volume, test/mute/silence controls, escalation, duplicate suppression, reboot, quiet hours, cancellation, and stale data under full device load; verify audibility, power stability, and reception.
+11. Validate swipe navigation and all-page alerts, rolling 24-hour history with gaps and restart recovery, and forecast caching/expiry/failures using [SCREENS.md](SCREENS.md#acceptance-checks). Confirm these tasks do not interrupt reception, history updates, uploads, or serial output.
+
+## Questions to resolve
+
+1. Confirm the owned PanelLan `ZX2D80CE02S-V10` revision/schematic, actual flash/PSRAM, internal-flash storage budget, accessible I2C/UART, and full GPIO allocation against the physical board before wiring.
+2. Exact D710 variant (A/E or GA/GE) and available GPS/weather cable.
+3. Sample decoded Atlas JSON covering different message types, plus current receive frequency.
+4. Archive retention beyond the selected rolling 24-hour Trends view, final on-panel layout, and offline cold-start requirements.
+5. Callsign/SSID, site coordinates/ground elevation, CWOP registration/routing, and station configuration for each selected PWS service during implementation. Keep the Atlas's 30 ft mounting height separate from ground elevation.
+
+## Technical references
+
+- [rtl_433 AcuRite decoder](https://github.com/merbanan/rtl_433/blob/master/src/devices/acurite.c)
+- [weewx-sdr](https://github.com/matthewwall/weewx-sdr)
+- [WeeWX upload configuration](https://weewx.com/docs/latest/usersguide/uploading/)
+- [rtl_433_ESP](https://github.com/NorthernMan54/rtl_433_ESP)
+- [Kenwood TM-D710A/E in-depth manual, section 6.2](https://www.kenwood.com/i/products/info/amateur/pdf/TM-D710AE_IDM_R1.pdf)
+- [Peet Bros. serial formats](https://www.peetbros.com/shop/custom.aspx?recid=29)
+- [Weather Underground upload protocol](https://support.weather.com/s/article/PWS-Upload-Protocol)
+- [APRS-IS connections](https://www.aprs-is.net/Connecting.aspx)
+- [APRS protocol specification](https://www.aprs.org/doc/APRS101.PDF)
+- [CWOP guide hosted by NWS](https://www.weather.gov/media/epz/mesonet/CWOP-OfficialGuide.pdf)
+- [AcuRite Atlas display with built-in barometer](https://www.acurite.com/products/acurite-atlas-weather-station-with-gray-hd-display-and-solar-power-pack)
+- [NWS API documentation](https://www.weather.gov/documentation/services-web-api)
+- [NWS alerts service and polling guidance](https://www.weather.gov/documentation/services-web-alerts)
+- [NWS alert geolocation guide](https://www.weather.gov/media/documentation/docs/NWS_Geolocation.pdf)
+- [NWS watch/warning/advisory definitions](https://www.weather.gov/sjt/WatchWarningAdvisoryExplained)
+- [MAX98357A speaker amplifier](https://www.analog.com/en/products/max98357a.html)
+
+## Setup location picker — owner request, October 20
+
+Implemented in the protected portal; browser/endpoint checks passed and owner
+phone testing is underway. See [map assets and provider notes](assets/web/README.md).
+
+- Preserve manual decimal latitude/longitude entry.
+- Offer US ZIP-code search, followed by an interactive map in the phone/PC
+  browser. Allow pan/zoom and a draggable/selectable station pin.
+- The ZIP result is an initial search area, never the exact station location.
+  Show the chosen coordinates and require confirmation before saving them.
+- Render maps in the browser; the ESP32 serves setup and saves the confirmed
+  position. Do not load a tile renderer or map database onto the panel.
+- Research a geocoding/tile provider, terms, attribution, rate limits, key
+  protection and privacy before implementation. Do not embed private service
+  keys in browser JavaScript or promise a free provider without validation.
+- Map/search needs browser internet access. Manual entry must continue to work
+  on the device's local setup network when internet is unavailable.
+- Distinguish station location from a weather-service station identity. A map
+  selection must not silently enable external observation uploads or change
+  an APRS identity. Keep NWS/sun lookup enabled/disabled state explicit.
+- Use a dropped/dragged point for ground-elevation lookup, not the ZIP center.
+  Show source/units and retain manual entry. Missing results must not become
+  sea level or retain a different point's elevation. Ground is separate from
+  the Atlas's approximately 30 ft mounting height.
+
+## Header, transmitter health and setup security — latest owner updates
+
+Show configured callsign/SSID in the center slot, and a speaker/mute icon by
+Wi-Fi. APRS/CWOP gets a separate session indicator requiring acknowledged
+login, with verified authentication for the ham route. Keep the session alive
+independently of radio freshness; withhold weather while data is stale.
+
+The owner reports occasional Atlas repeated-single-packet or silent-transmitter
+faults until power cycling. Show Data stale when packets arrive without a
+current expected type/field cycle; show No signal when bound packets stop.
+Keep receiver initialization distinct. Unchanged complete measurements can
+be valid weather and cannot alone establish a frozen station.
+
+A generated setup Wi-Fi key may be displayed for local provisioning; a
+user-chosen admin password must never appear on the display, in API responses,
+serial records or exports. Split those credentials, preserve admin login on
+legacy migration, and never permit an API request to reset the private/display
+classification. The custom password and visible Wi-Fi key must differ.
+
+## Optional GitHub firmware updates
+
+Provide protected browser Check/Install controls plus separately opt-in daily
+checks and automatic installation. Start disabled with no repository selected.
+Validate version, board, flash/partition layout, image size/header, HTTPS and
+SHA-256. Write the inactive application slot; preserve NVS and weather state.
+Keep OTA work off the NWS worker, defer unattended installation during active
+or unverified NWS hazards, and confirm a new image only after startup health
+checks. Validate interrupted download and rollback on hardware before enabling
+unattended use. [UPDATES.md](firmware/UPDATES.md) defines release preparation
+and current validation limits; this does not publish anything to GitHub.
+
+## Rolling rain and forecast graphics — October 20 owner updates
+
+Latest owner revision: Home shows **RAIN TODAY**, resetting at configured
+local civil midnight, rather than the earlier requested rolling 24-hour tile.
+An existing baseline permits a partial zero display immediately on the new
+date, before the next rain packet. Keep the previous packet's date/counter
+for continuity and midnight-boundary checks. Startup, stale reception, and
+ambiguous rain across midnight remain incomplete; no valid date/baseline
+means unavailable. Use this same daily total for WU/Weathercloud and APRS `P`.
+Keep separate rolling hour/24-hour totals in rain details and service exports.
+Persist the bounded counter-interval ring with CRC-protected history. Full
+hour/day rolling coverage gates interval exports; missing intervals or
+ambiguous boundaries cannot become complete totals.
+
+Use fresh, current NWS hourly conditions for the main icon, labeled as a
+forecast. Hide it offline or when NWS is stale/unavailable. This replaces
+lux-based sky graphics as the initial implementation; lux remains a measured
+local field, with optional calibration research separate.
+
+The [Sunrise-Sunset.org v2 API](https://sunrise-sunset.org/api) supplies daily
+sunrise/sunset plus moon phase/illumination in one HTTPS request, cached by
+local date/location. Show its required attribution. Sunrise/sunset select
+sun versus moon; use NWS day/night metadata if solar times are unavailable.
+These are predicted astronomical/forecast values, not local sky observations.

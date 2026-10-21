@@ -1,0 +1,2 @@
+# Owned PanelLan ESP32-S3 only; grant its serial interface to the project owner.
+SUBSYSTEM=="tty", ATTRS{idVendor}=="303a", ATTRS{idProduct}=="1001", ATTRS{serial}=="68:B6:B3:34:82:48", TAG+="uaccess"
