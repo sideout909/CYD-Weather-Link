@@ -51,7 +51,11 @@ Observation provenance is recorded in [CAPTURE.md](CAPTURE.md#reviewing-lux-rain
 
 [AcuRite describes the sensor as measuring illumination at its installation location](https://kbase.myacurite.com/web/content/monitor/sensors/atlas-weather-station.htm?TocPath=Monitoring%7CYour+Dashboard%7C_____1). The cloudiness inference above is a proposed project feature, not an existing Atlas measurement or a validated algorithm. A Wi-Fi outage alone does not invalidate a locally computed estimate while its clock, coordinates, calibration, and lux remain valid.
 
-The preview's sparkline and readings are illustrative, not a claim of measured history. In firmware, suppress a sparkline until enough valid samples exist and leave gaps during outages.
+The preview's sparkline and readings are illustrative, not a claim of measured history. In firmware, suppress a sparkline until enough valid samples exist.
+
+The Home temperature sparkline spans the last 60 one-minute buckets. At the owner’s request, connect received points with straight lines across missed minutes instead of breaking the line.
+
+This is display interpolation only: missing minutes remain missing in stored history, archives and exports, and cannot refresh measurements or qualify uploads. Draw an isolated observed point as a dot; do not extend the line beyond the first/last observation. Unchanged received values still populate buckets. The 24-hour Trends page independently draws each metric from its own populated buckets.
 
 Display `Gust 5m` as the maximum valid wind-speed reading over the trailing
 300 seconds, alongside current wind speed. This replaces the earlier proposed

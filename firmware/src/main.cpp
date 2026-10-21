@@ -138,10 +138,11 @@ void sparkline() {
   int previous_x=0,previous_y=0;bool previous=false;
   for(uint64_t m=begin;m<=end;++m){
     const auto* b=store->bucket(m);
-    if(!b || !b->temperature_count){previous=false;continue;}
+    if(!b || !b->temperature_count)continue; // Connect observed points across missed minutes.
     const float v=b->temperature_sum/b->temperature_count;
     const int x=162-int(end-m)*150/59,y=118-int((v-low)/(high>low?high-low:1)*10);
     if(previous)canvas.drawLine(previous_x,previous_y,x,y,kCyan);
+    else canvas.drawPixel(x,y,kCyan); // An isolated observed minute is still data.
     previous_x=x;previous_y=y;previous=true;
   }
 }
