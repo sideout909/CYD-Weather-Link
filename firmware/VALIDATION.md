@@ -444,3 +444,15 @@ owner to save the repository and allow the settings restart before retrying.
 The old action acknowledgement had concealed this actionable terminal result.
 The separate location browser checks also passed. The published v0.4.2 latest
 manifest and downloaded firmware size/SHA-256 were verified anonymously.
+
+
+## First manual OTA installation — owner confirmation, October 21
+
+After saving the repository and retrying, the owner reported the OTA update
+"worked flawlessly" and that the moon "looks fantastic". The offered latest
+release was v0.4.2, upgraded from the previously displayed v0.4.0, with USB
+disconnected. Record the manual hosted update and physical moon appearance as
+owner-verified. No authenticated post-update API capture or explicit startup-
+confirmation message was independently observed. This does not validate
+interrupted transfers, deliberate failed-boot rollback, automatic installation,
+or archive/settings preservation through an exported before/after comparison.

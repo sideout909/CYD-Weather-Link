@@ -82,7 +82,9 @@ Absent radio/home internet alone does not fail that check. A failed check
 triggers rollback after 90 seconds; a crash/reset before confirmation also
 lets the bootloader revert. The main task has a 30-second watchdog. These
 paths follow [Espressif's OTA rollback mechanism](https://docs.espressif.com/projects/esp-idf/en/v4.4.7/esp32s3/api-reference/system/ota.html),
-but actual download/first-boot/failure recovery still need an on-board OTA test.
+The owner confirmed the first manual hosted installation from v0.4.0 to the
+offered v0.4.2 release on October 21, 2026, with USB disconnected. Interrupted
+transfers and deliberate failed-boot recovery still need on-board tests.
 USB recovery remains available through the documented hardware profile.
 
 ## Before unattended use

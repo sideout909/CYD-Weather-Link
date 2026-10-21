@@ -6,18 +6,14 @@ SD logging and D710 serial are optional. PC RTL-SDR recording stays stopped.
 
 ## Running board
 
-v0.4.2 defaults new/empty update repository settings to the project repository,
-preserves custom repositories, and replaces the stale queued UI acknowledgement
-with actual updater results. Build and browser regressions pass. Actual OTA
-installation is still pending the owner's authenticated portal check; HTTP 401
-without credentials establishes reachability, not updater state.
+The owner reports a flawless first manual Wi-Fi OTA update from v0.4.0 to the
+published v0.4.2 release and confirms the textured moon looks good on the display.
+USB remained disconnected. v0.4.2 supplies the default project repository and
+current updater feedback; it includes the v0.4.1 lunar renderer and v0.4.0 archive.
+This is owner-confirmed installation/appearance, not an independently captured
+startup-confirmation response or a failure/rollback test.
 
-v0.4.1 adds subtle crater texture and gray shading to the existing small moon
-icon. Built and previewed the actual renderer on the host; the owner's board
-was disconnected from USB on v0.4.0. Manual Wi-Fi OTA installation and physical
-appearance checks are pending. The authenticated portal is reachable on LAN.
-
-The board now runs v0.4.0. It includes the callsign/speaker/APRS header,
+The core includes the callsign/speaker/APRS header,
 Link status details, Atlas stale-cycle/no-signal monitoring, persistent APRS/CWOP
 sessions and opt-in GitHub OTA, alongside the earlier map/security features.
 USB upload preserved Wi-Fi/location/custom admin settings. Display, portal,
@@ -33,7 +29,8 @@ The seven-day archive is installed: fixed 126 KiB storage, five-minute summaries
 protected browser/USB CSV and a 512 KiB free-space reserve. Existing minute
 history/checkpoint schema and OTA layout are preserved. Real CSV export and
 saved-record recovery across restart passed; see RECORDING.md.
-Hosted OTA/rollback remains unverified. The owner confirmed correct-location
+The first manual hosted OTA installation is owner-verified; interrupted updates
+and failed-boot rollback remain unverified. The owner confirmed correct-location
 APRS.fi weather display with CYDWeatherLink identification and visible WU
 uploads. CWOP/MADIS collection and Weathercloud ingestion remain unverified.
 
