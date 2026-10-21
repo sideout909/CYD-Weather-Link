@@ -19,6 +19,7 @@ def main():
     scan=dict(session=0,active=False,expired=False,elapsed_s=0,duration_s=300,ready=True,
               overflow=0,profile='433.92 MHz OOK',candidates=[])
     saves=[];errors=[];requests=[]
+    failures=dict(status=1,start_reply=False)
     def route(request):
         url=urlsplit(request.request.url)
         assert url.hostname=='weatherlink.test','Unexpected external request'
@@ -37,11 +38,18 @@ def main():
         elif path=='/api/discovery/start':
             assert method=='POST' and request.request.headers['x-csrf-token']==config['csrf']
             scan.update(session=scan['session']+1,active=True,expired=False,elapsed_s=0,candidates=[])
+            if failures['start_reply']:
+                failures['start_reply']=False
+                request.abort();return
             result=dict(started=True)
         elif path=='/api/discovery/cancel':
             assert method=='POST' and request.request.headers['x-csrf-token']==config['csrf']
             scan['active']=False;result=dict(cancelled=True)
-        elif path=='/api/discovery':result=scan
+        elif path=='/api/discovery':
+            if failures['status']:
+                failures['status']-=1
+                request.fulfill(status=503,content_type='application/json',body='{"error":"Temporarily unavailable"}');return
+            result=scan
         elif path=='/api/status':result=dict(wifi=False,radio_ready=True,source='none',station_confirmed=False,sensor_status='Waiting')
         elif path=='/api/update':result=dict(current_version='0.5.1',busy=False,available=False,message='Off')
         elif path=='/api/archive':result=dict(ready=True,clock_valid=False,records=0,capacity=2016,message='Waiting for clock')
@@ -62,6 +70,10 @@ def main():
         page.locator('#ssid').fill('My home Wi-Fi')
         page.locator('#discovery-start').click()
         page.wait_for_function("!document.querySelector('#discovery-cancel').hidden")
+        page.wait_for_function("document.querySelector('#discovery-message').textContent.includes('checking scan status again')")
+        assert page.locator('#discovery-start').is_disabled()
+        page.wait_for_function("document.querySelector('#discovery-message').textContent.startsWith('Listening')")
+        assert requests.count(('POST','/api/discovery/start'))==1
         assert not saves
         neighbor=dict(token=1,name='AcuRite Atlas',id=123,channel='B',sightings=1,age_s=0,
                       suggested=False,selectable=False,supported=True,temperature_F=60,humidity=70,wind_mph=0)
@@ -90,8 +102,13 @@ def main():
         page.locator('#discovery-cancel').click()
         page.wait_for_function("document.querySelector('#discovery-message').textContent.includes('cancelled')")
         assert page.locator('[name=discovery_session]').input_value()=='0' and len(saves)==1
+        # The POST was accepted, but its reply and first status response were
+        # lost. Recover by reading status, without issuing another Start.
+        failures.update(start_reply=True,status=1)
         page.locator('#discovery-start').click()
         page.wait_for_function("!document.querySelector('#discovery-cancel').hidden")
+        page.wait_for_function("document.querySelector('#discovery-message').textContent.startsWith('Listening')")
+        assert requests.count(('POST','/api/discovery/start'))==2
         scan.update(active=False,expired=True,elapsed_s=300,candidates=[])
         page.evaluate('window.WXDiscovery.refresh()')
         page.wait_for_function("document.querySelector('#discovery-start').textContent==='Scan again'")
@@ -102,7 +119,7 @@ def main():
         target=ROOT/'captures/firmware-validation/discovery-mobile.png';target.parent.mkdir(parents=True,exist_ok=True)
         page.screenshot(path=str(target),full_page=True)
         browser.close()
-    print('Discovery browser checks passed: setup-first, hidden IDs, CSRF, candidates, unsupported profiles, staged selection, preserved edits, cancel, timeout and mobile width.')
+    print('Discovery browser checks passed: setup-first, hidden IDs, CSRF, candidates, staged selection, preserved edits, cancel, timeout, mobile width, first-status failure and lost Start reply recovery without duplicate starts.')
 
 
 if __name__=='__main__':main()

@@ -1,5 +1,33 @@
 # Core firmware validation
 
+## Setup touch target — v0.5.3, October 21, 2026
+
+The owner reported hitting station status while trying to open Wi-Fi setup.
+The padded Wi-Fi region (x=184–243, full header height y=0–43), plus the
+existing title target, now opens setup. Other status indicators still open
+Link status. The setup close header also uses 44 pixels. Removed the sun-data
+attribution from the display's setup screen; browser attribution remains.
+Build passes: 1,589,833 application bytes, 69,844 static RAM bytes. The request
+recovery tests from v0.5.2 also pass; physical touch confirmation remains for
+the owner. No radio/profile or credential changes are involved.
+
+## Discovery request recovery — v0.5.2, October 21, 2026
+
+Owner reported an unavailable error about one second into the first attempt;
+a second attempt discovered the station. The exact failing request was not
+captured. Source review found that an initial status failure after an accepted
+Start could leave the page without ongoing polling, and an error from a lost
+Start reply could overwrite a recovered active state.
+
+The browser now resumes status checks after uncertain Start delivery, retains
+polling after the first status failure, and serializes status requests. It
+never automatically repeats the Start mutation or resets the five-minute
+scan timer. Tests deliberately inject HTTP 503 for the first status request,
+then an accepted Start with a dropped response plus a failed status read.
+Both recover without another Start; the complete setup/dashboard browser suite
+also passes. This establishes the recovery fix, not the exact cause of the
+owner's original message. Build: 1,589,997 application bytes, 69,844 static RAM.
+
 ## Automatic station discovery — v0.5.1, October 21, 2026
 
 - Added passive 433.92 MHz OOK Atlas discovery, with Iris/Notos detection

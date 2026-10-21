@@ -4,6 +4,7 @@
   const $ = id => document.getElementById(id);
   const form = $('settings'), list = $('discovery-candidates'), message = $('discovery-message');
   let pending = false, active = false, selected = 0, session = 0;
+  let reconciling=false,refreshPromise=null;
   const dismissed=new Set();
   const text = (tag, value) => {const el=document.createElement(tag);el.textContent=value;return el;};
   async function request(path, mutation=false) {
@@ -73,19 +74,36 @@
     }
     if(state.overflow)list.append(text('p','More devices were heard than can be listed. Move nearer your station and scan again.'));
   }
-  async function refresh() {
-    try {render(await request('/api/discovery'));}
-    catch(error){message.textContent='Detection status unavailable: '+error.message;}
+  function refresh() {
+    // Mobile connections can lose a response after the device accepted Start.
+    // Serialize status reads and reconcile that scan; never retry the POST
+    // automatically or replace a useful running state with its earlier error.
+    if(refreshPromise)return refreshPromise;
+    refreshPromise=(async()=>{
+      try {render(await request('/api/discovery'));reconciling=false;return true;}
+      catch(error){message.textContent=(active||reconciling?'Connection interrupted; checking scan status again. ':'Detection status unavailable: ')+error.message;return false;}
+      finally {refreshPromise=null;}
+    })();
+    return refreshPromise;
   }
   $('discovery-start').onclick=async()=>{
     if(pending)return;pending=true;$('discovery-start').disabled=true;
-    try {await request('/api/discovery/start',true);clearSelection();dismissed.clear();await refresh();}
-    catch(error){await refresh();message.textContent=error.message;}
-    finally {pending=false;$('discovery-start').disabled=active;}
+    try {
+      if(refreshPromise)await refreshPromise;
+      await request('/api/discovery/start',true);
+      active=true;clearSelection();dismissed.clear();$('discovery-cancel').hidden=false;
+      await refresh();
+    }
+    catch(error){
+      reconciling=true;
+      const known=await refresh();
+      if(!active&&known)message.textContent=error.message;
+    }
+    finally {pending=false;$('discovery-start').disabled=active||reconciling;}
   };
   $('discovery-cancel').onclick=async()=>{
     if(pending)return;pending=true;
-    try{await request('/api/discovery/cancel',true);clearSelection();active=false;await refresh();message.textContent='Scan cancelled. Your saved station is unchanged.';}
+    try{if(refreshPromise)await refreshPromise;await request('/api/discovery/cancel',true);clearSelection();active=false;await refresh();message.textContent='Scan cancelled. Your saved station is unchanged.';}
     catch(error){message.textContent=error.message;}
     finally{pending=false;$('discovery-start').disabled=active;}
   };
@@ -93,7 +111,7 @@
     if(selected){selected=0;form.elements.discovery_session.value='0';form.elements.discovery_candidate.value='0';message.textContent='Automatic selection cleared. Use manual binding or find your station again.';}
   });
   document.addEventListener('wx-config',configure);
-  setInterval(()=>{if(active&&!pending&&!document.hidden&&$('station').classList.contains('active'))refresh();},2000);
+  setInterval(()=>{if((active||reconciling)&&!pending&&!document.hidden&&$('station').classList.contains('active'))refresh();},2000);
   if(window.wxConfig)configure();
   window.WXDiscovery={configure,refresh};
 })();

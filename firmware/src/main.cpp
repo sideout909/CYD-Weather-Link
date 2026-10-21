@@ -389,7 +389,6 @@ void renderSetup(){
   text("Setup Wi-Fi key:",12,102,kMuted);text(services::setupWifiKey(),12,124,kWhite,&fonts::Font4);
   text("Open http://192.168.4.1",12,164,kCyan);text(services::settings().admin_custom?"Admin: custom password set":"Admin: use the Wi-Fi key",12,187,kMuted);
   text("LAN: http://"+services::portalAddress(),12,209,kMuted,&fonts::Font0);
-  text("Sun data by Sunrise-Sunset.org",12,230,kMuted,&fonts::Font0);
 }
 void renderAlerts(){
   canvas.fillScreen(kBackground);text(network.alerts_valid && services::clockValid() && time(nullptr)-network.alert_fetched<180?"NWS ALERTS":"NWS / UNVERIFIED",12,9,kCyan);text("tap header to close",190,13,kMuted,&fonts::Font0);
@@ -633,7 +632,7 @@ void touch() {
     down=true;last_x=x;last_y=y;
   } else if(down) {
     down=false;const int dx=last_x-start_x,dy=last_y-start_y;
-    if(setup_open){if(abs(dx)<15&&abs(dy)<15&&start_y<40){setup_open=false;dirty=true;}return;}
+    if(setup_open){if(abs(dx)<15&&abs(dy)<15&&start_y<44){setup_open=false;dirty=true;}return;}
     if((alerts_open || page==2) && abs(dy)>20 && abs(dy)>abs(dx)){detail_scroll=max(0,min(6000,detail_scroll-dy));dirty=true;return;}
     if(alerts_open){if(start_y<40){alerts_open=false;detail_scroll=0;}else if(start_y>205){++alert_index;detail_scroll=0;}dirty=true;return;}
     if(measurement_detail>=0){
@@ -645,7 +644,9 @@ void touch() {
       page=(page+(dx<0?1:2))%3;
       dirty=true;status("swipe");
     } else if(abs(dx)<15 && abs(dy)<15 && uptimeMs()-pressed_at<1000) {
-      if(start_y<26){setup_open=true;dirty=true;}
+      // Include the padded Wi-Fi status area in the setup target. Previously
+      // tapping the Wi-Fi label opened Link status instead of its setup page.
+      if(start_y<26||(start_y<44&&start_x>=184&&start_x<244)){setup_open=true;dirty=true;}
       else if(start_y<44){measurement_detail=5;dirty=true;}
       else if(start_y>=188){alerts_open=true;detail_scroll=0;dirty=true;}
       else if(page==2){if(start_y<62){forecast_hourly=!forecast_hourly;forecast_index=0;}else ++forecast_index;detail_scroll=0;dirty=true;}

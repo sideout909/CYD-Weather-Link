@@ -33,7 +33,8 @@ recording or uploads. Other library protocols are not enabled by this change.
 - [ ] APRS X / CWOP X means disconnected or off; APRS + / CWOP + means an
       acknowledged session. RF and Wi-Fi also have a space before + or X.
       Link details distinguish disabled from connection failures.
-- [ ] Tap the status row for Link status; Back returns Home. Verify Atlas
+- [ ] Tap the RF/source or APRS part of the status row for Link status;
+      the padded Wi-Fi area opens setup. Back returns Home. Verify Atlas
       status, last packet, missing packet types and APRS report age are clear.
 - [ ] Swipe left: Home → Trends → Forecast → Home.
 - [ ] Swipe right: Home → Forecast → Trends → Home.
@@ -69,7 +70,8 @@ recording or uploads. Other library protocols are not enabled by this change.
 
 ## Setup and location
 
-- [ ] Tap the title: setup network/Wi-Fi key and LAN address appear; header closes it.
+- [ ] Tap the title or Wi-Fi indicator: setup network/Wi-Fi key and LAN address
+      appear; the full 44-pixel header closes it. No sun-data footer appears here.
       Keep that access key private.
 - [ ] On a phone, open the displayed URL and sign in as admin using your saved admin password (initially the Wi-Fi key).
 - [ ] With a custom admin password, setup shows only the generated Wi-Fi key
