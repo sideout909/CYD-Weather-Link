@@ -1,6 +1,7 @@
 #include "firmware_updates.h"
 #include "firmware_version.h"
 #include "update_policy.h"
+#include "startup_health.h"
 #include <ArduinoJson.h>
 #include <HTTPClient.h>
 #include <WiFi.h>
@@ -132,13 +133,16 @@ void tick(const services::Settings& config){
   }
   s.busy=s.restart_pending;publish(s);
 }
-void confirmBoot(bool healthy){
+void confirmBoot(bool healthy,const char* reason){
   if(!verify_boot||millis()-boot_started<30000)return;
   if(int32_t(millis()-next_boot_check)<0)return;next_boot_check=millis()+1000;
   auto s=state();
-  if(healthy&&millis()-boot_started>=30000){
+  const auto action=startup_health::bootAction(millis()-boot_started,healthy);
+  if(action==startup_health::BootAction::Confirm){
     if(esp_ota_mark_app_valid_cancel_rollback()==ESP_OK){verify_boot=false;s.boot_pending=false;s.message="Updated firmware passed startup checks";publish(s);}
+    else{s.message="Startup confirmation write failed; rollback remains armed";publish(s);}
   }
+  else{s.message=String("Startup checks: ")+reason;publish(s);}
   if(verify_boot&&millis()-boot_started>90000)esp_ota_mark_app_invalid_rollback_and_reboot();
 }
 bool restartPending(){return restart_needed.load();}

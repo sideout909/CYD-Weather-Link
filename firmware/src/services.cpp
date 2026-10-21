@@ -24,6 +24,7 @@ State current;
 SemaphoreHandle_t state_mutex = nullptr;
 QueueHandle_t observations = nullptr;
 Observation latest;
+std::atomic<bool> http_serving{false};
 void writeState(const State& next) {
   if(xSemaphoreTake(state_mutex,pdMS_TO_TICKS(100))==pdTRUE){current=next;xSemaphoreGive(state_mutex);}
 }
@@ -104,12 +105,13 @@ void configGet() {
 }
 void configPost() {
   if(!authorize())return;
-  if(firmware_updates::state().busy){error("Wait for the firmware update operation to finish.",409);return;}
   if(server.header("X-CSRF-Token")!=csrf){error("Refresh this page before saving.",403);return;}
   if(server.arg("plain").length()>4096){error("Settings request is too large.",413);return;}
   DynamicJsonDocument d(6144);
   if(deserializeJson(d,server.arg("plain")) || !d.is<JsonObject>()){error("Invalid settings JSON.");return;}
   if(d.containsKey("station_id") && (!d["station_id"].is<unsigned>() || d["station_id"].as<unsigned>()>1023)){error("Invalid Atlas sensor ID.");return;}
+  const auto update=firmware_updates::state();
+  if(update.busy||update.boot_pending){error(update.boot_pending?"Wait for updated firmware to pass startup checks before saving.":"Wait for the firmware update operation to finish.",409);return;}
   Settings next=detail::config;readConfig(d,next,true);
   if(const char* message=validate(next)){error(message);return;}
   if(d["setup_key"].is<const char*>())setup_credentials::chooseAdmin(next.setup_wifi_key,next.setup_key,next.admin_custom,String(d["setup_key"].as<const char*>()),randomKey);
@@ -129,6 +131,7 @@ void statusGet() {
   d["aprs_connected"]=s.aprs_connected&&WiFi.status()==WL_CONNECTED;d["aprs_verified"]=s.aprs_verified&&s.aprs_connected&&WiFi.status()==WL_CONNECTED;
   d["packets"]=o.packets;d["dropped"]=o.dropped;d["free_heap"]=ESP.getFreeHeap();d["free_psram"]=ESP.getFreePsram();
   d["uptime_s"]=millis()/1000;d["portal_tested"]=s.portal_tested;d["portal_passed"]=s.portal_passed;
+  d["portal_attempts"]=s.portal_attempts;d["portal_test_status"]=s.portal_test_status;
   if(o.epoch_ms && o.live && clockValid())d["packet_age_s"]=(uint64_t(time(nullptr))*1000>o.epoch_ms)?(uint64_t(time(nullptr))*1000-o.epoch_ms)/1000:0;
   if(o.temperature_valid)d["temperature_F"]=o.temperature_f;
   if(o.humidity_valid)d["humidity"]=o.humidity;
@@ -212,6 +215,7 @@ void begin(){
 }
 void loop(){
   dns.processNextRequest();server.handleClient();
+  detail::http_serving.store(true);
   if(restart_at && int32_t(millis()-restart_at)>=0){archive_storage::flush();ESP.restart();}
   if(millis()-last_link_check>1000){last_link_check=millis();
     if(xSemaphoreTake(detail::state_mutex,pdMS_TO_TICKS(2))==pdTRUE){auto& s=detail::current;s.wifi=WiFi.status()==WL_CONNECTED;s.clock_valid=clockValid();s.ap=true;s.ap_name=ap_name;s.ip=portalAddress();xSemaphoreGive(detail::state_mutex);}

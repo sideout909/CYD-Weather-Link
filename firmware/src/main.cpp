@@ -460,6 +460,7 @@ void status(const char* event = "status") {
   out["wifi"]=network.wifi;out["clock_valid"]=services::clockValid();out["setup_ip"]=services::portalAddress();
   out["checkpoint_restored"]=checkpoint_restored;out["setup_open"]=setup_open;
   out["portal_tested"]=network.portal_tested;out["portal_passed"]=network.portal_passed;
+  out["portal_attempts"]=network.portal_attempts;out["portal_test_status"]=network.portal_test_status;
   out["custom_admin_password"]=services::settings().admin_custom;
   out["setup_credentials_separated"]=services::settings().admin_custom && services::settings().setup_wifi_key!=services::settings().setup_key;
   out["forecast_periods"]=network.forecast_count;out["hourly_periods"]=network.hourly_count;
@@ -675,7 +676,7 @@ void setup() {
 void loop() {
   if(!store){firmware_updates::confirmBoot(false);delay(100);return;}
   receive();touch();services::loop();radio_receiver::loop();
-  firmware_updates::confirmBoot(display_ok&&network.portal_passed);
+  firmware_updates::confirmBoot(display_ok&&network.portal_passed,display_ok?network.portal_test_status.c_str():"Display initialization failed");
   if(firmware_updates::restartPending()){
     archive_storage::flush();
     if(!replay&&clock_anchored&&store->accepted)checkpoint::save(history,*store,daily_rain,liveNow(),services::settings().station_id,services::settings().channel);

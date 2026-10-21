@@ -6,12 +6,17 @@ SD logging and D710 serial are optional. PC RTL-SDR recording stays stopped.
 
 ## Running board
 
-The owner reports a flawless first manual Wi-Fi OTA update from v0.4.0 to the
-published v0.4.2 release and confirms the textured moon looks good on the display.
-USB remained disconnected. v0.4.2 supplies the default project repository and
-current updater feedback; it includes the v0.4.1 lunar renderer and v0.4.0 archive.
-This is owner-confirmed installation/appearance, not an independently captured
-startup-confirmation response or a failure/rollback test.
+The owner initially saw v0.4.2 boot and liked the moon, then reported automatic
+reversion to v0.4.0. The earlier "successful OTA" entry is superseded: transfer
+and boot worked, final confirmation was not established. v0.4.1/v0.4.2 are now
+prereleases and v0.4.0 is held as the latest public release while investigating.
+
+v0.4.3 is built and host/browser checked: wait for actual HTTP service before
+portal self-tests, bounded retries with sanitized stage/HTTP diagnostics, and
+block settings-save restarts while boot confirmation is pending. The 30-second
+confirmation / 90-second rollback policy and watchdog remain intact. A startup
+timing race was found in source; the owner's exact failure reason is pending.
+The board is disconnected from USB; no candidate was installed by the agent.
 
 The core includes the callsign/speaker/APRS header,
 Link status details, Atlas stale-cycle/no-signal monitoring, persistent APRS/CWOP
@@ -29,8 +34,8 @@ The seven-day archive is installed: fixed 126 KiB storage, five-minute summaries
 protected browser/USB CSV and a 512 KiB free-space reserve. Existing minute
 history/checkpoint schema and OTA layout are preserved. Real CSV export and
 saved-record recovery across restart passed; see RECORDING.md.
-The first manual hosted OTA installation is owner-verified; interrupted updates
-and failed-boot rollback remain unverified. The owner confirmed correct-location
+Manual hosted OTA confirmation remains unverified after the owner-reported
+fallback; interrupted updates and deliberate failed-boot rollback need tests. The owner confirmed correct-location
 APRS.fi weather display with CYDWeatherLink identification and visible WU
 uploads. CWOP/MADIS collection and Weathercloud ingestion remain unverified.
 

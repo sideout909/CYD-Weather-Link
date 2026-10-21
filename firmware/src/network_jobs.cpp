@@ -11,6 +11,7 @@
 #include "sun_root.h"
 #include "aprs_login.h"
 #include "firmware_updates.h"
+#include "startup_health.h"
 #include <lwip/sockets.h>
 #include <lwip/tcp.h>
 
@@ -222,49 +223,49 @@ bool uploadAprs(const Observation& o,String& result){
   result=sent?"Sent; ingestion unconfirmed":"Send failed";return sent;
 }
 
-bool portalSelftest(){
-  // Exercise real HTTP handlers on this device without revealing credentials,
-  // modifying saved settings, or requiring an external network.
-  WiFiClient client;HTTPClient http;http.setConnectTimeout(1000);http.setTimeout(2000);
+bool portalSelftest(String& failure){
+  // Start only after the main task has actually serviced HTTP. Each probe gets
+  // a fresh client, so credentials and request headers cannot cross test cases.
   const String root="http://"+WiFi.softAPIP().toString();
-  if(!http.begin(client,root+"/api/config"))return false;
-  bool ok=http.GET()==401;http.end();
-  if(!http.begin(client,root+"/api/update"))return false;
-  ok=ok&&http.GET()==401;http.end();
-  if(!http.begin(client,root+"/api/archive"))return false;
-  ok=ok&&http.GET()==401;http.end();
-  if(!http.begin(client,root+"/api/archive.csv?end=1&offset=0"))return false;
-  ok=ok&&http.GET()==401;http.end();
-  if(!http.begin(client,root+"/api/config"))return false;
-  http.setAuthorization("admin",config.setup_key.c_str());
-  if(http.GET()!=200){http.end();return false;}
-  DynamicJsonDocument d(4096);auto parsed=deserializeJson(d,http.getString());http.end();
-  ok=ok&&!parsed&&d["station_id"].as<unsigned>()==config.station_id&&!d.containsKey("setup_key")&&!d.containsKey("setup_wifi_key")&&!d.containsKey("wifi_password")&&!d.containsKey("wu_key");
-  const String token=d["csrf"].as<String>();
-  if(!http.begin(client,root+"/api/archive"))return false;
-  http.setAuthorization("admin",config.setup_key.c_str());
-  if(http.GET()!=200){http.end();return false;}
-  const bool archive_parsed=!deserializeJson(d,http.getString());http.end();
-  ok=ok&&archive_parsed&&d["schema"]==1&&d["retention_days"]==7;
-  if(config.admin_custom){
-    ok=ok&&config.setup_wifi_key!=config.setup_key;
-    if(!http.begin(client,root+"/api/config"))return false;
-    http.setAuthorization("admin",config.setup_wifi_key.c_str());ok=ok&&http.GET()==401;http.end();
+  auto expect=[&](const char* stage,const char* path,int expected,const String& password,
+                  const char* body=nullptr,const String& token=String(),String* response=nullptr){
+    failure=stage;
+    WiFiClient client;HTTPClient http;http.setConnectTimeout(1000);http.setTimeout(2000);
+    if(!http.begin(client,root+path)){failure+=" (client setup)";return false;}
+    if(password.length())http.setAuthorization("admin",password.c_str());
+    if(token.length())http.addHeader("X-CSRF-Token",token);
+    if(body)http.addHeader("Content-Type","application/json");
+    const int code=body?http.POST(String(body)):http.GET();
+    if(code!=expected){failure+=" (HTTP "+String(code)+")";http.end();return false;}
+    if(response)*response=http.getString();
+    http.end();return true;
+  };
+  const String none;
+  if(!expect("Unauthenticated config","/api/config",401,none)||
+     !expect("Unauthenticated updater","/api/update",401,none)||
+     !expect("Unauthenticated archive","/api/archive",401,none)||
+     !expect("Unauthenticated CSV","/api/archive.csv?end=1&offset=0",401,none))return false;
+  String response;
+  if(!expect("Authenticated config","/api/config",200,config.setup_key,nullptr,none,&response))return false;
+  DynamicJsonDocument d(4096);
+  if(deserializeJson(d,response)||d["station_id"].as<unsigned>()!=config.station_id||
+     d.containsKey("setup_key")||d.containsKey("setup_wifi_key")||d.containsKey("wifi_password")||d.containsKey("wu_key")){
+    failure="Config schema or secret masking";return false;
   }
-  if(!http.begin(client,root+"/assets/location.js"))return false;
-  http.setAuthorization("admin",config.setup_key.c_str());
-  if(http.GET()!=200){http.end();return false;}
-  String script=http.getString();http.end();
-  ok=ok&&script.length()>100&&uint8_t(script[0])==0x1f&&uint8_t(script[1])==0x8b;
-  if(!http.begin(client,root+"/api/update/install"))return false;
-  http.setAuthorization("admin",config.setup_key.c_str());
-  ok=ok&&http.POST("")==403;http.end();
-  if(!http.begin(client,root+"/api/config"))return false;
-  http.setAuthorization("admin",config.setup_key.c_str());http.addHeader("Content-Type","application/json");
-  ok=ok&&http.POST("{}")==403;http.end();
-  if(!http.begin(client,root+"/api/config"))return false;
-  http.setAuthorization("admin",config.setup_key.c_str());http.addHeader("Content-Type","application/json");http.addHeader("X-CSRF-Token",token);
-  ok=ok&&http.POST("{\"station_id\":65536}")==400;http.end();return ok;
+  const String token=d["csrf"].as<String>();
+  if(!token.length()){failure="Config CSRF token missing";return false;}
+  if(!expect("Authenticated archive","/api/archive",200,config.setup_key,nullptr,none,&response))return false;
+  if(deserializeJson(d,response)||d["schema"]!=1||d["retention_days"]!=7){failure="Archive schema";return false;}
+  if(config.admin_custom){
+    if(config.setup_wifi_key==config.setup_key){failure="Admin/AP key separation";return false;}
+    if(!expect("AP key denied admin access","/api/config",401,config.setup_wifi_key))return false;
+  }
+  if(!expect("Local map asset","/assets/location.js",200,config.setup_key,nullptr,none,&response))return false;
+  if(response.length()<=100||uint8_t(response[0])!=0x1f||uint8_t(response[1])!=0x8b){failure="Local map asset content";return false;}
+  if(!expect("Updater CSRF rejection","/api/update/install",403,config.setup_key,""))return false;
+  if(!expect("Settings CSRF rejection","/api/config",403,config.setup_key,"{}"))return false;
+  if(!expect("Invalid station rejection","/api/config",400,config.setup_key,"{\"station_id\":65536}",token))return false;
+  failure="Passed";return true;
 }
 int32_t localDay(){time_t t=time(nullptr);struct tm tm{};localtime_r(&t,&tm);return (tm.tm_year+1900)*10000+(tm.tm_mon+1)*100+tm.tm_mday;}
 void fetchSun(State& s){
@@ -323,8 +324,15 @@ String alertSignature(const State& s){String out=String(s.alerts_truncated);for(
 
 void worker(void*){
   Observation o{};bool cache_loaded=false;uint32_t cache_saved=0;bool cache_written=false;String alert_signature;
-  vTaskDelay(pdMS_TO_TICKS(1800));
-  State tested=state();tested.portal_passed=portalSelftest();tested.portal_tested=true;writeState(tested);
+  startup_health::PortalProbe probe;
+  while(!probe.finished()){
+    if(probe.due(millis(),http_serving.load())){
+      State tested=state();tested.portal_passed=portalSelftest(tested.portal_test_status);
+      tested.portal_tested=true;probe.result(millis(),tested.portal_passed);
+      tested.portal_attempts=probe.attempts();writeState(tested);
+    }
+    vTaskDelay(pdMS_TO_TICKS(25));
+  }
   for(;;){
     xQueueReceive(observations,&o,pdMS_TO_TICKS(200));
     State s=state();

@@ -49,6 +49,8 @@ struct Alert {
 struct State {
   bool wifi=false,clock_valid=false,ap=false;
   bool portal_tested=false,portal_passed=false;
+  unsigned portal_attempts=0;
+  String portal_test_status="Waiting for HTTP service";
   String ip,ap_name;
   time_t sunrise=0,sunset=0,sun_fetched=0;
   int32_t sun_day=0;

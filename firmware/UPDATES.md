@@ -2,14 +2,17 @@
 
 The development firmware implements opt-in updates from a **public GitHub
 repository**, with manual Check/Install controls and optional daily automatic
-installation. Both automatic settings default off. The project repository is `sideout909/CYD-Weather-Link`; enter it in Updates.
-No repository is hardcoded in the device and no GitHub token is needed. A real hosted release/download/rollback test
-is still required before calling unattended updates bench validated.
+installation. Both automatic settings default off. From v0.4.2 the project
+repository is prefilled as `sideout909/CYD-Weather-Link`; saved custom sources
+remain supported. No GitHub token is needed. The first OTA transfer/boot was
+followed by an unexpected owner-reported rollback to v0.4.0; final acceptance
+and unattended update validation remain open.
 
 ## Owner setup
 
-1. On the setup page, open Updates and enter `owner/repository` for the source
-   you trust. Save and restart; this does not enable checks or installations.
+1. On the setup page, open Updates. The project source is prefilled in newer
+   firmware; older firmware needs `sideout909/CYD-Weather-Link` entered. Save
+   and restart if changing it; this does not enable checks or installations.
 2. Check now retrieves the latest compatible release manifest. A normal stable
    release needs the two named assets below; a draft/prerelease is not the
    normal GitHub `releases/latest` target.
@@ -81,10 +84,20 @@ with display initialization and the actual local portal self-test passed.
 Absent radio/home internet alone does not fail that check. A failed check
 triggers rollback after 90 seconds; a crash/reset before confirmation also
 lets the bootloader revert. The main task has a 30-second watchdog. These
-paths follow [Espressif's OTA rollback mechanism](https://docs.espressif.com/projects/esp-idf/en/v4.4.7/esp32s3/api-reference/system/ota.html),
-The owner confirmed the first manual hosted installation from v0.4.0 to the
-offered v0.4.2 release on October 21, 2026, with USB disconnected. Interrupted
-transfers and deliberate failed-boot recovery still need on-board tests.
+paths follow [Espressif's OTA rollback mechanism](https://docs.espressif.com/projects/esp-idf/en/v4.4.7/esp32s3/api-reference/system/ota.html).
+The owner initially observed v0.4.2 running, then reported reversion to v0.4.0.
+This establishes transfer/boot and a fallback, not successful final confirmation.
+The exact failure/reset cause remains unconfirmed without startup diagnostics.
+
+The v0.4.3 correction waits for actual main-loop HTTP service before probing,
+allows at most three portal self-test attempts, and reports the failed stage
+and HTTP result without secrets. Settings saves are rejected while boot
+confirmation is pending; authentication/CSRF and invalid-input rejection still
+run before that guard. The original 30-second confirmation and 90-second
+rollback thresholds and watchdog remain enabled. A successful test must show
+**Updated firmware passed startup checks**, remain on the new version beyond
+90 seconds, and survive a later controlled restart. Interrupted transfers and
+deliberate failed-boot recovery need separate tests.
 USB recovery remains available through the documented hardware profile.
 
 ## Before unattended use

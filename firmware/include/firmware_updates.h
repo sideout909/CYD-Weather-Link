@@ -13,6 +13,6 @@ State state();
 bool requestCheck();
 bool requestInstall();
 void tick(const services::Settings& settings);
-void confirmBoot(bool healthy);
+void confirmBoot(bool healthy,const char* reason="Startup checks pending");
 bool restartPending();
 }

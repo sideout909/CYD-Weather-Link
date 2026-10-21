@@ -456,3 +456,37 @@ owner-verified. No authenticated post-update API capture or explicit startup-
 confirmation message was independently observed. This does not validate
 interrupted transfers, deliberate failed-boot rollback, automatic installation,
 or archive/settings preservation through an exported before/after comparison.
+
+
+## OTA rollback report and correction — v0.4.3, October 21
+
+**Supersedes the earlier first-OTA success classification.** The owner subsequently
+reported the display reverted to v0.4.0. Transfer/initial execution and the moon
+appearance were observed; final boot confirmation was not independently seen.
+The exact reset/failing self-test remains unconfirmed. Requested elapsed time,
+power continuity and the old firmware's portal_tested/portal_passed/uptime_s.
+Held v0.4.0 as latest and marked v0.4.1/v0.4.2 prereleases to stop offering them
+as normal updates. Do not disable rollback to make this test appear successful.
+
+Found an actual readiness race: the network worker ran a one-shot HTTP self-test
+1.8 seconds after task creation, while main setup could still be scanning the
+archive/starting the receiver and not servicing WebServer. A timeout was sticky
+and could deny confirmation. This is a source finding, not a captured device
+failure. v0.4.3 waits for main-loop HTTP service, retries failed probes at most
+three times with 1.5-second spacing, and records attempt count/stage/HTTP code.
+Fresh clients isolate each probe's credentials/headers. No authentication,
+secret masking, archive schema or CSRF test was removed.
+
+Also block valid settings-save restarts during pending boot verification, so
+an early Save cannot itself cause rollback. CSRF and invalid station checks
+precede the busy/pending guard, preserving their expected rejection responses
+for self-tests. Updater status explains a waiting check or confirmation-write
+failure. Confirmation remains after 30 seconds with display + portal healthy;
+unconfirmed firmware rolls back after 90 seconds. Radio reception is not a gate.
+
+Host startup tests cover delayed HTTP readiness, retry spacing/exhaustion,
+success stopping retries, timer wrap, and both original boot deadlines. The
+complete host suite and browser regressions passed; browser tests include a
+pending-boot failure reason and disabled Save/Check/Install until confirmation.
+The pinned build passed: 1,535,533 application bytes, 68,324 static RAM bytes.
+These are source/host results; corrected OTA installation remains pending.
