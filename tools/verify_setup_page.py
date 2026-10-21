@@ -20,7 +20,8 @@ def main():
                   aprs_profile='ham', callsign='', update_repo='sideout909/CYD-Weather-Link', csrf='synthetic-csrf', wu_key_set=True)
     status = dict(wifi=False, radio_ready=False, source='none', forecast_state='Not configured',
                   alert_state='Not configured', packets=0, free_heap=200000,
-                  rain_today_in=.12, rain_partial=True, rain_24h_in=.85, rain_24h_partial=False)
+                  rain_today_in=.12, rain_partial=True, rain_24h_in=.85, rain_24h_partial=False,
+                  temperature_F=55.200000076)
     saves = []
     update_requests = []
     update_state = dict(current_version='0.3.0', available=False, busy=False, message='Updates off', progress=0)
@@ -75,6 +76,8 @@ def main():
         page.route('http://weatherlink.test/**', route)
         page.goto('http://weatherlink.test/')
         page.wait_for_function("document.querySelector('#connection').textContent==='Setup Wi-Fi active'")
+        assert page.locator('#temperature').inner_text() == '55.2 °F'
+        assert '55.200000076' not in page.locator('#statusdetail').inner_text()
         assert page.locator('#rain').inner_text() == '0.12 in *'
         assert page.get_by_text('Rain · today', exact=True).is_visible()
         page.screenshot(path=str(artifacts/'setup-desktop.png'), full_page=True)
