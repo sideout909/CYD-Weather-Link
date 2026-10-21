@@ -246,3 +246,11 @@ is at least ten minutes old. Remove the tiny STALE tag beside the number.
 Missing temperatures remain muted dashes. Fresh data returns the number to
 white. On Home, orange replaces the small Data stale status text; Disconnected
 remains explicit. Other pages and measurement details retain the health text.
+# TODO: weather-icon source label placement
+
+Owner request, October 21, 2026: move the **NWS** source label above the current
+sunny/cloudy/night weather icon. Its current placement can make the nearby
+temperature history graph appear to come from NWS. Keep the label visually
+attached to the icon; the graph continues to represent local station readings.
+This is backlog work, not an implemented display change.
+
