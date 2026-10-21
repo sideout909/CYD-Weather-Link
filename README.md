@@ -15,6 +15,13 @@ APRS.fi location/weather display and WU uploads are observed. CWOP/Weathercloud
 ingestion, reference comparison and a full soak remain validation gates. Windy is later work; D710, pressure and sound are
 optional additions.
 
+## Live display
+
+![Live CYD Weather Link home screen with Atlas readings, connection status, trends and NWS information](assets/screenshots/live-home-screen.png)
+
+Actual display capture from the owner's PanelLan board running v0.5.3,
+with live Atlas reception. The weather icon and barometer use NWS data.
+
 ## 433 MHz station and sensor support
 
 **Atlas is the only station currently supported for live readings, recording
