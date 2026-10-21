@@ -339,3 +339,18 @@ Private evidence: `first-live-home.png` (before UV correction),
 `first-live-v032-link.png` under captures/firmware-validation/. No replay or
 artificial weather was injected. Physical supply current/voltage, SDR reference
 comparison, simultaneous OTA/RF operation and a full soak remain unverified.
+
+
+## Owner-confirmed APRS.fi and Weather Underground ingestion — October 21
+
+The owner confirmed the live weather packet appears at the correct location
+on APRS.fi with the CYDWeatherLink identifier, and Weather Underground shows
+the uploaded data. This establishes observed remote display/ingestion for
+these configured accounts; it does not verify CWOP registration/MADIS ingestion,
+Weathercloud, all measurement encodings or extended outage recovery.
+
+Normal APRS weather interval is 300,000 ms (five minutes) after a successful
+socket write, while maintaining the logged-in connection. Failed sends back
+off up to one hour. WU normally uploads every 60 seconds after acceptance,
+with failure backoff up to 30 minutes. Both remain gated on fresh live station
+data and valid time; request duration/scheduling can lengthen these intervals.

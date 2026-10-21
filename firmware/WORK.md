@@ -18,8 +18,9 @@ tabs, accepts fractional saved elevation, enlarges the callsign and uses spaced
 + / X connection indicators. Browser regressions and USB upload passed.
 Both automatic update settings default off. The GitHub repository and v0.3.1
 release are published; no device update setting was changed by publishing.
-Hosted OTA/rollback and live weather ingestion remain unverified. The owner
-configured APRS and its acknowledged connection recovered after the last upload.
+Hosted OTA/rollback remains unverified. The owner confirmed correct-location
+APRS.fi weather display with CYDWeatherLink identification and visible WU
+uploads. CWOP/MADIS collection and Weathercloud ingestion remain unverified.
 
 ## Implemented core
 
@@ -41,8 +42,9 @@ configured APRS and its acknowledged connection recovered after the last upload.
   and USGS ground elevation. Manual coordinates/elevation remain available.
 - Verified-TLS NWS forecast, 30-second alert scheduling with cache/backoff rules,
   downloaded sun times/moon phase and forecast-derived day/night weather icons.
-- Opt-in Weather Underground, Weathercloud and APRS/CWOP transports. Real remote
-  account ingestion remains unverified; replay and stale cycles cannot upload.
+- Opt-in Weather Underground, Weathercloud and APRS/CWOP transports. Owner-confirmed
+  APRS.fi and WU ingestion is recorded in VALIDATION.md; CWOP/Weathercloud
+  remain unverified. Replay and stale cycles cannot upload.
 - v0.3.0 adds Current / Data stale / No signal distinctions and session indicators,
   authenticated/CSRF-protected GitHub update controls, inactive-slot/hash checks
   and deferred startup confirmation/rollback. Actual hosted OTA is unverified.
@@ -65,7 +67,8 @@ v0.3.2 corrects the native `uv` field mapping (retaining desktop `uvi` support);
 the missing field previously kept full-cycle health from becoming Current.
 Three minutes of live observation now retain Current with 18 accepted frames,
 33 repeats, no queue drops/rejections/serial errors, and Wi-Fi/NWS/APRS active.
-An APRS report send is observed; remote ingestion is still unverified.
+The owner confirmed that APRS.fi shows the packet at the correct location
+and WU shows uploads; longer service/outage testing remains open.
 Next hardware checks: compare live decoding with the SDR reference and validate
 loaded debug supply voltage, simultaneous TLS/flash/RF load, transmitter freeze/silence recovery, natural-midnight rain,
 remote service ingestion, power-loss recovery and a multiday soak.
