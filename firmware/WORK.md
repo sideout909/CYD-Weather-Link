@@ -16,8 +16,10 @@ continued; it was cleared and the board was returned to Home with no fake data.
 The v0.3.1 patch fixes repeated setup saves and reveals invalid fields across
 tabs, accepts fractional saved elevation, enlarges the callsign and uses spaced
 + / X connection indicators. Browser regressions and USB upload passed.
-Both automatic update settings default off; no repository is configured or
-published. Hosted OTA/rollback and real APRS session/ingestion remain unverified.
+Both automatic update settings default off. The GitHub repository and v0.3.1
+release are published; no device update setting was changed by publishing.
+Hosted OTA/rollback and live weather ingestion remain unverified. The owner
+configured APRS and its acknowledged connection recovered after the last upload.
 
 ## Implemented core
 
@@ -74,3 +76,20 @@ and README record GPL-3.0-only; third-party terms are retained separately.
 The initial source upload is complete, and v0.3.1 release packaging includes
 project and dependency license notices. No device credentials are release assets.
 Hosted OTA install/rollback validation remains open; keep auto-install off.
+
+
+## Deferred TODO: other weather stations
+
+- [ ] Verify the owner's Atlas using the physical CC1101 before expanding decoders.
+- [ ] Add a bounded RF discovery scan that suggests a station after several
+  separate valid transmissions, then requires user selection/confirmation.
+- [ ] Keep manual station setup as an alternative; tune scan time/confidence
+  with real captures instead of assuming Atlas timing for every station.
+- [ ] Generalize identity binding, fields/units, freshness, gust and rain behavior
+  for supported protocol families; do not silently mix neighboring devices.
+- [ ] Prepare community build/report/capture instructions and recruit volunteers
+  with other stations. Review sanitized data into regression fixtures and record
+  actual hardware compatibility separately from decoder availability.
+
+Full proposed flow and evidence requirements are in DESIGN.md. This milestone
+is planning only; the running firmware and decoder selection remain unchanged.

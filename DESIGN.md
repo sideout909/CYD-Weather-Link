@@ -390,3 +390,53 @@ sunrise/sunset plus moon phase/illumination in one HTTPS request, cached by
 local date/location. Show its required attribution. Sunrise/sunset select
 sun versus moon; use NWS day/night metadata if solar times are unavailable.
 These are predicted astronomical/forecast values, not local sky observations.
+
+
+## Deferred multi-station discovery and community validation
+
+Owner direction: first verify the existing Atlas over the physical CC1101.
+Broader weather-station support is a follow-up milestone, not a claim about
+current firmware. Preserve manual configuration alongside discovery.
+
+Proposed setup flow:
+
+- Listen on the selected supported RF frequency/modulation for a bounded scan
+  window. The scan duration and required observation count remain to be tuned
+  against real station transmission intervals; do not hardcode a universal cadence.
+- Suggest candidates only after several valid observations across separate
+  transmissions. Repeated copies in a single burst must not inflate confidence.
+- Show decoded model/protocol, sensor ID, channel when present, last reception,
+  observation count and available sample readings. A decoder's model label may
+  describe a product family rather than the exact retail model.
+- Require the user to confirm the intended candidate. Never automatically bind
+  to the first/strongest device or replace a missing station with a neighbor.
+- Provide manual model/protocol, frequency, ID and channel setup where applicable.
+- Persist the selected identity using all protocol-relevant identifiers. Keep
+  unknown/missing fields unavailable and prevent different stations' packets
+  from silently becoming one observation. Combining separate sensors into one
+  station is an open design question, not an accepted implementation requirement.
+
+Before enabling another family, define field/unit mappings, expected cadence,
+freshness requirements, available measurements, gust semantics and rain-counter
+resolution/reset/wrap behavior. Atlas-specific 37/38/39 completeness and its
+rain-counter assumptions must not become universal rules. Publish separately
+whether a model is decoder-supported, fixture-tested or verified on hardware.
+The current 433 MHz module does not establish compatibility with every band or
+modulation supported by desktop rtl_433; check each proposed radio profile.
+
+Community validation TODO:
+
+- Recruit volunteers after Atlas reception and the initial build procedure are
+  verified; provide the exact supported board/radio profile and wiring guide.
+- Prepare an issue/report template with station make/model/region/frequency,
+  firmware version, radio/antenna, observed fields and timestamped decoded JSON
+  spanning complete transmission cycles. Ask for rain/wind examples and missing,
+  stale or reset behavior when practical; note uncertainty rather than inventing it.
+- Provide a capture/submission procedure suitable for additional station families;
+  the existing Atlas-bound PC tool is not a generic compatibility collector.
+- Exclude upload keys, Wi-Fi/admin credentials, full-flash backups and unnecessary
+  personal/site details from submissions. Review captures before making fixtures public.
+- Turn reviewed samples into decoder/normalization regression fixtures, then
+  ask volunteers to compare the display with their reference receiver/console.
+- Keep discovery and broader decoder work deferred until the owner's Atlas
+  validates reception, supply stability and simultaneous network/display load.
