@@ -435,3 +435,12 @@ passed, including queued → lookup failure → retry → available → download
 progress → healthy startup, default repository population, and unchanged
 settings/save/map-page behavior. These are mocked browser states, not an
 on-device OTA result. No USB upload or unattended installation was performed.
+
+The owner's refreshed v0.4.0 status then reported "Set a public GitHub
+owner/repository first" after briefly showing checking/0%. This establishes
+the request was processed and the running configuration had no repository;
+it was not a stuck worker or a demonstrated GitHub/TLS failure. Instructed the
+owner to save the repository and allow the settings restart before retrying.
+The old action acknowledgement had concealed this actionable terminal result.
+The separate location browser checks also passed. The published v0.4.2 latest
+manifest and downloaded firmware size/SHA-256 were verified anonymously.
