@@ -127,7 +127,7 @@ String replayClock() {
   return String(clock[0]=='0' ? clock+1 : clock);
 }
 void sparkline() {
-  if (!store->accepted) return;
+  // Restored history is usable before a new live packet arrives.
   const uint64_t end=dataNow()/60000,begin=end>=59?end-59:0;
   float low=INFINITY,high=-INFINITY;unsigned count=0;
   for(uint64_t m=begin;m<=end;++m){
@@ -186,12 +186,14 @@ void renderHome() {
   homeText("OUTDOOR °F",11,60,kMuted,label,1);
   const String degrees=value(store->temperature,1);
   const bool compact_temperature=homeWidth(degrees,temperature,-2)>123;
-  homeText(degrees,8,104,store->temperature.fresh(now)?kWhite:kMuted,compact_temperature?temperature_compact:temperature,-2);
-  if(store->temperature.valid && !store->temperature.fresh(now))homeText("STALE",122,107,kAmber,small);
+  const auto sensor_state=sensorState();
+  const bool temperature_stale=store->temperature.valid&&
+    (!store->temperature.fresh(now,sensor_health::kDataStaleMs)||sensor_state==sensor_health::State::DataStale||sensor_state==sensor_health::State::NoSignal);
+  homeText(degrees,8,104,temperature_stale?kAmber:store->temperature.valid?kWhite:kMuted,compact_temperature?temperature_compact:temperature,-2);
   forecastGraphic();
   sparkline();
   const String light=store->lux.valid ? String(store->lux.value/1000.0f,1)+" klx" : "-- klx";
-  homeText(homeFit(store->lux.valid&&!store->lux.fresh(now)?"STALE · "+light:light,164,body),11,132,kMuted,body);
+  homeText(homeFit(store->lux.valid&&!store->lux.fresh(now,sensor_health::kDataStaleMs)?"STALE · "+light:light,164,body),11,132,kMuted,body);
   canvas.drawFastVLine(180,55,77,kDivider);
   homeText("WIND",193,60,kMuted,label,1);
   constexpr int cx=209,cy=89,r=20;
@@ -201,25 +203,25 @@ void renderHome() {
     constexpr float pi=3.14159265358979323846f;
     const float angle=store->direction.value*pi/180;
     const int dx=int(sinf(angle)*14),dy=int(-cosf(angle)*14);
-    const uint16_t arrow=store->direction.fresh(now)?kCyan:kMuted;
+    const uint16_t arrow=store->direction.fresh(now,sensor_health::kDataStaleMs)?kCyan:kMuted;
     canvas.drawLine(cx-dx/2,cy-dy/2,cx+dx,cy+dy,arrow);
     canvas.drawLine(cx-dx/2+1,cy-dy/2,cx+dx+1,cy+dy,arrow);
     canvas.fillTriangle(cx+dx,cy+dy,cx+dx/2-dy/3,cy+dy/2+dx/3,cx+dx/2+dy/3,cy+dy/2-dx/3,arrow);
     const char* bearings[]={"N","NNE","NE","ENE","E","ESE","SE","SSE","S","SSW","SW","WSW","W","WNW","NW","NNW"};
-    bearing=store->direction.fresh(now)?bearings[int((store->direction.value+11.25f)/22.5f)%16]:"STALE";
+    bearing=store->direction.fresh(now,sensor_health::kDataStaleMs)?bearings[int((store->direction.value+11.25f)/22.5f)%16]:"STALE";
   }
   const String speed=value(store->wind,1);
-  homeText(speed,238,98,store->wind.fresh(now)?kWhite:kMuted,homeWidth(speed,wind)<=76?wind:reading);
+  homeText(speed,238,98,store->wind.fresh(now,sensor_health::kDataStaleMs)?kWhite:kMuted,homeWidth(speed,wind)<=76?wind:reading);
   homeText(homeFit("mph · "+bearing,77,body),239,112,kMuted,body);
   const auto peak=store->gust(now);
   homeText(homeFit("Gust "+value(peak)+(store->accepted && !store->gustComplete(now)?"*":"")+" · 5 min",119,body),193,130,kMuted,body);
-  if(store->wind.valid && !store->wind.fresh(now))homeText("STALE",273,121,kAmber,small);
+  if(store->wind.valid && !store->wind.fresh(now,sensor_health::kDataStaleMs))homeText("STALE",273,121,kAmber,small);
   canvas.fillRoundRect(8,140,96,43,5,kCard);canvas.fillRoundRect(112,140,96,43,5,kCard);canvas.fillRoundRect(216,140,96,43,5,kCard);
-  homeText(store->humidity.valid&&!store->humidity.fresh(now)?"HUMIDITY !":"HUMIDITY",15,153,kMuted,tile_label,kCard);
+  homeText(store->humidity.valid&&!store->humidity.fresh(now,sensor_health::kDataStaleMs)?"HUMIDITY !":"HUMIDITY",15,153,kMuted,tile_label,kCard);
   const String humidity=integer(store->humidity);
-  homeText(humidity,15,175,store->humidity.fresh(now)?kWhite:kMuted,reading,kCard);
+  homeText(humidity,15,175,store->humidity.fresh(now,sensor_health::kDataStaleMs)?kWhite:kMuted,reading,kCard);
   homeText("%",15+homeWidth(humidity,reading)+6,175,kMuted,unit,kCard);
-  const auto rain=store->rainState();const bool rain_fresh=rain.baseline&&now>=rain.time&&now-rain.time<weather::kStaleMs;
+  const auto rain=store->rainState();const bool rain_fresh=rain.baseline&&now>=rain.time&&now-rain.time<sensor_health::kDataStaleMs;
   const auto rain_today=todayRain(now);
   homeText(!rain_today.valid?"RAIN TODAY":!rain_fresh?"RAIN TODAY !":rain_today.complete?"RAIN TODAY":"RAIN TODAY*",119,153,kMuted,tile_label,kCard);
   const String rain_amount=rain_today.valid?String(rain_today.tips/100.0f,2):"--";
@@ -245,7 +247,7 @@ template<typename T> String fieldAge(const weather::Field<T>& field,uint64_t now
   if(!field.valid)return "No reading";
   if(now<field.time_ms)return "Time unknown";
   const uint64_t seconds=(now-field.time_ms)/1000;
-  return String(uint32_t(seconds<3600?seconds:seconds/60))+(seconds<3600?"s":" min")+(!mark_stale||field.fresh(now)?"":" · STALE");
+  return String(uint32_t(seconds<3600?seconds:seconds/60))+(seconds<3600?"s":" min")+(!mark_stale||field.fresh(now,sensor_health::kDataStaleMs)?"":" · STALE");
 }
 void detailRow(const String& label,const String& reading,int baseline){
   homeText(label,12,baseline,kMuted,home_fonts::body);
@@ -269,7 +271,7 @@ void renderMeasurement(){
   }else if(measurement_detail==1){
     const auto peak=store->gust(now);
     detailRow("Current",value(store->wind,1)+" mph",66);
-    detailRow("Direction",!store->direction.valid?"--":value(store->direction)+"°"+(store->direction.fresh(now)?"":" · STALE"),88);
+    detailRow("Direction",!store->direction.valid?"--":value(store->direction)+"°"+(store->direction.fresh(now,sensor_health::kDataStaleMs)?"":" · STALE"),88);
     detailRow("Gust · 5 min",value(peak,1)+" mph",110);
     detailRow("Peak age",fieldAge(peak,now,false),132);
     detailRow("Wind age",fieldAge(store->wind,now),154);
@@ -278,7 +280,7 @@ void renderMeasurement(){
     detailRow("Humidity",integer(store->humidity)+" %",66);
     detailRow("Updated",fieldAge(store->humidity,now),88);
     detailRow("Sensor",String(services::settings().station_id)+" / "+services::settings().channel,110);
-    detailRow("Status",!store->humidity.valid?"No reading":store->humidity.fresh(now)?"Fresh":"STALE",132);
+    detailRow("Status",!store->humidity.valid?"No reading":store->humidity.fresh(now,sensor_health::kDataStaleMs)?"Fresh":"STALE",132);
     detailRow("Source",replay?"Recorded USB replay":store->accepted?"Atlas radio":"Waiting for Atlas",154);
     homeText("Swipe to open humidity trends",12,176,kMuted,body);
   }else if(measurement_detail==3){
@@ -289,7 +291,7 @@ void renderMeasurement(){
     detailRow("Last hour",amount(hour.tips,hour.valid,hour.complete),88);
     detailRow("Last 24 hours",amount(day.tips,day.valid,day.complete),110);
     const auto counter=store->rainState();
-    const String age=!counter.baseline?"No reading":now<counter.time?"Time unknown":String(uint32_t((now-counter.time)/1000))+"s"+(now-counter.time>=weather::kStaleMs?" · STALE":"");
+    const String age=!counter.baseline?"No reading":now<counter.time?"Time unknown":String(uint32_t((now-counter.time)/1000))+"s"+(now-counter.time>=sensor_health::kDataStaleMs?" · STALE":"");
     detailRow("Counter age",age,132);
     detailRow("Today resets","00:00 local",154);
     homeText("* Partial or uncertain coverage",12,176,kMuted,body);
@@ -305,11 +307,11 @@ void renderMeasurement(){
     const auto state=sensorState();
     detailRow("Atlas",sensor_health::label(state),66);
     detailRow("Last packet",!sensor_monitor.received?"None":now<sensor_monitor.last_rx?"Time unknown":String(uint32_t((now-sensor_monitor.last_rx)/1000))+"s ago",88);
-    String missing;for(unsigned i=0;i<3;++i)if(!sensor_monitor.types[i]||now<sensor_monitor.types[i]||now-sensor_monitor.types[i]>=weather::kStaleMs){if(missing.length())missing+=" / ";missing+=String(37+i);}
+    String missing;for(unsigned i=0;i<3;++i)if(!sensor_monitor.types[i]||now<sensor_monitor.types[i]||now-sensor_monitor.types[i]>=sensor_health::kDataStaleMs){if(missing.length())missing+=" / ";missing+=String(37+i);}
     detailRow("Missing types",missing.length()?missing:"None",110);
     detailRow(services::settings().aprs_profile=="cwop"?"CWOP link":"APRS link",network.aprs_connected&&network.wifi?(network.aprs_verified?"Connected · verified":"Connected · CWOP"):!network.wifi&&services::settings().aprs_enabled?String("Wi-Fi unavailable"):network.aprs_state,132);
     detailRow("Last report",network.aprs_success&&services::clockValid()?String(uint32_t(std::max(time_t(0),time(nullptr)-network.aprs_success)))+"s ago":"None sent",154);
-    homeText(state==sensor_health::State::DataStale?"Receiving old/incomplete data. Check Atlas power.":state==sensor_health::State::NoSignal?"No station packets. Check Atlas power / range.":"Speaker: muted. APRS send is not an ingestion ACK.",12,176,kMuted,home_fonts::status);
+    homeText(state==sensor_health::State::DataStale?"No changes / incomplete data for 10 min.":state==sensor_health::State::NoSignal?"No packets for 5 min. Check Atlas power / range.":"Speaker: muted. APRS send is not an ingestion ACK.",12,176,kMuted,home_fonts::status);
   }
 }
 void speakerIcon(int x,int y,bool enabled){
@@ -322,7 +324,6 @@ void renderTrends() {
   const char* titles[] = {"Temperature (F)","Wind peaks (mph)","Light (lux)","Humidity (%)"};
   text(titles[metric],12,50,kCyan);
   text("tap chart to change",170,53,kMuted,&fonts::Font0);
-  if (!store->accepted) { text("Collecting history",60,104,kMuted,&fonts::Font4); return; }
   const uint64_t end = dataNow()/60000, begin = end>=1439 ? end-1439 : 0;
   float low=INFINITY,high=-INFINITY;unsigned count=0;
   for (uint64_t m=begin;m<=end;++m) {
@@ -419,7 +420,7 @@ void draw() {
   const String clock=replayClock();homeText(clock,310-homeWidth(clock,home_fonts::clock),15,kMuted,home_fonts::clock);
   const auto sensor=sensorState();
   canvas.fillCircle(13,33,3,replay?kAmber:sensor==sensor_health::State::Current?kGreen:sensor==sensor_health::State::DataStale||sensor==sensor_health::State::NoSignal?kAmber:kMuted);
-  const String source=replay?"Atlas · recorded":String("Atlas · ")+sensor_health::label(sensor);
+  const String source=replay?"Atlas · recorded":page==0&&sensor==sensor_health::State::DataStale?String("Atlas"):String("Atlas · ")+sensor_health::label(sensor);
   homeText(homeFit(source,136,body),22,37,kMuted,body);
   homeText(radio_receiver::ready()?"RF +":"RF X",167,37,radio_receiver::ready()?kGreen:kMuted,home_fonts::status);
   homeText(network.wifi?"WiFi +":"WiFi X",199,37,network.wifi?kGreen:kMuted,home_fonts::status);
@@ -484,6 +485,9 @@ void status(const char* event = "status") {
   out["radio_ready"]=radio_receiver::ready();out["radio_dropped"]=radio_receiver::dropped();
   out["wifi"]=network.wifi;out["clock_valid"]=services::clockValid();out["setup_ip"]=services::portalAddress();
   out["checkpoint_restored"]=checkpoint_restored;out["setup_open"]=setup_open;
+  const auto history_state=store->historySummary(dataNow());
+  out["history_buckets"]=history_state.buckets;
+  if(history_state.buckets){out["history_first_minute"]=history_state.first_minute;out["history_last_minute"]=history_state.last_minute;}
   out["portal_tested"]=network.portal_tested;out["portal_passed"]=network.portal_passed;
   out["portal_attempts"]=network.portal_attempts;out["portal_test_status"]=network.portal_test_status;
   out["custom_admin_password"]=services::settings().admin_custom;
@@ -672,7 +676,7 @@ void liveReceive(){
   }
 }
 void publishWeather(){
-  services::Observation o;uint64_t now=dataNow();o.epoch_ms=store->latest_ms;o.live=!replay && clock_anchored;o.fresh=store->wind.fresh(now)&&sensorState()==sensor_health::State::Current;
+  services::Observation o;uint64_t now=dataNow();o.epoch_ms=store->latest_ms;o.live=!replay && clock_anchored;o.fresh=sensor_monitor.complete(now,*store)&&sensorState()==sensor_health::State::Current;
   o.sensor_health=uint8_t(sensorState());if(sensor_monitor.received&&now>=sensor_monitor.last_rx)o.sensor_packet_age_s=int32_t((now-sensor_monitor.last_rx)/1000);
   o.temperature_valid=store->temperature.fresh(now);o.temperature_f=store->temperature.value;
   o.humidity_valid=store->humidity.fresh(now);o.humidity=store->humidity.value;
@@ -725,7 +729,7 @@ void loop() {
   liveReceive();
   const uint64_t now=uptimeMs();
   if(services::clockValid() && !clock_anchored){clock_epoch=uint64_t(time(nullptr))*1000;clock_uptime=now;clock_anchored=true;if(!replay){resetData();checkpoint_restored=checkpoint::restore(history,*store,daily_rain,liveNow(),services::settings().station_id,services::settings().channel);}}
-  if(now-last_publish>=1000){if(!replay&&clock_anchored)archive_storage::loop(liveNow(),sensorState()==sensor_health::State::Current);publishWeather();last_publish=now;}
+  if(now-last_publish>=1000){if(!replay&&clock_anchored)archive_storage::loop(liveNow(),sensor_monitor.complete(liveNow(),*store)&&sensorState()==sensor_health::State::Current);publishWeather();last_publish=now;}
   if(!replay && clock_anchored && store->accepted && now-last_checkpoint>=300000){checkpoint::save(history,*store,daily_rain,liveNow(),services::settings().station_id,services::settings().channel);last_checkpoint=now;}
   if((dirty && now-last_draw>=100) || now-last_draw>=1000)draw();
   if(now-last_status>=10000){status();last_status=now;}

@@ -62,5 +62,19 @@ int main() {
   model.ingest(replace);
   assert(model.bucket(1000000/60000) == nullptr); // Ring overwrite doesn't expose old data.
   assert(model.bucket(replace.time_ms/60000)->temperature_count == 1);
+  // Checkpoint restore copies buckets into a new Store without accepting live
+  // packets. History must remain available without making old fields fresh.
+  std::vector<Bucket> saved_history = history;
+  Store restored(saved_history.data());
+  const auto restored_time = replace.time_ms;
+  assert(restored.accepted == 0 && !restored.temperature.valid);
+  auto summary = restored.historySummary(restored_time);
+  assert(summary.buckets == 1 && summary.first_minute == restored_time / 60000);
+  assert(summary.last_minute == summary.first_minute);
+  assert(restored.bucket(summary.first_minute)->temperature_sum == 60);
+  assert(restored.historySummary(restored_time + 1440ULL * 60000).buckets == 0);
+  assert(restored.historySummary(restored_time - 60000).buckets == 0);
+  Store empty;
+  assert(empty.historySummary(restored_time).buckets == 0);
   std::cout << "Weather store checks passed: sparse ages, duplicate timing, gust expiry/coverage, zeros, binding, invalid data, rain reset/wrap and history overwrite.\n";
 }

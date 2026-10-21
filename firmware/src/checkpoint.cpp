@@ -49,6 +49,7 @@ bool selftest(){
   ok=ok&&!restore(b2,*restored,recovered,s.time_ms,680,'A',path)&&!restore(b2,*restored,recovered,s.time_ms-1,679,'A',path)&&restore(b2,*restored,recovered,s.time_ms+60000,679,'A',path);
   const auto* b=restored->bucket(epoch/60000);auto total=restored->rain_timeline.window(s.time_ms,weather::kRainDayMs);
   ok=ok&&b&&b->temperature_count==2&&b->temperature_sum==110.5f&&restored->rainState().counter==26&&recovered.tips==1&&!recovered.complete&&total.valid&&total.tips==1&&!total.complete;
+  ok=ok&&restored->accepted==0&&!restored->temperature.valid&&restored->historySummary(s.time_ms+60000).buckets==1;
   File corrupt=LittleFS.open(path,"r+");if(corrupt){corrupt.seek(sizeof(Header)+kBucketsBytes+4);int byte=corrupt.read();corrupt.seek(sizeof(Header)+kBucketsBytes+4);corrupt.write(uint8_t(byte^1));corrupt.close();}else ok=false;
   ok=ok&&!restore(b2,*restored,recovered,s.time_ms+60000,679,'A',path);LittleFS.remove(path);LittleFS.remove(String(path)+".tmp");return ok;
 }

@@ -50,6 +50,12 @@ appear in the portal and sanitized USB status. The seven-day archive and the
 existing weather checkpoint are independent; changing the archive did not
 change checkpoint schema 3 or its 24-hour restore limit.
 
+After a restart, restored minute history is displayed as soon as UTC is valid,
+even before the next radio packet. Live readings remain unavailable until new
+packets arrive; saved history must not make old readings eligible for upload.
+USB status reports `history_buckets` and the first/last retained UTC minute so
+restoration can be distinguished from an empty live receiver.
+
 ## Download
 
 In the authenticated setup page's Overview, use **Download seven-day CSV**.
@@ -86,3 +92,15 @@ CRC, station binding, rain boundaries, partial restart merging and saturation.
 Python checks cover pagination/window validation and complete-file publication;
 browser checks exercise CSV assembly and a failed page/retry. Actual board
 results and remaining soak/power-interruption limits are in VALIDATION.md.
+
+## October 21 reboot validation
+
+On the owner's PanelLan SC05_X, v0.4.6 restored 572 populated minute buckets
+and 120 archive intervals with UTC valid, zero new accepted packets, and a
+successful checkpoint restore. A USB framebuffer capture showed the restored
+24-hour temperature graph before reception resumed. The before/after CSV
+comparison retained all 119 previously exported intervals byte-for-byte; the
+additional interval came from the explicit pre-update flush. Checkpoint,
+archive and setup-portal device diagnostics all passed. This validates that
+restart displays retained history independently of live packet counters; it
+does not remove the documented five-minute sudden-power-loss exposure.

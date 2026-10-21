@@ -344,9 +344,13 @@ independently of radio freshness; withhold weather while data is stale.
 
 The owner reports occasional Atlas repeated-single-packet or silent-transmitter
 faults until power cycling. Show Data stale when packets arrive without a
-current expected type/field cycle; show No signal when bound packets stop.
-Keep receiver initialization distinct. Unchanged complete measurements can
-be valid weather and cannot alone establish a frozen station.
+required type/field update for ten minutes, or no accepted weather-value change
+for ten minutes. Show Disconnected after five minutes without bound packets.
+Keep receiver initialization distinct. The unchanged-data warning is a heuristic
+and cannot alone establish a frozen station. Display field ages use ten minutes;
+upload and archive completeness retain their separate two-minute freshness gates.
+See HOME_SCREEN.md for exact state precedence. No component change is required
+in PARTS.md.
 
 A generated setup Wi-Fi key may be displayed for local provisioning; a
 user-chosen admin password must never appear on the display, in API responses,

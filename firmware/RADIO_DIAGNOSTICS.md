@@ -4,10 +4,13 @@
 
 [AcuRite's Atlas specifications](https://www.acurite.com/products/acurite-atlas-weather-sensor)
 state transmissions every 10 seconds; wind reports every 10 seconds and the
-other weather fields every 30 seconds. Calm/dark/unchanged conditions alone
-do not make a received measurement stale. The firmware accepts a new matching
+other weather fields every 30 seconds. The owner-requested display policy warns after ten minutes without any
+weather-value change and marks the station Disconnected after five minutes
+without bound packets. This unchanged-data heuristic does not prove a freeze.
+Individual display fields expire after ten minutes without their own update. The firmware accepts a new matching
 payload after the three-second same-burst duplicate window, even if its values
-have not changed. A complete, fresh packet cycle is still required for uploads.
+have not changed. A complete packet cycle and fields younger than two minutes are still required
+for uploads; the relaxed display policy does not relax service freshness.
 
 The October 21 review of 57,687 saved SDR packets found:
 
@@ -121,3 +124,50 @@ coax for the night and plans a VNA check. The antenna change times were not
 measured precisely, so this is an operational comparison rather than a calibrated
 sensitivity or packet-error-rate test. Do not lower the gate further solely on
 this evidence; assess antenna matching, placement/interference and filter tuning.
+
+## October 21 antenna-placement follow-up
+
+A read-only v0.4.5 capture retained the default 9 dB software margin. The owner
+reported poor reception with a VNA-checked Diamond SRH805S and then returned to
+approximately one foot of coax with an alligator clip on its center conductor.
+No firmware tuning changed during this capture.
+
+Before recovery, 44 status samples had median reported RSSI/background of
+-68 dBm and a -59 dBm capture threshold. After recovery, 63 samples had median
+background -97 dBm and threshold -88 dBm. All three Atlas packet types resumed;
+the capture contained 19 decoded copies, eight accepted reports, and zero
+capture, decoder or application queue drops. These are receiver estimates,
+not calibrated noise measurements, and the physical change time was not logged
+precisely.
+
+The result supports an antenna/placement/counterpoise or local-interference
+problem; it does not establish that the Diamond antenna is defective, nor
+identify the interference source. The manufacturer's SRH805S specification
+includes 430 MHz and an SMA-P connector:
+https://www.diamond-ant.co.jp/english/amateur/antenna/ante_3hand/ante_hand2.html
+
+The next controlled comparison is the same Diamond antenna directly attached
+versus on a short, shielded SMA extension, with fixed receiver settings and
+unchanged board/power position. Keep antenna orientation and location documented
+and wait for the adaptive RSSI average to settle before comparing each run.
+Then vary display/USB proximity separately. A VNA match measurement alone does
+not measure received noise, radiation efficiency or installed counterpoise.
+Keep the working coax setup as the reference; do not lower the gate further
+solely to compensate for the roughly 29 dB background-estimate difference.
+
+A subsequent three-minute coax-only run remained Current in all 174 status
+samples, receiving 18 newly accepted reports and 42 logged packet copies
+covering types 37, 38 and 39. Median reported background/threshold was
+-93/-84 dBm, with no receiver/application queue drops. The USB collector also
+encountered four unparsable lines, so logged packet-copy counts should not be
+used as a complete RF-transmission count. Native receiver and accepted-report
+counters provide the independent check.
+
+The owner confirmed the intended status policy on October 21: warn after ten
+minutes without any weather-value change, and show Disconnected after five
+minutes without a bound-station packet. Stable repeated weather is accepted as
+new data outside the three-second burst duplicate window; the unchanged-value
+warning is a requested heuristic, not proof of a frozen station. Earlier
+firmware's two-minute age-based stale events cannot be attributed to steady
+weather values alone. The ten/five-minute policy is included in v0.4.7; it was
+absent from the first v0.4.5 readout and from the isolated v0.4.6 history fix.

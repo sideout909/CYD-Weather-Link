@@ -17,8 +17,8 @@ template <typename T> struct Field {
   uint64_t time_ms = 0;
   bool valid = false;
   void set(T next, uint64_t time) { value = next; time_ms = time; valid = true; }
-  bool fresh(uint64_t now) const {
-    return valid && now >= time_ms && now - time_ms < kStaleMs;
+  bool fresh(uint64_t now, uint64_t max_age = kStaleMs) const {
+    return valid && now >= time_ms && now - time_ms < max_age;
   }
 };
 
@@ -152,6 +152,23 @@ class Store {
   struct RainState { uint64_t time=0; uint32_t total=0,discontinuities=0; uint16_t counter=0; bool baseline=false,incomplete=true; };
   RainState rainState() const { return {rain_time_,session_rain_tips,rain_discontinuities,rain_counter_,rain_baseline,rain_incomplete}; }
   void restoreRain(const RainState& s) { rain_time_=s.time;previous_rain_time_=s.time;session_rain_tips=s.total;rain_discontinuities=s.discontinuities;rain_counter_=s.counter;rain_baseline=s.baseline;rain_incomplete=true; }
+  struct HistorySummary {
+    size_t buckets = 0;
+    uint64_t first_minute = 0, last_minute = 0;
+  };
+  HistorySummary historySummary(uint64_t now) const {
+    HistorySummary result;
+    const uint64_t end = now / 60000;
+    const uint64_t begin = end >= kHistoryBuckets - 1 ? end - kHistoryBuckets + 1 : 0;
+    for (uint64_t minute = begin; minute <= end; ++minute) {
+      const auto* b = bucket(minute);
+      if (!b || !(b->temperature_count || b->wind_count || b->lux_count || b->humidity_count || b->rain_observed)) continue;
+      if (!result.buckets) result.first_minute = minute;
+      result.last_minute = minute;
+      ++result.buckets;
+    }
+    return result;
+  }
   const Bucket* bucket(uint64_t minute) const {
     if (!history_) return nullptr;
     const auto& b = history_[minute % kHistoryBuckets];

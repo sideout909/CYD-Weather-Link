@@ -62,8 +62,10 @@ between implemented software, bench results, and remaining hardware checks.
 - Callsign header slot, speaker/mute icon and APRS/CWOP session badge. The
   Internet session stays open with reconnect/backoff and TCP keepalive;
   ham login must be verified. A separate Atlas monitor flags missing cycles,
-  stale fields and a stopped transmitter without mistaking stable weather
-  values for failure. Uploads require a current station cycle.
+  ten-minute missing/unchanged data warnings and a five-minute packet silence
+  (`Disconnected`). Unchanged data is a warning heuristic, not proof of failure.
+  Display field freshness is ten minutes; uploads and archive completeness retain
+  their separate two-minute complete-cycle checks.
 - [Opt-in GitHub release updates](UPDATES.md): daily checks, manual install
   or explicit automatic installation, compatible-image/SHA-256 checks, inactive
   slot writes, pre-restart weather checkpoint and deferred startup confirmation
@@ -270,3 +272,21 @@ under a `THEME PREVIEW` / `REPLAY` header. They leave service caches and live
 upload state untouched. `reset` clears both replay and preview; return Home
 after visual checks. This facility is for bench review, not alert simulation
 on the NWS service or any sharing network.
+
+### October 21 follow-up: retained history and owner status policy
+
+Version 0.4.7 combines the owner-confirmed ten-minute unchanged/incomplete-data
+warning and five-minute disconnected status with the restored-history display
+fix. Uploads and Current archive coverage still require a complete live cycle
+with fields younger than two minutes, and Data stale suppresses uploads. The
+large Home temperature is orange for retained stale/disconnected data; Home
+omits the small Data stale status text and temperature STALE tag. Explicit
+Disconnected and measurement-detail explanations remain available.
+
+Host checks cover exact ten/five-minute boundaries, repeated unchanged reports,
+recovery, strict upload completeness and restored buckets with zero accepted
+live reports. The firmware build passes. The owner's board preserved and
+rendered saved history after restart before new RF data arrived; see
+RECORDING.md for the measured counts and archive comparison. RF follow-up is in
+RADIO_DIAGNOSTICS.md. Timed live stale/disconnected appearance and a multiday
+soak remain bench checks; an actual post-update OTA boot is still unverified.

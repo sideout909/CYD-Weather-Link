@@ -66,7 +66,7 @@ limits before interpreting this maximum as a standard meteorological gust.
 
 ## Freshness and connection states
 
-Packet reception and each measurement have independent freshness. A newly received packet cannot refresh fields absent from that packet. Proposed thresholds: amber sensor warning after 60 seconds without a bound-station packet; mark each field `STALE` after 120 seconds without its own update. Validate those defaults against actual Atlas transmission intervals. Missing values show `—`; cached values retain age and a visible stale label.
+Packet reception and each measurement have independent freshness. A newly received packet cannot refresh fields absent from that packet. Station health shows `Disconnected` after five minutes without a bound-station packet. Mark each field `STALE` after ten minutes without its own update; also show `Data stale` after ten minutes with no change across accepted weather values. This unchanged-data warning does not prove a frozen transmitter. Missing values show `—`; cached values retain age and a visible stale label.
 
 The header reports sensor reception and local Wi-Fi association independently; SD is optional and has no required header indicator. Status details show last RF reception, decoder/station ID, Wi-Fi/IP, time validity, history-checkpoint health, optional logger health when enabled, each configured uploader's last success/error (APRS-IS/CWOP route and individually selected PWS services from [WEATHER_SHARING.md](WEATHER_SHARING.md)), configured serial-output state, and separate NWS alert/forecast check health. CWOP registration/verified ingestion is distinct from local send success. Disabled outputs say `Off`. UART writes mean `Sending`, not confirmed radio receipt. Summarize any upload/storage fault in the header with an amber `!`; keep NWS events visible in their dedicated strip.
 
@@ -200,20 +200,23 @@ and successful remote weather ingestion remain separate facts.
 
 Tap the second header row for Link status: Atlas state, last bound-station
 packet, missing types, APRS/CWOP session and last sent report. No receiver,
-Waiting, Collecting, Current, Data stale and No signal are distinct states.
-After a two-minute grace/freshness window, packets still arriving without
-the expected 37/38/39 cycle or fresh required measurements show **Data stale**.
-No bound packets for two minutes shows **No signal**, even if RF hardware
-is initialized. Repeats, other sensors and flagged packets cannot silently
-refresh missing fields. Upload eligibility requires a current station cycle.
+Waiting, Collecting, Current, Data stale and Disconnected are distinct states.
+Show **Data stale** after ten minutes without any accepted weather-value change,
+or after the ten-minute collection grace period if required types/measurements
+are missing or ten minutes old. Any changed accepted weather field resets the
+unchanged timer; rotating types, timestamps, burst duplicates and flagged
+packets do not. Missing fields do not erase previously observed values.
+Show **Disconnected** after five minutes without a bound-station packet,
+including at startup; this takes precedence over the unchanged-data warning.
+Bound-station flagged packets prove reception but cannot refresh measurements.
+Other sensors and invalid packets cannot keep the station connected.
 
-The owner reports this Atlas sometimes repeats one packet or stops until its
-power is cycled. This is installation-reported behavior, not a bench-proven
-fault in every Atlas. Link details suggest checking station power/range.
-Identical values across a complete valid cycle can be real stable weather;
-they are not enough evidence to declare a freeze. A transmitter replaying an
-entire valid-looking cycle without a changing source timestamp is not reliably
-detectable from this protocol alone.
+The owner requested these display thresholds after observing sunrise gaps.
+Unchanged weather for ten minutes is a warning heuristic, not proof of a freeze.
+Uploads retain the separate two-minute complete-cycle/field freshness gates and
+are withheld while station health is stale or disconnected. Archive current-time
+accounting also retains the two-minute completeness gate.
+
 
 
 ## October 21 source labels and pressure fallback
@@ -230,3 +233,12 @@ Refresh observations approximately every ten minutes, rotate through up to three
 nearby reporting stations on failures/missing pressure, respect retry delays,
 and hide values older than 90 minutes or without Wi-Fi/valid time. A future
 local barometer can take priority; no local pressure hardware is fitted yet.
+
+### Main-screen stale temperature
+
+The large temperature turns orange when the station is Data stale, when it is
+Disconnected with a retained temperature, or when the temperature's own update
+is at least ten minutes old. Remove the tiny STALE tag beside the number.
+Missing temperatures remain muted dashes. Fresh data returns the number to
+white. On Home, orange replaces the small Data stale status text; Disconnected
+remains explicit. Other pages and measurement details retain the health text.
