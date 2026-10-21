@@ -402,6 +402,11 @@ Owner direction: first verify the existing Atlas over the physical CC1101.
 Broader weather-station support is a follow-up milestone, not a claim about
 current firmware. Preserve manual configuration alongside discovery.
 
+The October 21 [station-support research](STATION_SUPPORT.md) prioritizes Iris,
+selected Sainlogic and verified 433 MHz Fine Offset variants, with separate
+frequency/modulation and integrity gates. These are engineering priorities,
+not a measured popularity ranking or a change to the hardware baseline.
+
 Proposed setup flow:
 
 - Listen on the selected supported RF frequency/modulation for a bounded scan
