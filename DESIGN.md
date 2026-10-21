@@ -337,6 +337,21 @@ phone testing is underway. See [map assets and provider notes](assets/web/README
 
 ## Header, transmitter health and setup security — latest owner updates
 
+### TODO: replace provisioning details after setup
+
+Owner request, October 21: after initial setup, opening setup from the display
+should show a **More settings** screen rather than the initial Wi-Fi joining
+instructions. Suggested text: “For more settings, open http://<device IP>.”
+Use the current LAN address and show **Username: admin** with password guidance.
+Show the generated initial admin password only while it remains the active
+default; after a custom password is set, show **Password: your custom password**
+and never reveal that password. Preserve the separate setup Wi-Fi/admin keys.
+
+Use saved home Wi-Fi plus a confirmed sensor binding as the completion signal;
+location and optional sharing services are not prerequisites. Keep first-run
+provisioning and a deliberate Wi-Fi recovery path available when needed. This
+is backlog work; the current firmware retains its existing setup screen.
+
 Show configured callsign/SSID in the center slot, and a speaker/mute icon by
 Wi-Fi. APRS/CWOP gets a separate session indicator requiring acknowledged
 login, with verified authentication for the ham route. Keep the session alive
