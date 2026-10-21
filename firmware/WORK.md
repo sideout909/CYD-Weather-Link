@@ -1,12 +1,12 @@
 # Current development state
 
-October 20, 2026. Owner direction: finish core firmware for the owned PanelLan
+October 21, 2026. Owner direction: finish core firmware for the owned PanelLan
 ZX2D80CE02S-V10, focus Atlas + CC1101, preserve Home v2, and finish browser setup.
 SD logging and D710 serial are optional. PC RTL-SDR recording stays stopped.
 
 ## Running board
 
-The board now runs v0.3.1. It includes the callsign/speaker/APRS header,
+The board now runs v0.3.2. It includes the callsign/speaker/APRS header,
 Link status details, Atlas stale-cycle/no-signal monitoring, persistent APRS/CWOP
 sessions and opt-in GitHub OTA, alongside the earlier map/security features.
 USB upload preserved Wi-Fi/location/custom admin settings. Display, portal,
@@ -60,9 +60,14 @@ watch/warning appearance. Measurement/link touch targets and phone map behavior
 have a checklist in CONTROLS_CHECKLIST.md. Screenshots must never export the
 physical setup page's Wi-Fi access key.
 
-Next hardware step: owner wires CC1101, then compare live Atlas decoding with
-the SDR reference and validate loaded debug supply voltage, simultaneous TLS/
-flash/RF load, transmitter freeze/silence recovery, natural-midnight rain,
+The owner connected CC1101 and first live Atlas reception is confirmed.
+v0.3.2 corrects the native `uv` field mapping (retaining desktop `uvi` support);
+the missing field previously kept full-cycle health from becoming Current.
+Three minutes of live observation now retain Current with 18 accepted frames,
+33 repeats, no queue drops/rejections/serial errors, and Wi-Fi/NWS/APRS active.
+An APRS report send is observed; remote ingestion is still unverified.
+Next hardware checks: compare live decoding with the SDR reference and validate
+loaded debug supply voltage, simultaneous TLS/flash/RF load, transmitter freeze/silence recovery, natural-midnight rain,
 remote service ingestion, power-loss recovery and a multiday soak.
 
 GitHub repository: https://github.com/sideout909/CYD-Weather-Link. Local

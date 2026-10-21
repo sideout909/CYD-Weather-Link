@@ -15,6 +15,11 @@ class ReplayAdapterTests(unittest.TestCase):
         self.assertNotIn('temperature_F', result)
         self.assertEqual(result['time_ms'], 1792281600000)
 
+    def test_native_uv_and_alias_precedence(self):
+        self.assertEqual(sample_command(self.packet(uv=0))['uv'], 0)
+        self.assertEqual(sample_command(self.packet(uv=7, uvi=3))['uv'], 7)
+        self.assertNotIn('uv', sample_command(self.packet()))
+
     def test_flags_rain_and_station_filter(self):
         result = sample_command(self.packet(exception=1, rain_in=5.11))
         self.assertTrue(result['exception'])

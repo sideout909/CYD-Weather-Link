@@ -1,6 +1,6 @@
 # Core firmware validation
 
-October 20, 2026 · version 0.3.1 · `panellan_sc05_x` · owned
+October 20, 2026 · version 0.3.2 · `panellan_sc05_x` · owned
 `ZX2D80CE02S-V10`, USB serial `68:B6:B3:34:82:48`.
 
 ## Hardware and preservation
@@ -298,3 +298,44 @@ saved callsign and spaced indicators. Latest private evidence is
 `v031-home.png` and `v031-runtime.json` under the validation captures directory.
 The owner must refresh the existing setup page to load the corrected JavaScript;
 previously cached/open tabs still contain the disabled-button bug.
+
+
+## First physical CC1101 reception and v0.3.2 UV correction
+
+Owner connected the pictured CC1101. The first v0.3.1 live status confirms
+radio initialization, source radio, Atlas packets accepted/repeated, no queue
+drops and zero rejected packets. Home shows 45.4 F, 94% humidity, zero wind,
+south direction and zero lux at night. These are received readings; external
+reference accuracy and supply voltage under load remain unmeasured.
+
+Initial reception exposed a native field mismatch: the pinned embedded
+acurite.c emits `uv`, while our adapter only read the desktop `uvi` alias.
+UV remained missing, preventing Current health and therefore blocking weather
+uploads. A new regression reproduced this failure before the fix. v0.3.2 reads
+native `uv` first with `uvi` fallback, preserving zero and missing distinctions;
+the PC replay adapter accepts both too. A native 37/38/39 fixture cycle now
+reaches Current through the real adapter/store/health path.
+
+Host firmware checks and all 13 Python tests pass. The pinned build passes
+at 1,517,265 application bytes and 68,212 static RAM bytes. This corrects a
+mapping error, not the health/upload eligibility rules. No replay is needed
+on the live receiver to validate this change.
+
+
+After USB upload, a 180.4-second live observation on v0.3.2 reached Current by
+45 seconds uptime and retained it through the remaining samples. Final counters:
+18 accepted frames, 33 repeats, zero rejected frames, zero decoder queue drops
+and zero serial errors. Wi-Fi/NTP, 14/24 NWS products, fresh 30-second alerts,
+portal self-test and the verified APRS connection remain healthy. Free heap
+was approximately 150–152 KB and main-loop stack headroom exceeded 15 KB.
+A screenshot shows real 45.4 F, 95% RH, 2 mph SSW and zero nighttime lux.
+Link details show Current, no missing packet types, a verified APRS session
+and a last-report age. This confirms a socket send, not remote ingestion.
+The daily rain view is zero with complete coverage after the local date change;
+this is a dry boundary observation, not a test of rainfall across midnight.
+
+Private evidence: `first-live-home.png` (before UV correction),
+`first-live-v032-monitor.json`, `first-live-v032-home.png` and
+`first-live-v032-link.png` under captures/firmware-validation/. No replay or
+artificial weather was injected. Physical supply current/voltage, SDR reference
+comparison, simultaneous OTA/RF operation and a full soak remain unverified.

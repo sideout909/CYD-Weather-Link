@@ -1,6 +1,6 @@
 # PanelLan weather firmware
 
-October 20, 2026 · development source version 0.3.1 · owned PanelLan
+October 21, 2026 · development source version 0.3.2 · owned PanelLan
 `ZX2D80CE02S-V10` / `SC05_X`. This profile is specific to its parallel ST7789
 LCD and FT5x06 touch, 8 MB flash and 2 MB PSRAM. Do not flash a generic CYD or
 SC01 Plus with this profile. See [validation](VALIDATION.md) for the distinction

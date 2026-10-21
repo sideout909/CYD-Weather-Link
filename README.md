@@ -9,9 +9,10 @@ Development firmware includes a v2 Home display, swipeable 24-hour trends and
 NWS forecasts/alerts, local-midnight rain, five-minute received wind peaks,
 field-age/connection details, callsign/status header, protected browser setup,
 embedded ZIP/map/elevation selection, persistence and opt-in sharing. Weather
-Underground and Weathercloud adapters are implemented; remote ingestion,
-live CC1101 reception and a full soak remain validation gates. Windy is later
-work; D710, pressure and sound are optional additions.
+Underground and Weathercloud adapters are implemented. First live CC1101
+reception is observed; remote ingestion, reference comparison and a full soak
+remain validation gates. Windy is later work; D710, pressure and sound are
+optional additions.
 
 ## Start here
 

@@ -12,7 +12,7 @@ import zlib
 DEFAULT_PORT = '/dev/serial/by-id/usb-Espressif_USB_JTAG_serial_debug_unit_68:B6:B3:34:82:48-if00'
 FIELD_MAP = {'temperature_F': 'temperature_F', 'humidity': 'humidity',
              'wind_avg_mi_h': 'wind_mph', 'wind_dir_deg': 'direction_deg',
-             'lux': 'lux', 'uvi': 'uv', 'strike_count': 'strikes'}
+             'lux': 'lux', 'uvi': 'uv', 'uv': 'uv', 'strike_count': 'strikes'}
 
 
 def sample_command(packet):
