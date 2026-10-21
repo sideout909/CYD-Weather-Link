@@ -16,7 +16,10 @@ portal self-tests, bounded retries with sanitized stage/HTTP diagnostics, and
 block settings-save restarts while boot confirmation is pending. The 30-second
 confirmation / 90-second rollback policy and watchdog remain intact. A startup
 timing race was found in source; the owner's exact failure reason is pending.
-The board is disconnected from USB; no candidate was installed by the agent.
+The owner reconnected USB (the longer cable enumerates correctly). The v0.4.3
+diagnostics candidate was installed over USB after exporting the archive. Portal
+self-test passed on attempt 1 at about five seconds uptime; RF monitoring is
+in progress. This USB boot does not establish corrected OTA confirmation.
 
 The core includes the callsign/speaker/APRS header,
 Link status details, Atlas stale-cycle/no-signal monitoring, persistent APRS/CWOP
@@ -38,6 +41,10 @@ Manual hosted OTA confirmation remains unverified after the owner-reported
 fallback; interrupted updates and deliberate failed-boot rollback need tests. The owner confirmed correct-location
 APRS.fi weather display with CYDWeatherLink identification and visible WU
 uploads. CWOP/MADIS collection and Weathercloud ingestion remain unverified.
+
+Read-only RF diagnostics now expose cached RSSI/background/threshold, decode
+counts/drops, native packet RSSI and per-type/field ages. Baseline frequency,
+receive bandwidth, AGC and adaptive margin are unchanged. See RADIO_DIAGNOSTICS.md.
 
 ## Implemented core
 

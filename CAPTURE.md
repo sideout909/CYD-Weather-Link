@@ -4,6 +4,10 @@ The device itself now keeps rolling 24-hour charts plus seven days of
 five-minute summaries; see [device recording/export](firmware/RECORDING.md).
 That recording works without this PC.
 
+For a short read-only CC1101 USB diagnostic recording, see
+[RF diagnostics](firmware/RADIO_DIAGNOSTICS.md). This does not restart the
+old SDR receiver service.
+
 This PC-side development tool records the existing RTL-SDR reference receiver.
 It does not change the single-controller appliance architecture in `DESIGN.md`
 or the component choices in `PARTS.md`.

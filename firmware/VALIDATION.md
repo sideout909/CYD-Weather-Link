@@ -490,3 +490,28 @@ complete host suite and browser regressions passed; browser tests include a
 pending-boot failure reason and disabled Save/Check/Install until confirmation.
 The pinned build passed: 1,535,533 application bytes, 68,324 static RAM bytes.
 These are source/host results; corrected OTA installation remains pending.
+
+
+## Read-only RF monitoring candidate — October 21
+
+Added USB rf_status/rf_monitor commands and tools/monitor_rf.py. Diagnostic
+snapshots use the receiver library's cached status (no extra SPI reads/tuning).
+Packet records are emitted only while explicitly enabled with a 15-second host-
+heartbeat lease; replay never emits production RF records. The host holds one
+exclusive port, records JSONL, and disables streaming on exit. Existing status,
+weather history, radio settings and upload gates are preserved.
+
+The current v0.4.3 build uses 1,538,601 application bytes and 68,332 static RAM
+bytes. All 18 Python tests pass, including malformed/unrelated output filtering,
+read-only command scope and stream cleanup on device errors. Firmware host
+startup/boot-policy tests and browser startup controls passed earlier in this
+candidate. Added RF code compiled in the actual pinned build.
+
+The owner reconnected with an uncertain longer USB-C cable; 303a:1001 enumerated
+and the existing USB console worked. Before upload, v0.4.0 reported portal_passed
+true, no heard target packets in this boot, archive_ready true, 11 records and
+zero archive write failures. Exported that CSV before USB installation. The new
+candidate reports portal_passed true / attempt 1 / Passed by 5.1 seconds uptime,
+radio ready, 11 records preserved and zero archive errors. A ten-minute RF
+baseline is being recorded privately in rf-20261021/baseline.jsonl. No tuning
+change or SDR service restart was performed. Corrected hosted OTA remains open.

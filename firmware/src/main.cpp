@@ -42,6 +42,7 @@ weather::Bucket* history = nullptr;
 weather::RainInterval* rain_history=nullptr;
 weather::Store* store = nullptr;
 bool display_ok = false, replay = false, dirty = true;
+uint32_t rf_stream_until=0;
 uint8_t page = 0, metric = 0, forecast_index=0, alert_index=0;
 int8_t measurement_detail=-1;
 bool forecast_hourly=false;
@@ -449,6 +450,24 @@ void draw() {
   canvas.pushSprite(0,0);
   dirty=false;last_draw=uptimeMs();
 }
+void rfStatus(){
+  const auto r=radio_receiver::diagnostics();StaticJsonDocument<1536> d;
+  d["event"]="rf_status";d["request_id"]=request_id;d["version"]=kVersion;d["uptime_ms"]=millis();
+  d["radio_ready"]=r.ready;d["receiver_enabled"]=r.enabled;d["source"]=replay?"usb_replay":"radio";
+  d["current_rssi_dbm"]=r.current_rssi;d["average_rssi_dbm"]=r.average_rssi;d["threshold_dbm"]=r.threshold;
+  d["decoded_signals"]=r.decoded_signals;d["decoded_messages"]=r.decoded_messages;d["zero_decodes"]=r.zero_decodes;
+  d["capture_drops"]=r.capture_drops;d["decoder_drops"]=r.decoder_drops;d["app_queue_drops"]=radio_receiver::dropped();
+  d["sensor_status"]=sensor_health::label(sensorState());d["accepted"]=store->accepted;d["repeats"]=store->duplicates;d["rejected"]=store->rejected;
+  const uint64_t now=dataNow();JsonArray types=d.createNestedArray("type_ages_ms");
+  for(auto stamp:sensor_monitor.types){if(stamp&&now>=stamp)types.add(now-stamp);else types.add(nullptr);}
+  JsonObject ages=d.createNestedObject("field_ages_ms");
+  auto age=[&](const char* key,uint64_t stamp,bool valid){if(valid&&now>=stamp)ages[key]=now-stamp;else ages[key]=nullptr;};
+  age("temperature",store->temperature.time_ms,store->temperature.valid);age("humidity",store->humidity.time_ms,store->humidity.valid);
+  age("wind",store->wind.time_ms,store->wind.valid);age("direction",store->direction.time_ms,store->direction.valid);
+  age("lux",store->lux.time_ms,store->lux.valid);age("uv",store->uv.time_ms,store->uv.valid);
+  const auto rain=store->rainState();age("rain",rain.time,rain.baseline);
+  char buffer[1536];const size_t length=serializeJson(d,buffer,sizeof(buffer));Serial.write(reinterpret_cast<const uint8_t*>(buffer),length);Serial.println();
+}
 void status(const char* event = "status") {
   StaticJsonDocument<3072> out;
   out["event"]=event;out["request_id"]=request_id;out["version"]=kVersion;out["board"]="panellan_sc05_x";
@@ -505,6 +524,11 @@ void command(const char* input) {
   request_id=doc["request_id"]|uint32_t(0);
   const char* op=doc["op"]|"";
   if (!strcmp(op,"status")) status();
+  else if(!strcmp(op,"rf_status")){if(rf_stream_until&&int32_t(rf_stream_until-millis())>0)rf_stream_until=millis()+15000;rfStatus();}
+  else if(!strcmp(op,"rf_monitor")){
+    const bool enabled=doc["enabled"]|false;rf_stream_until=enabled?millis()+15000:0;
+    Serial.printf("{\"event\":\"rf_monitor\",\"request_id\":%u,\"enabled\":%s}\n",request_id,enabled?"true":"false");
+  }
   else if(!strcmp(op,"theme_preview") && replay){int theme=doc["theme"]|-1;if(theme>=-1 && theme<=3){theme_preview=theme;dirty=true;status("theme_preview");}}
   else if(!strcmp(op,"diagnostics")){bool passed=checkpoint::selftest();bool archive=archive_storage::selftest();Serial.printf("{\"event\":\"diagnostics\",\"request_id\":%u,\"checkpoint_passed\":%s,\"archive_passed\":%s,\"portal_passed\":%s}\n",request_id,passed?"true":"false",archive?"true":"false",network.portal_passed?"true":"false");}
   else if(!strcmp(op,"checkpoint_save")){
@@ -623,6 +647,12 @@ void liveReceive(){
     weather::Sample s;if(!atlas::decode(d.as<JsonVariantConst>(),liveNow(),s))continue;
     uint32_t previous=store->session_rain_tips;auto counter=store->rainState();
     const auto result=store->ingest(s);sensor_monitor.observe(s,result);
+    if(Serial&&rf_stream_until&&int32_t(rf_stream_until-millis())>0){
+      StaticJsonDocument<2048> record;record["event"]="rf_packet";record["uptime_ms"]=millis();
+      record["result"]=unsigned(result);record["sensor_status"]=sensor_health::label(sensorState());record["packet"]=d.as<JsonObjectConst>();
+      char encoded[1536];const size_t length=serializeJson(record,encoded,sizeof(encoded));
+      Serial.write(reinterpret_cast<const uint8_t*>(encoded),length);Serial.println();
+    }
     if(clock_anchored)archive_storage::observe(s,result,store->session_rain_tips-previous,counter.time,
       counter.baseline&&s.time_ms>=counter.time&&s.time_ms-counter.time<weather::kStaleMs&&counter.discontinuities==store->rain_discontinuities);
     if(result==weather::Result::Accepted){

@@ -22,6 +22,7 @@ This repository contains hardware and firmware planning documents, display conce
 - `reference/` stores public CC1101 and PanelLan manufacturer PDFs with source links; module header numbering remains in the wiring guide.
 - `firmware/boards/` contains the actual PanelLan hardware manifest; `firmware/tests/` holds host C++ model tests. `firmware/README.md` documents scope, commands, and the bench validation record.
 - `tools/firmware_console.py` and its test provide acknowledged USB replay and framebuffer capture.
+- `tools/monitor_rf.py` records opt-in read-only RF diagnostics/native packets through an exclusive USB port; `firmware/RADIO_DIAGNOSTICS.md` documents RSSI limits, overnight reference timing and tuning baselines.
 - `tools/atlas_capture.py` continuously logs decoded reference-receiver packets; `tools/test_atlas_capture.py` tests archive integrity and receiver lifecycle behavior.
 - `CAPTURE.md` documents the PC logger, service commands, hardware context, and log schema. Local data lives in ignored `captures/`.
 - `tools/70-cyd-weather-link.rules` and `tools/setup-esp32-access.sh` configure serial access for the owner's specific PanelLan board; see `PARTS.md`.
