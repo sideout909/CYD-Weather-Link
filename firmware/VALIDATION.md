@@ -402,3 +402,19 @@ A physical power interruption during a slot write and full seven-day runtime/
 rollover remain soak acceptance checks. See RECORDING.md for retention, loss
 bounds, UTC, precision, storage reserve and export semantics. The PC receiver
 logger remains stopped and no cloud archive upload was added.
+
+## Moon appearance update — v0.4.1, October 21
+
+Built the `panellan_sc05_x` image with a shared C++ moon renderer. Reviewed
+an enlarged host rendering of the actual renderer for new, waxing crescent,
+first quarter, gibbous, full and waning crescent phases. Gray crater markings
+remain clipped to the existing illuminated-phase mask; the shadow and rim are
+neutral gray. Clear/partly cloudy nights share the renderer. Existing icon
+size/position, phase direction, missing-phase indicator and NWS freshness gates
+are preserved. Preview: private `captures/firmware-validation/moon-v041-preview.png`.
+The host rendering compiles with `-Wall -Wextra -Werror`.
+
+The owner disconnected USB after v0.4.0 and requested a manual OTA test.
+The LAN portal responds with HTTP 401 as expected without admin credentials.
+Physical appearance and actual OTA installation/startup confirmation are pending;
+the build alone does not establish either. No USB upload was attempted.

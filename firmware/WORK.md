@@ -6,6 +6,11 @@ SD logging and D710 serial are optional. PC RTL-SDR recording stays stopped.
 
 ## Running board
 
+v0.4.1 adds subtle crater texture and gray shading to the existing small moon
+icon. Built and previewed the actual renderer on the host; the owner's board
+was disconnected from USB on v0.4.0. Manual Wi-Fi OTA installation and physical
+appearance checks are pending. The authenticated portal is reachable on LAN.
+
 The board now runs v0.4.0. It includes the callsign/speaker/APRS header,
 Link status details, Atlas stale-cycle/no-signal monitoring, persistent APRS/CWOP
 sessions and opt-in GitHub OTA, alongside the earlier map/security features.

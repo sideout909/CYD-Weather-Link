@@ -9,6 +9,7 @@
 #include "weather_store.h"
 #include "atlas_packet.h"
 #include "forecast_icon.h"
+#include "moon_icon.h"
 #include "weather_icons.h"
 #include "home_fonts.h"
 #include "daily_rain.h"
@@ -161,8 +162,7 @@ bool forecastGraphic(){
     float illumination=solar_current?network.moon_illumination:-1;
     const bool waning=network.moon_phase.startsWith("Waning")||network.moon_phase=="Last Quarter";
     if(illumination<0){canvas.drawCircle(cx,cy,r,kMuted);text("?",146,72,kMuted,&fonts::Font0);return;}
-    for(int y=-r;y<=r;++y){float half=sqrtf(float(r*r-y*y));for(int x=-int(half);x<=int(half);++x)if(forecast_icon::illuminated(illumination,float(x),half,waning,services::settings().latitude<0))canvas.drawPixel(cx+x,cy+y,kWhite);}
-    canvas.drawCircle(cx,cy,r,kCyan);
+    moon_icon::draw(canvas,cx,cy,r,illumination,waning,services::settings().latitude<0);
   };
   using K=forecast_icon::Kind;
   switch(kind){
