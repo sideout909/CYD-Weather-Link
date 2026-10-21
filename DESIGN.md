@@ -456,3 +456,13 @@ Provide authenticated browser CSV and USB download for later analysis. Keep
 archive writes bounded and reception responsive; document flash-block overhead
 and partial current-interval loss on power interruption. See
 [RECORDING.md](firmware/RECORDING.md) for format, recovery and export behavior.
+
+
+### Display-only pressure fallback (October 21)
+
+Until a local barometer is fitted, the BARO tile may show a fresh observation
+from a nearby NWS reporting station, explicitly labeled NWS with source/type/age
+in details. Prefer sea-level pressure and distinguish the reported barometric
+fallback. Apply a 90-minute observation-age limit; missing, invalid, future,
+offline or expired values display unavailable. This external observation is not
+Atlas data and must not enter local archives or observation uploads.

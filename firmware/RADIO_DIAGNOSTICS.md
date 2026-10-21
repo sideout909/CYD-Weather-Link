@@ -89,3 +89,35 @@ distributions, time Current, queue drops and decode failures—not by the larges
 RSSI number. Keep one variable changed at a time, preserve a return to baseline,
 and finish OTA startup confirmation before distributing a tuning experiment.
 No RF settings were changed by adding these diagnostics.
+
+
+## Temporary capture-margin experiment, v0.4.4 and later
+
+The owner authorized opening the software gate after an accepted burst was
+only 1 dB above it. This command explicitly changes the margin in RAM:
+
+```bash
+bash tools/monitor-rf.sh captures/rf-margin6.jsonl --seconds 360 --margin-db 6
+```
+
+Allowed range is integer 3–15 dB; default at boot remains 9 dB. No NVS or radio
+register/center-frequency/bandwidth/AGC change is made. The supported library
+setter changes the margin; the effective threshold updates on its next average
+recalculation. `capture_margin_db` is the requested margin; compare actual
+`threshold_dbm` with `average_rssi_dbm` to confirm it has taken effect. The
+host retries a lost acknowledgement idempotently. A monitor started without
+--margin-db leaves the current setting alone. Stopping monitoring does not undo
+an explicit margin experiment; a device restart restores the 9 dB default.
+
+Observed October 21: on coax, decoded bursts were roughly -68 to -82 dBm with
+background near -92/-93 dBm. Reception still had a later two-minute dropout.
+With the small antenna and the 6 dB margin, background rose toward -63 dBm and
+the adaptive threshold toward -57 dBm. After the owner confirmed the small
+antenna, only one distinct temperature report (three copies) was observed over
+about 201 seconds; its capture lasted 37.2 seconds, consistent with a prolonged
+noise/signal capture. It is not a clean per-packet RF-power measurement.
+No capture/decoder/application queue drops were recorded. The owner returned to
+coax for the night and plans a VNA check. The antenna change times were not
+measured precisely, so this is an operational comparison rather than a calibrated
+sensitivity or packet-error-rate test. Do not lower the gate further solely on
+this evidence; assess antenna matching, placement/interference and filter tuning.

@@ -134,3 +134,9 @@ both OTA slots. The seven-day/five-minute archive adds 126 KiB of logical
 record storage plus filesystem overhead, with a 512 KiB free-space reserve.
 No SD card or additional controller is required. See the matching requirement
 in DESIGN.md and [device recording](firmware/RECORDING.md).
+
+
+The October 21 BARO display fallback uses nearby NWS station observations while
+no local pressure sensor is fitted. This adds no hardware and is not a local
+barometric measurement; see DESIGN.md and HOME_SCREEN.md for freshness/source
+labeling. A local barometer remains an optional addition.

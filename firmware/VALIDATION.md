@@ -515,3 +515,43 @@ candidate reports portal_passed true / attempt 1 / Passed by 5.1 seconds uptime,
 radio ready, 11 records preserved and zero archive errors. A ten-minute RF
 baseline is being recorded privately in rf-20261021/baseline.jsonl. No tuning
 change or SDR service restart was performed. Corrected hosted OTA remains open.
+
+
+## Antenna trial, final header and NWS pressure — v0.4.5, October 21
+
+Recorded 475.9 seconds of mixed antenna observation at the original 9 dB margin.
+The owner changed back to clipped coax during this capture (exact change time
+unknown). Later it still crossed Data stale/No signal, with zero capture,
+decoder-queue and application-queue drops. At the owner's request implemented
+an explicit RAM-only margin command (3–15 dB), and tried 6 dB. Its effective
+threshold is logged separately because the library recalculates on its next
+average window. One first acknowledgement was lost while the setting applied;
+idempotent timeout retry and a regression cover that transport case.
+
+After the owner confirmed the small antenna, about 201 seconds of observation
+contained one distinct temperature report / three copies and a 37.2-second
+capture. The background rose to about -63 dBm and threshold to -57 dBm; all
+weather types aged out despite the lower margin. No queue drops were observed.
+The owner chose coax overnight and a VNA check in the morning. This does not
+prove antenna resonance or independently identify the interference source.
+Private RF JSONL, owner observations and plots remain in rf-20261021/.
+
+v0.4.4 changed the actual header order to RF, WiFi, APRS/CWOP, trailing sound
+icon and removed the link outline. v0.4.5 removes the NWS-forecast suffix from
+local-temperature/lux text, renames BARO and adds a clearly labeled nearby NWS
+pressure observation. The Atlas has no local barometer; local priority remains
+future hardware work. Pressure is display-only and excluded from uploads and
+archives. Prefer sea-level pressure; otherwise report the API barometric field
+with its type in details. Validate units/ranges, reject missing/nonfinite,
+future/90-minute-old observations and known bad QC flags, poll about ten minutes,
+respect retry delays, and try another nearby station after unavailable data.
+
+Pinned build passed: 1,544,021 application bytes, 68,492 static RAM bytes.
+Host pressure tests cover units/bounds/NaN/zero/future/expiration and all earlier
+firmware checks passed. Python regressions passed, including explicit margin
+scope and lost acknowledgement retry. USB upload restored checkpoint schema 3
+and all 15 archive records; portal self-test Passed on attempt 1. Actual pressure
+page showed NWS / KRNP, reported barometric pressure 30.33 inHg, observed 27 min
+ago. Main screenshot verifies the row order, no APRS outline, lux-only line,
+BARO number/units and NWS directly beneath it. Returned to Home afterward.
+Corrected hosted OTA acceptance remains open; no automatic update was enabled.

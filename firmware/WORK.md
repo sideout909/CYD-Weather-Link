@@ -11,15 +11,16 @@ reversion to v0.4.0. The earlier "successful OTA" entry is superseded: transfer
 and boot worked, final confirmation was not established. v0.4.1/v0.4.2 are now
 prereleases and v0.4.0 is held as the latest public release while investigating.
 
-v0.4.3 is built and host/browser checked: wait for actual HTTP service before
+v0.4.3 startup corrections are built and host/browser checked: wait for actual HTTP service before
 portal self-tests, bounded retries with sanitized stage/HTTP diagnostics, and
 block settings-save restarts while boot confirmation is pending. The 30-second
 confirmation / 90-second rollback policy and watchdog remain intact. A startup
 timing race was found in source; the owner's exact failure reason is pending.
-The owner reconnected USB (the longer cable enumerates correctly). The v0.4.3
-diagnostics candidate was installed over USB after exporting the archive. Portal
-self-test passed on attempt 1 at about five seconds uptime; RF monitoring is
-in progress. This USB boot does not establish corrected OTA confirmation.
+The owner reconnected USB; the longer cable carries data. The board now runs
+v0.4.5 installed over USB, including startup corrections, RF monitoring/margin
+experiments and the requested header/source-label/nearby NWS barometer changes.
+Portal self-test passes on attempt 1; history/archive restore passed. This USB
+boot does not establish corrected hosted OTA confirmation.
 
 The core includes the callsign/speaker/APRS header,
 Link status details, Atlas stale-cycle/no-signal monitoring, persistent APRS/CWOP
@@ -44,7 +45,8 @@ uploads. CWOP/MADIS collection and Weathercloud ingestion remain unverified.
 
 Read-only RF diagnostics now expose cached RSSI/background/threshold, decode
 counts/drops, native packet RSSI and per-type/field ages. Baseline frequency,
-receive bandwidth, AGC and adaptive margin are unchanged. See RADIO_DIAGNOSTICS.md.
+receive bandwidth and AGC are unchanged. A later owner-authorized experiment
+allows a RAM-only capture margin of 3–15 dB; default at restart remains 9 dB. See RADIO_DIAGNOSTICS.md.
 
 ## Implemented core
 

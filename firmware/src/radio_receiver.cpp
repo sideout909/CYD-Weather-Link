@@ -44,8 +44,13 @@ Diagnostics diagnostics(){
   Diagnostics d;d.ready=initialized;if(!initialized)return d;
   const auto s=receiver.statusSnapshot();d.enabled=s.receiverEnabled;
   d.current_rssi=s.currentRssi;d.average_rssi=s.averageRssi;d.threshold=s.rssiThreshold;
+  d.margin=rtl_433_ESP::rssiThresholdDelta;
   d.decoded_signals=s.decodedSignals;d.decoded_messages=s.decodedMessages;
   d.zero_decodes=s.zeroDecodedSignals;d.capture_drops=s.droppedCaptureBuffers;
   d.decoder_drops=s.droppedDecoderQueue;return d;
+}
+bool setCaptureMargin(unsigned db){
+  if(!initialized||db<3||db>15)return false;
+  receiver.setRSSIThreshold(db);return true;
 }
 }

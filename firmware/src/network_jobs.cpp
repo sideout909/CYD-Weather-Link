@@ -12,6 +12,7 @@
 #include "aprs_login.h"
 #include "firmware_updates.h"
 #include "startup_health.h"
+#include "nws_pressure.h"
 #include <lwip/sockets.h>
 #include <lwip/tcp.h>
 
@@ -24,7 +25,8 @@ struct PsramAllocator {
   void* reallocate(void* p,size_t n){return heap_caps_realloc(p,n,MALLOC_CAP_SPIRAM|MALLOC_CAP_8BIT);}
 };
 using Document=BasicJsonDocument<PsramAllocator>;
-String forecast_url,hourly_url;
+String forecast_url,hourly_url,stations_url;
+std::array<String,3> pressure_stations;unsigned pressure_station_index=0;uint32_t next_pressure=0;
 time_t point_fetched=0;
 uint32_t next_forecast=0,next_alerts=0,next_sun=0;
 uint32_t server_delay=0,retry_delay=0;
@@ -95,15 +97,51 @@ bool getJson(const String& url,Document& out,const JsonDocument& filter,String& 
   const auto parsed=deserializeJson(out,http.getStream(),DeserializationOption::Filter(filter),DeserializationOption::NestingLimit(16));
   http.end();if(parsed){error="NWS response incomplete";return false;}error="Current";return true;
 }
+void pressure(State& s){
+  // Nearby station observation, never a replacement local RF measurement.
+  String error;Document doc(16384);StaticJsonDocument<1024> filter;
+  if(pressure_stations[0].isEmpty()){
+    if(stations_url.isEmpty()){s.pressure_error="Waiting for NWS station lookup";return;}
+    filter["features"][0]["properties"]["stationIdentifier"]=true;
+    if(!getJson(stations_url,doc,filter,error)){s.pressure_error=error;return;}
+    unsigned n=0;for(JsonObject f:doc["features"].as<JsonArray>()){
+      String id=f["properties"]["stationIdentifier"]|String("");bool valid=id.length()>0&&id.length()<=8;
+      for(char c:id)valid&=isalnum(static_cast<unsigned char>(c));
+      if(valid){pressure_stations[n++]=id;if(n==pressure_stations.size())break;}
+    }
+    if(!n){s.pressure_error="No nearby NWS reporting stations";return;}
+    pressure_station_index=0;doc.clear();filter.clear();
+  }
+  const String station=pressure_stations[pressure_station_index];
+  filter["properties"]["timestamp"]=true;
+  for(const char* key:{"seaLevelPressure","barometricPressure"}){filter["properties"][key]["value"]=true;filter["properties"][key]["unitCode"]=true;filter["properties"][key]["qualityControl"]=true;}
+  bool ok=getJson("https://api.weather.gov/stations/"+station+"/observations/latest",doc,filter,error);
+  const time_t stamp=isoTime(doc["properties"]["timestamp"]);float pa=0;bool sea=false;
+  if(ok&&!nws_pressure::fresh(stamp,time(nullptr))){ok=false;error="NWS pressure observation too old or invalid";}
+  if(ok){
+    ok=false;
+    for(const char* key:{"seaLevelPressure","barometricPressure"}){
+      auto p=doc["properties"][key];const char* qc=p["qualityControl"]|"";
+      const bool level=!strcmp(key,"seaLevelPressure");
+      if(p["value"].is<float>()&&strcmp(qc,"X")&&strcmp(qc,"B")&&
+         nws_pressure::pascals(p["value"].as<double>(),p["unitCode"]|"",level,pa)){sea=level;ok=true;break;}
+    }
+    if(!ok)error="NWS pressure unavailable";
+  }
+  if(ok){s.pressure_pa=pa;s.pressure_observed=stamp;s.pressure_sea_level=sea;s.pressure_station=station;s.pressure_error="Current";next_pressure=millis()+std::max(uint32_t(600000),std::max(server_delay,retry_delay));}
+  else{s.pressure_error=error;pressure_station_index=(pressure_station_index+1)%pressure_stations.size();if(pressure_stations[pressure_station_index].isEmpty())pressure_station_index=0;}
+}
+
 void forecast(State& s){
   String error;Document doc(100000);StaticJsonDocument<1536> filter;
   if(time(nullptr)-point_fetched>86400)forecast_url="";
   if(forecast_url.isEmpty()){
-    filter["properties"]["forecast"]=true;filter["properties"]["forecastHourly"]=true;
+    filter["properties"]["forecast"]=true;filter["properties"]["forecastHourly"]=true;filter["properties"]["observationStations"]=true;
     String point="https://api.weather.gov/points/"+String(config.latitude,4)+","+String(config.longitude,4);
     if(!getJson(point,doc,filter,error)){s.forecast_error=error;return;}
     forecast_url=doc["properties"]["forecast"].as<String>();hourly_url=doc["properties"]["forecastHourly"].as<String>();
     if(!forecast_url.startsWith("https://api.weather.gov/")){forecast_url="";s.forecast_error="NWS unavailable at this location";return;}
+    stations_url=doc["properties"]["observationStations"].as<String>();pressure_stations={};
     point_fetched=time(nullptr);doc.clear();filter.clear();
   }
   auto p=filter["properties"]["periods"][0];
@@ -345,6 +383,7 @@ void worker(void*){
     }
     if(config.location_set && s.sun_day!=localDay() && int32_t(millis()-next_sun)>=0){fetchSun(s);writeState(s);}
     if(config.location_set && (s.forecast_fetched || s.alert_fetched) && (!cache_written || millis()-cache_saved>900000 || alert_signature!=alertSignature(s))){saveCache(s);cache_written=true;cache_saved=millis();alert_signature=alertSignature(s);}
+    if(config.location_set&&int32_t(millis()-next_pressure)>=0){next_pressure=millis()+60000;pressure(s);if(retry_delay>uint32_t(next_pressure-millis()))next_pressure=millis()+retry_delay;writeState(s);}
     maintainAprs(s);writeState(s); // Due NWS checks run before a reconnect/login.
     // Exporters remain opt-in. No replay or stale observations may leave the device.
     if(config.wu_enabled || config.weathercloud_enabled || config.aprs_enabled){

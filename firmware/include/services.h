@@ -56,6 +56,10 @@ struct State {
   int32_t sun_day=0;
   String sun_status="unknown",sun_error="Not configured",moon_phase;
   float moon_illumination=-1;
+  float pressure_pa=0;
+  time_t pressure_observed=0;
+  bool pressure_sea_level=false;
+  String pressure_station,pressure_error="Not configured";
   String forecast_error="Not configured",hourly_error="Not configured",alert_error="Not configured";
   time_t forecast_fetched=0,hourly_fetched=0,forecast_issued=0,hourly_issued=0,alert_fetched=0;
   bool forecast_valid=false,alerts_valid=false,alerts_truncated=false;

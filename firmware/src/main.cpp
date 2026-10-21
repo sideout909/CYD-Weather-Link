@@ -10,6 +10,7 @@
 #include "atlas_packet.h"
 #include "forecast_icon.h"
 #include "moon_icon.h"
+#include "nws_pressure.h"
 #include "weather_icons.h"
 #include "home_fonts.h"
 #include "daily_rain.h"
@@ -187,10 +188,10 @@ void renderHome() {
   const bool compact_temperature=homeWidth(degrees,temperature,-2)>123;
   homeText(degrees,8,104,store->temperature.fresh(now)?kWhite:kMuted,compact_temperature?temperature_compact:temperature,-2);
   if(store->temperature.valid && !store->temperature.fresh(now))homeText("STALE",122,107,kAmber,small);
-  const bool nws_graphic=forecastGraphic();
+  forecastGraphic();
   sparkline();
   const String light=store->lux.valid ? String(store->lux.value/1000.0f,1)+" klx" : "-- klx";
-  homeText(homeFit(store->lux.valid&&!store->lux.fresh(now)?"STALE · "+light:light+(nws_graphic?" · NWS forecast":" · NWS --"),164,body),11,132,kMuted,body);
+  homeText(homeFit(store->lux.valid&&!store->lux.fresh(now)?"STALE · "+light:light,164,body),11,132,kMuted,body);
   canvas.drawFastVLine(180,55,77,kDivider);
   homeText("WIND",193,60,kMuted,label,1);
   constexpr int cx=209,cy=89,r=20;
@@ -224,8 +225,11 @@ void renderHome() {
   const String rain_amount=rain_today.valid?String(rain_today.tips/100.0f,2):"--";
   homeText(rain_amount,119,175,rain_fresh?kWhite:kMuted,reading,kCard);
   homeText("in",119+homeWidth(rain_amount,reading)+5,175,kMuted,unit,kCard);
-  homeText("SEA LEVEL",223,153,kMuted,tile_label,kCard);
-  homeText("--",223,175,kMuted,reading,kCard);homeText("Not fitted",251,175,kMuted,unit,kCard);
+  homeText("BARO",223,153,kMuted,tile_label,kCard);
+  const bool pressure_fresh=network.wifi&&services::clockValid()&&nws_pressure::fresh(network.pressure_observed,time(nullptr));
+  homeText(pressure_fresh?String(network.pressure_pa/3386.389f,2):"--",223,171,pressure_fresh?kWhite:kMuted,reading,kCard);
+  if(pressure_fresh)homeText("inHg",284,170,kMuted,unit,kCard);
+  homeText(pressure_fresh?"NWS":"NWS --",223,182,kMuted,home_fonts::status,kCard);
 }
 
 bool bucketValue(const weather::Bucket& b, float& out) {
@@ -290,11 +294,13 @@ void renderMeasurement(){
     detailRow("Today resets","00:00 local",154);
     homeText("* Partial or uncertain coverage",12,176,kMuted,body);
   }else if(measurement_detail==4){
-    detailRow("Barometer","Not fitted",66);
-    detailRow("Sea level","--",88);
-    detailRow("Station pressure","--",110);
-    homeText("The Atlas does not report pressure.",12,143,kMuted,body);
-    homeText("An optional barometer is required.",12,163,kMuted,body);
+    const bool fresh=network.wifi&&services::clockValid()&&nws_pressure::fresh(network.pressure_observed,time(nullptr));
+    detailRow("Barometer",fresh?String(network.pressure_pa/3386.389f,2)+" inHg":"--",66);
+    detailRow("Source",network.pressure_station.length()?"NWS / "+network.pressure_station:"NWS / pending",88);
+    detailRow("Pressure type",network.pressure_sea_level?"Sea-level pressure":"Reported barometric",110);
+    detailRow("Observed",network.pressure_observed?String(uint32_t(std::max(time_t(0),time(nullptr)-network.pressure_observed))/60)+" min ago":"No observation",132);
+    homeText(homeFit(network.pressure_error,296,body),12,155,kMuted,body);
+    homeText("Nearby station; Atlas has no barometer.",12,176,kMuted,home_fonts::status);
   }else{
     const auto state=sensorState();
     detailRow("Atlas",sensor_health::label(state),66);
@@ -416,13 +422,12 @@ void draw() {
   const String source=replay?"Atlas · recorded":String("Atlas · ")+sensor_health::label(sensor);
   homeText(homeFit(source,136,body),22,37,kMuted,body);
   homeText(radio_receiver::ready()?"RF +":"RF X",167,37,radio_receiver::ready()?kGreen:kMuted,home_fonts::status);
-  homeText(network.wifi?"Wi-Fi +":"Wi-Fi X",196,37,network.wifi?kGreen:kMuted,home_fonts::status);
-  speakerIcon(238,26,false); // No audio hardware/configuration is fitted yet.
+  homeText(network.wifi?"WiFi +":"WiFi X",199,37,network.wifi?kGreen:kMuted,home_fonts::status);
   const bool linked=network.aprs_connected&&network.wifi;
   const uint16_t link_color=linked?kGreen:services::settings().aprs_enabled?kAmber:kMuted;
   const String link_label=String(services::settings().aprs_profile=="cwop"?"CWOP":"APRS")+(linked?" +":" X");
-  canvas.drawRoundRect(268,26,43,15,3,linked?kGreen:services::settings().aprs_enabled?kAmber:kDivider);
-  homeText(link_label,271,37,link_color,home_fonts::status);
+  homeText(link_label,246,37,link_color,home_fonts::status);
+  speakerIcon(297,26,false); // Sound status last; audio hardware is not fitted.
   canvas.drawFastHLine(10,44,300,kDivider);
   if (page==0) renderHome(); else if (page==1) renderTrends(); else renderForecast();
   }
@@ -455,6 +460,7 @@ void rfStatus(){
   d["event"]="rf_status";d["request_id"]=request_id;d["version"]=kVersion;d["uptime_ms"]=millis();
   d["radio_ready"]=r.ready;d["receiver_enabled"]=r.enabled;d["source"]=replay?"usb_replay":"radio";
   d["current_rssi_dbm"]=r.current_rssi;d["average_rssi_dbm"]=r.average_rssi;d["threshold_dbm"]=r.threshold;
+  d["capture_margin_db"]=r.margin;
   d["decoded_signals"]=r.decoded_signals;d["decoded_messages"]=r.decoded_messages;d["zero_decodes"]=r.zero_decodes;
   d["capture_drops"]=r.capture_drops;d["decoder_drops"]=r.decoder_drops;d["app_queue_drops"]=radio_receiver::dropped();
   d["sensor_status"]=sensor_health::label(sensorState());d["accepted"]=store->accepted;d["repeats"]=store->duplicates;d["rejected"]=store->rejected;
@@ -524,6 +530,10 @@ void command(const char* input) {
   request_id=doc["request_id"]|uint32_t(0);
   const char* op=doc["op"]|"";
   if (!strcmp(op,"status")) status();
+  else if(!strcmp(op,"rf_margin")){
+    if(!doc["margin_db"].is<unsigned>()||!radio_receiver::setCaptureMargin(doc["margin_db"].as<unsigned>())){Serial.println("{\"event\":\"error\",\"reason\":\"RF margin needs ready radio and integer 3 to 15 dB\"}");}
+    else{const auto r=radio_receiver::diagnostics();Serial.printf("{\"event\":\"rf_margin\",\"request_id\":%u,\"margin_db\":%d,\"threshold_dbm\":%d,\"pending_recalculation\":true}\n",request_id,r.margin,r.threshold);}
+  }
   else if(!strcmp(op,"rf_status")){if(rf_stream_until&&int32_t(rf_stream_until-millis())>0)rf_stream_until=millis()+15000;rfStatus();}
   else if(!strcmp(op,"rf_monitor")){
     const bool enabled=doc["enabled"]|false;rf_stream_until=enabled?millis()+15000:0;

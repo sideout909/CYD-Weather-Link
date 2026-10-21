@@ -1,7 +1,8 @@
 #!/usr/bin/env python3
 """Record read-only CC1101 diagnostics and native packets through one USB port.
 
-Does not change tuning, replay data, credentials, services, or on-device history.
+Read-only by default. --margin-db explicitly changes the RAM-only capture margin.
+Never replays data or changes credentials, services, or on-device history.
 """
 import argparse
 from datetime import datetime, timezone
@@ -14,12 +15,27 @@ from firmware_console import DEFAULT_PORT, response, send, synchronize
 
 
 def record(stream, item):
-    if item.get('event') not in ('rf_status', 'rf_packet', 'rf_monitor', 'boot', 'fatal'):
+    if item.get('event') not in ('rf_status', 'rf_packet', 'rf_monitor', 'rf_margin', 'boot', 'fatal'):
         return
     entry = dict(host_utc=datetime.now(timezone.utc).isoformat(),
                  host_monotonic_ns=time.monotonic_ns(), device=item)
     stream.write(json.dumps(entry, separators=(',', ':'), allow_nan=False)+'\n')
     stream.flush()
+
+
+def apply_margin(port, stream, margin):
+    if not isinstance(margin, int) or not 3 <= margin <= 15:
+        raise ValueError('Capture margin must be an integer from 3 to 15 dB')
+    for attempt in range(3):
+        rid = send(port, dict(op='rf_margin', margin_db=margin))
+        try:
+            reply = response(port, 'rf_margin', request_id=rid)
+            record(stream, reply)
+            return reply
+        except TimeoutError:
+            if attempt == 2:
+                raise
+
 
 
 def monitor(port, stream, seconds, interval):
@@ -67,6 +83,7 @@ def main():
     parser.add_argument('--port', default=DEFAULT_PORT)
     parser.add_argument('--seconds', type=float, default=300)
     parser.add_argument('--interval', type=float, default=1)
+    parser.add_argument('--margin-db', type=int, choices=range(3, 16), help='Explicit temporary capture-margin override; resets on device restart')
     args = parser.parse_args()
     if not math.isfinite(args.seconds) or args.seconds <= 0:
         parser.error('--seconds must be positive and finite')
@@ -84,7 +101,13 @@ def main():
             raise RuntimeError('Live RF monitoring needs the device out of replay mode')
         print('Connected to firmware', status.get('version'), flush=True)
         with args.output.open('x', encoding='utf-8') as stream:
-            result = monitor(port, stream, args.seconds, args.interval)
+            if args.margin_db is not None:
+                print('Temporary margin:', apply_margin(port, stream, args.margin_db), flush=True)
+            try:
+                result = monitor(port, stream, args.seconds, args.interval)
+            except KeyboardInterrupt:
+                print('Stopped; captured data retained in', args.output)
+                return
     print(json.dumps(dict(output=str(args.output), **result)))
 
 

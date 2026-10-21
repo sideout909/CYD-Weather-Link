@@ -6,6 +6,10 @@ test_binary=$(mktemp /tmp/cyd-weather-test.XXXXXX)
 trap 'rm -f -- "$test_binary"' EXIT
 g++ -std=c++17 -Wall -Wextra -Werror \
     -I"$project_dir/firmware/include" \
+    "$project_dir/firmware/tests/nws_pressure_test.cpp" -o "$test_binary"
+"$test_binary"
+g++ -std=c++17 -Wall -Wextra -Werror \
+    -I"$project_dir/firmware/include" \
     "$project_dir/firmware/tests/startup_health_test.cpp" -o "$test_binary"
 "$test_binary"
 g++ -std=c++17 -Wall -Wextra -Werror \

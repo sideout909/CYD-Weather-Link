@@ -140,6 +140,7 @@ void statusGet() {
   d["rain_partial"]=o.rain_today_observed&&!o.rain_today_valid;
   if(o.rain_24h_observed)d["rain_24h_in"]=o.rain_24h_in;
   d["rain_24h_partial"]=o.rain_24h_observed&&!o.rain_24h_valid;
+  d["nws_pressure_pa"]=s.pressure_pa;d["nws_pressure_observed"]=s.pressure_observed;d["nws_pressure_station"]=s.pressure_station;d["nws_pressure_sea_level"]=s.pressure_sea_level;d["nws_pressure_state"]=s.pressure_error;
   d["sunrise"]=s.sunrise;d["sunset"]=s.sunset;d["sun_day"]=s.sun_day;d["sun_state"]=s.sun_error;d["moon_phase"]=s.moon_phase;d["moon_illumination"]=s.moon_illumination;
   d["forecast_state"]=s.forecast_error;d["alert_state"]=s.alert_error;d["alert_last_check"]=s.alert_fetched;d["alert_poll_s"]=s.alert_poll_ms/1000;
   if(s.forecast_count)d["forecast"]=s.forecast[0].name+": "+s.forecast[0].short_text;

@@ -18,7 +18,7 @@ Use a dark navy background in normal operation, warm white numbers, cyan measure
 
 | Area | Content and interaction |
 | --- | --- |
-| Header, y=0–43 | Compact `WEATHER LINK` title, configured callsign/SSID when present, local clock, Atlas health, RF/Wi-Fi states, speaker/mute icon beside Wi-Fi, and APRS/CWOP connection badge. Subtle page dots indicate position. No large page-switching banner or permanent header arrows; swipes navigate. |
+| Header, y=0–43 | Compact `WEATHER LINK` title, configured callsign/SSID when present, local clock, Atlas health, RF/Wi-Fi states, APRS/CWOP connection text and a trailing speaker/mute icon. Subtle page dots indicate position. No large page-switching banner or permanent header arrows; swipes navigate. |
 | Main readings, y=44–135 | Large outdoor temperature, a 60-minute trend, and a small NWS forecast graphic with local lux; current wind speed, compass arrow showing where wind comes **from**, and `Gust 5m` showing the highest received wind reading in the trailing five minutes. Tap either half for field ages, light/UV or wind/gust details. Swipe an outdoor/wind detail to open its trend. |
 | Measurements, y=136–183 | Humidity, local-day rain, and sea-level pressure with units. Tap a tile for details: humidity age/source, rain today/hour/24-hour totals and coverage, or pressure availability. Pressure shows `Not fitted` without a barometer. |
 | Alert strip, y=184–239 | Highest-priority NWS event and alert count, or explicit check status. Tap anywhere in the strip for the alert list and full text. |
@@ -188,11 +188,12 @@ and generation instructions are recorded in the firmware README.
 
 ## Ham identity and Atlas transmitter health
 
-Latest owner header request replaces Sound off text with a speaker/mute icon
-beside Wi-Fi, and uses the center slot for the configured callsign/SSID in
+Latest owner header request orders the status indicators RF, WiFi, APRS/CWOP,
+then the sound/mute icon, with no outline around APRS/CWOP. The center slot
+shows the configured callsign/SSID in
 11-pixel bold text (increased from the 8-pixel status font).
 Explicit USB replay still replaces that slot with REPLAY. RF + / RF X reports
-receiver initialization; Wi-Fi + / Wi-Fi X reports association. APRS X / CWOP X
+receiver initialization; WiFi + / WiFi X reports association. APRS X / CWOP X
 means disconnected or disabled, and APRS + / CWOP + means an acknowledged network
 session (verified login is required for the ham profile). Network connection
 and successful remote weather ingestion remain separate facts.
@@ -213,3 +214,19 @@ Identical values across a complete valid cycle can be real stable weather;
 they are not enough evidence to declare a freeze. A transmitter replaying an
 entire valid-looking cycle without a changing source timestamp is not reliably
 detectable from this protocol alone.
+
+
+## October 21 source labels and pressure fallback
+
+Owner request: remove the "NWS forecast" text beneath the local temperature;
+that line now contains lux only (and its stale marker when applicable). Keep
+weather-icon attribution distinct from the local measured temperature.
+Rename the pressure tile BARO. The current Atlas has no barometer, so display
+fresh nearby NWS station pressure in inHg with NWS beneath the number. Prefer
+sea-level pressure; otherwise use the station's reported barometric field and
+name the type/source/observation age in pressure details. Do not silently claim
+this is locally measured or include it in Atlas reports/uploads/archive.
+Refresh observations approximately every ten minutes, rotate through up to three
+nearby reporting stations on failures/missing pressure, respect retry delays,
+and hide values older than 90 minutes or without Wi-Fi/valid time. A future
+local barometer can take priority; no local pressure hardware is fitted yet.
