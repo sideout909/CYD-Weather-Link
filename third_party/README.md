@@ -1,5 +1,8 @@
 # Third-party notices
 
+Original project code uses [GPL-3.0-only](../LICENSE). The components below
+retain their own licenses and copyright notices.
+
 Pinned source dependencies and reproducible build configuration are in
 [platformio.ini](../firmware/platformio.ini). The dependency sources are fetched
 by PlatformIO; they are not private device configuration. Retained license

@@ -40,6 +40,10 @@ Architecture, component choices and interface studies are documented in
 
 ## Licensing
 
-The license for original project code is awaiting the owner's choice. Public
-visibility alone does not grant a standalone reuse license. Bundled components
-retain their own licenses; see [third-party notices](third_party/README.md).
+Copyright (C) 2026 sideout909. Original project code is licensed under the
+**GNU General Public License version 3 only (GPL-3.0-only)**; see [LICENSE](LICENSE).
+You may use, modify and redistribute it, including commercially, under those
+terms. This software is provided without warranty.
+
+Third-party code, fonts, map assets and manufacturer references retain their
+own notices and licenses; see [third-party notices](third_party/README.md).

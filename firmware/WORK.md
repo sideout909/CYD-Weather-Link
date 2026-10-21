@@ -67,3 +67,10 @@ GitHub repository: https://github.com/sideout909/CYD-Weather-Link. Local
 release packaging targets this repository. Device update settings remain
 owner-controlled; publishing a source commit does not enable automatic updates. Test hosted install, interruption and rollback
 before unattended updates. Windy, optional D710, sound and pressure are later work.
+
+
+Owner selected GNU GPL version 3 for original project code. The root LICENSE
+and README record GPL-3.0-only; third-party terms are retained separately.
+The initial source upload is complete, and v0.3.1 release packaging includes
+project and dependency license notices. No device credentials are release assets.
+Hosted OTA install/rollback validation remains open; keep auto-install off.
