@@ -418,3 +418,20 @@ The owner disconnected USB after v0.4.0 and requested a manual OTA test.
 The LAN portal responds with HTTP 401 as expected without admin credentials.
 Physical appearance and actual OTA installation/startup confirmation are pending;
 the build alone does not establish either. No USB upload was attempted.
+
+## Update defaults and status feedback — v0.4.2, October 21
+
+The owner reported a persistent "Check queued" message. Found the browser's
+separate action acknowledgement was never replaced after completion; this
+does not establish that the updater worker itself was stuck. Replaced it with
+the current `/api/update` message and progress, including terminal failures.
+The owner was asked for the actual Current/version status line after refresh.
+The unauthenticated LAN portal remains reachable with expected HTTP 401.
+
+New settings use the project repository; trimmed empty values migrate to that
+default while custom repositories and opt-in check/install flags are preserved.
+The pinned firmware build passed (1,536,321 application bytes). Browser checks
+passed, including queued → lookup failure → retry → available → download
+progress → healthy startup, default repository population, and unchanged
+settings/save/map-page behavior. These are mocked browser states, not an
+on-device OTA result. No USB upload or unattended installation was performed.

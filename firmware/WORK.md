@@ -6,6 +6,12 @@ SD logging and D710 serial are optional. PC RTL-SDR recording stays stopped.
 
 ## Running board
 
+v0.4.2 defaults new/empty update repository settings to the project repository,
+preserves custom repositories, and replaces the stale queued UI acknowledgement
+with actual updater results. Build and browser regressions pass. Actual OTA
+installation is still pending the owner's authenticated portal check; HTTP 401
+without credentials establishes reachability, not updater state.
+
 v0.4.1 adds subtle crater texture and gray shading to the existing small moon
 icon. Built and previewed the actual renderer on the host; the owner's board
 was disconnected from USB on v0.4.0. Manual Wi-Fi OTA installation and physical

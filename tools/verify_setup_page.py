@@ -17,7 +17,7 @@ def main():
     config = dict(ssid='Example Wi-Fi', station_id=679, channel='A', radio_enabled=True,
                   timezone='EST5EDT,M3.2.0,M11.1.0', location_set=False, latitude=0, longitude=0,
                   elevation_m=0, wu_enabled=False, weathercloud_enabled=False, aprs_enabled=False,
-                  aprs_profile='ham', callsign='', csrf='synthetic-csrf', wu_key_set=True)
+                  aprs_profile='ham', callsign='', update_repo='sideout909/CYD-Weather-Link', csrf='synthetic-csrf', wu_key_set=True)
     status = dict(wifi=False, radio_ready=False, source='none', forecast_state='Not configured',
                   alert_state='Not configured', packets=0, free_heap=200000,
                   rain_today_in=.12, rain_partial=True, rain_24h_in=.85, rain_24h_partial=False)
@@ -61,6 +61,7 @@ def main():
         elif path in ('/api/update/check', '/api/update/install'):
             assert request.request.method == 'POST' and request.request.headers['x-csrf-token'] == config['csrf']
             update_requests.append(path)
+            update_state.update(busy=True, message='Check queued' if path.endswith('/check') else 'Install queued')
             result = dict(queued=True)
         elif path == '/api/scan': result = dict(scanning=False, networks=['Example Wi-Fi', '<untrusted SSID>'])
         else: raise AssertionError(path)
@@ -105,14 +106,29 @@ def main():
         assert not page.locator('[name=update_auto]').is_checked()
         assert page.locator('#update-install').is_disabled()
         page.locator('#update-check').click()
-        page.wait_for_function("document.querySelector('#update-feedback').textContent==='Check queued.'")
-        update_state.update(available=True, available_version='0.3.1', message='New firmware available')
+        page.wait_for_function("document.querySelector('#update-feedback').textContent==='Check queued · 0%'")
+        assert page.locator('#update-check').is_disabled()
+        assert page.locator('#update_repo').input_value() == 'sideout909/CYD-Weather-Link'
+        update_state.update(busy=False, message='Release lookup failed (HTTP -1)')
+        page.evaluate('updateStatus()')
+        page.wait_for_function("document.querySelector('#update-feedback').textContent==='Release lookup failed (HTTP -1)'")
+        assert not page.locator('#update-check').is_disabled()
+        page.locator('#update-check').click()
+        page.wait_for_function("document.querySelector('#update-feedback').textContent==='Check queued · 0%'")
+        update_state.update(busy=False, available=True, available_version='0.3.1', message='New firmware available')
         page.get_by_role('button', name='Overview', exact=True).click()
         page.get_by_role('button', name='Updates', exact=True).click()
         page.wait_for_function("!document.querySelector('#update-install').disabled")
+        assert page.locator('#update-feedback').inner_text() == 'New firmware available'
         page.locator('#update-install').click()
-        page.wait_for_function("document.querySelector('#update-feedback').textContent.startsWith('Installation queued')")
-        assert update_requests == ['/api/update/check', '/api/update/install']
+        page.wait_for_function("document.querySelector('#update-feedback').textContent==='Install queued · 0%'")
+        update_state.update(message='Downloading release', progress=42)
+        page.evaluate('updateStatus()')
+        page.wait_for_function("document.querySelector('#update-feedback').textContent==='Downloading release · 42%'")
+        update_state.update(busy=False, boot_pending=False, current_version='0.3.1', available=False, message='Updated firmware passed startup checks')
+        page.evaluate('updateStatus()')
+        page.wait_for_function("document.querySelector('#update-feedback').textContent==='Updated firmware passed startup checks'")
+        assert update_requests == ['/api/update/check', '/api/update/check', '/api/update/install']
         page.locator('#update_repo').fill('owner/weather-link')
         page.get_by_role('button', name='Sharing', exact=True).click()
         assert page.locator('#weathercloud_id').is_visible()

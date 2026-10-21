@@ -1,6 +1,7 @@
 #pragma once
 #include <Arduino.h>
 #include <array>
+#include "firmware_version.h"
 
 namespace services {
 struct Settings {
@@ -15,7 +16,7 @@ struct Settings {
   bool wu_enabled = false, weathercloud_enabled = false, aprs_enabled = false;
   String wu_id, wu_key, weathercloud_id, weathercloud_key;
   String aprs_profile = "ham", callsign, aprs_passcode;
-  String update_repo;
+  String update_repo=firmware_version::repository;
   bool update_enabled=false,update_auto=false;
 };
 struct Observation {

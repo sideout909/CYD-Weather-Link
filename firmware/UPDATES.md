@@ -51,6 +51,17 @@ Upload these files to a normal GitHub Release tagged `vVERSION`. The script
 is used to locate the manifest. Private repositories, tokens, arbitrary OTA
 hosts and cross-board updates are unsupported.
 
+From v0.4.2 the project repository `sideout909/CYD-Weather-Link` is the
+default for new settings and migrated empty repository fields. A saved custom
+repository is retained. Clearing the field restores the project default on
+save. Daily checks and automatic installation remain separate opt-in settings;
+manual **Check now** works with both options off.
+
+The setup page tracks an action's current updater message rather than leaving
+its initial queued acknowledgement visible after completion. Lookup failures,
+availability, download progress and startup confirmation replace that message.
+During a restart, reconnect to the page to verify the running version.
+
 ## Installation and recovery
 
 The updater uses a separate background task so an image transfer does not
