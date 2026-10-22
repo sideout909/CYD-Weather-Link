@@ -62,6 +62,11 @@ is 0.9.0-rc.1, not installed or published; see [SIGNED_OTA.md](SIGNED_OTA.md).
   publisher-key backup, target-device resource checks, bootstrap and enforced
   subsequent OTA acceptance remain pending. Rotation/recovery still need a
   dual-key transition implementation. No Secure Boot/eFuse/flash-encryption changes.
+- **Optional lightning on Home — concept only.** Review contextual light/UV-row
+  strip versus optional Barometer replacement. Hide for stations without reported
+  capability; distinguish stale/unknown from zero. Validate Atlas counter deltas,
+  resets/wraps and coverage before rolling counts; distance units unresolved.
+  See [concepts](../concepts/lightning/README.md). No firmware implementation.
 - **Multiple sensor sources.** Explicitly assign temperature/wind/pressure devices
   to one station with per-source/per-field freshness and provenance. Deferred.
 - **More station families.** Use community Connect captures, review native identity,

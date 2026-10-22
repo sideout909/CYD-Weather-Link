@@ -331,3 +331,15 @@ Otherwise retain the existing NWS freshness/day/night/moon-phase rules. This doe
 not change forecast pages or alert sources. See firmware/LUX_CLOUDS.md for
 calibration, low-sun exclusions and limitations; firmware/NWS_PRESSURE.md for the
 investigated fallback. No inferred cloud data or external pressure enters uploads.
+
+
+## Proposed optional lightning presentation — October 22
+
+Local concepts only: [preview](concepts/lightning/index.html),
+[comparison](concepts/lightning/comparison.png), [data rules](concepts/lightning/README.md).
+Recommended A uses the light/UV row temporarily for recent local strike count/age;
+optional B substitutes a lightning tile for Barometer. Both preserve the NWS alert
+area. Most stations lack this capability: Auto leaves Home unchanged until the
+confirmed selected station reports supported lightning fields. Once observed,
+stale lightning is distinct from zero. Counter/window semantics and distance
+units require validation; no firmware implementation or live detection claimed.
