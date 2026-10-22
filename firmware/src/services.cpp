@@ -257,6 +257,8 @@ void statusGet() {
   d["lux_cloud_state"]=cloud.reason;d["lux_cloud_label"]=lux_cloud::label(cloud.kind);d["lux_solar_elevation"]=cloud.altitude;
   d["lux_cloud_samples"]=cloud.samples;d["lux_cloud_span_s"]=cloud.candidate_age_s;d["lux_sampled_ms"]=cloud.sampled_ms;
   d["lux_clear_expected"]=cloud.expected;d["lux_clear_ratio"]=cloud.ratio;
+  d["windy_http_code"]=s.windy_http_code;d["windy_tls_code"]=s.windy_tls_code;d["windy_last_attempt"]=s.windy_attempted;
+  d["windy_dns_ip"]=s.windy_dns_ip;d["windy_dns_server"]=s.windy_dns_server;
   d["windy_state"]=s.windy_state;d["windy_last_success"]=s.windy_success;
   d["pws_state"]=s.pws_state;d["pws_last_success"]=s.pws_success;
   d["nws_pressure_attempt_station"]=s.pressure_attempt_station;d["nws_pressure_attempted"]=s.pressure_attempted;

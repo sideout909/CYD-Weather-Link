@@ -1,9 +1,24 @@
 # Core firmware validation
 
-Current installed candidate: **v0.8.0-rc.1**, October 22, 2026. Published stable: v0.8.0, owner-approved after candidate use. This is a bench
+Current installed candidate: **v0.8.1-rc.1**, October 22, 2026. Published stable: v0.8.1, owner-approved after Windy ingestion confirmation. This is a bench
 log: older version sections describe the state at the time, not current
 limitations. The latest results are below; [WORK.md](WORK.md) tracks remaining
 work and [CONTROLS_CHECKLIST.md](CONTROLS_CHECKLIST.md) tracks owner checks.
+
+## Windy follow-up — 0.8.1-rc.1
+
+Owner Windy account was enabled but no uploads were accepted. Diagnostic attempt
+on hardware resolved stations.windy.com normally through the configured LAN DNS,
+then failed with HTTP -1 / TLS -12288. PC chain inspection and the prior bundle
+failure on the sun provider identified the cross-signed Google trust path.
+
+The GTS Root R1 PEM was downloaded from Google's PKI, matched by SHA-256 to the
+PC's trusted root store, and used directly for Windy without disabling signature,
+expiry or hostname checks. Hardware then returned HTTP 200 Accepted for processing
+and a nonzero last-success timestamp using fresh live Atlas observations. No
+fabricated/replay upload was submitted; Pi-hole settings and credentials stayed
+unchanged. Build and host checks pass. The owner confirmed the Windy station online, then approved stable 0.8.1.
+No published 0.8.0 asset was altered. See WINDY_TLS_FIX.md for details.
 
 ## v0.8.0-rc.1 prerelease bench checks — October 22
 

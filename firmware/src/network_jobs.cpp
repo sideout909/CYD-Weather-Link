@@ -16,6 +16,7 @@
 #include "nws_pressure.h"
 #include "pws_weather.h"
 #include "windy_weather.h"
+#include "windy_root.h"
 #include <lwip/sockets.h>
 #include <lwip/tcp.h>
 
@@ -270,7 +271,15 @@ bool uploadWindy(const Observation& o,State& s){
   if(query.empty()||!current.live||!current.fresh||!current.epoch_ms||
       current.epoch_ms>now_ms||now_ms-current.epoch_ms>=120000){s.windy_state="Waiting for eligible live fields";return false;}
   if(!windy_weather::validPassword(config.windy_password.c_str())){s.windy_state="Station password invalid";return false;}
-  WiFiClientSecure tls;tls.setCACertBundle(root_bundle);tls.setHandshakeTimeout(6);
+  s.windy_attempted=time(nullptr);s.windy_http_code=0;s.windy_tls_code=0;
+  s.windy_dns_server=WiFi.dnsIP().toString();IPAddress resolved;
+  if(!WiFi.hostByName("stations.windy.com",resolved)){
+    s.windy_dns_ip="";s.windy_state="Windy DNS lookup failed";
+    windy_schedule.result(millis(),false,time(nullptr));return false;
+  }
+  s.windy_dns_ip=resolved.toString();s.windy_state="Connecting to Windy";writeState(s);
+
+  WiFiClientSecure tls;tls.setCACert(kWindyRoot);tls.setHandshakeTimeout(6);
   HTTPClient http;http.useHTTP10(true);http.setConnectTimeout(4000);http.setTimeout(5000);
   http.setFollowRedirects(HTTPC_DISABLE_FOLLOW_REDIRECTS);
   if(!http.begin(tls,String(windy_weather::endpoint)+"?"+query.c_str())){
@@ -278,12 +287,14 @@ bool uploadWindy(const Observation& o,State& s){
   }
   http.addHeader("Authorization","Bearer "+config.windy_password);
   const int code=http.GET();String retry;
+  s.windy_http_code=code;char tls_error[96];const int tls_result=tls.lastError(tls_error,sizeof(tls_error));
+  s.windy_tls_code=tls_result<0?tls_result:0; // SDK also retains positive handshake results.
   if(code==429){
     char body[257];const size_t n=http.getStream().readBytes(body,sizeof(body)-1);body[n]=0;
     StaticJsonDocument<384> d;if(!deserializeJson(d,body))retry=d["retry_after"]|String("");
   }
   http.end();const bool accepted=windy_weather::accepted(code);
-  s.windy_state=windy_weather::resultMessage(code);
+  s.windy_state=code<0?"Connection failed: HTTP "+String(code)+" / TLS "+String(s.windy_tls_code):windy_weather::resultMessage(code);
   if(accepted)s.windy_success=time(nullptr);
   windy_schedule.result(millis(),accepted,time(nullptr),retry.c_str());return accepted;
 }

@@ -1,5 +1,17 @@
 # Current development state
 
+## Current release: Windy TLS fix 0.8.1
+
+After stable 0.8.0 publication, owner reported Windy offline. Diagnostic firmware
+confirmed successful DNS but HTTP -1 / TLS -12288. Direct trust of verified GTS
+Root R1 fixed the bundle-chain failure; real-device HTTP 200 acceptance is now
+confirmed. Network credentials and DNS were unchanged. Protected health fields
+now separate DNS, HTTP, TLS, last attempt and last success; success normalizes
+SDK positive handshake return codes to zero TLS error. Owner confirmed Windy online and approved stable 0.8.1 publication. The installed
+rc.1 is left running for an owner OTA update; stable diagnostics also normalize
+positive SDK handshake results to zero TLS error. See WINDY_TLS_FIX.md.
+
+
 Updated October 22, 2026 · **v0.8.0 stable release**, approved by the owner after
 use of the USB-installed **v0.8.0-rc.1** candidate. The device remains on that
 candidate so the owner can test the stable update through OTA. See

@@ -1,6 +1,7 @@
 # PanelLan weather firmware
 
-Current stable release: **0.8.0**, owner-approved after the 0.8.0-rc.1 candidate.
+Current stable release: **0.8.1**, with the owner-verified Windy TLS fix. See
+[Windy fix](WINDY_TLS_FIX.md); 0.8.0 introduced the features below.
 See [release notes](RELEASE_0.8.0.md) for factory reset, units, configurable
 hostnames, new sharing destinations, pressure fallback and experimental local
 cloud estimation. The owner can update the installed candidate through OTA.

@@ -13,6 +13,14 @@ The owner reports exercising the preceding firmware over the last 24 hours.
 USB startup checks and owner use do not complete interrupted-transfer or
 deliberate failed-boot hosted OTA acceptance tests.
 
+## 0.8.1 Windy patch
+
+Owner confirmed the Windy station online after the TLS fix and approved stable
+0.8.1. Check now offers it to 0.8.0 and 0.8.1-rc.1 devices. This patch uses verified
+GTS Root R1 for Windy; certificate/hostname checks remain enabled. New protected
+health diagnostics separate DNS, HTTP, TLS, last attempt and last acceptance.
+Other services keep their existing trust. No 0.8.0 release asset was replaced.
+
 ## 0.8.0 stable release and candidate upgrade
 
 The owner approved stable 0.8.0 after using the locally installed 0.8.0-rc.1

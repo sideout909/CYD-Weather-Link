@@ -89,6 +89,9 @@ struct State {
   std::array<Alert,8> alerts;
   uint8_t alert_count=0,alert_theme=0;
   String wu_state="Off",weathercloud_state="Off",aprs_state="Off",pws_state="Off",windy_state="Off";
+  int windy_http_code=0,windy_tls_code=0;
+  time_t windy_attempted=0;
+  String windy_dns_ip,windy_dns_server;
   bool aprs_connected=false,aprs_verified=false;
   time_t wu_success=0,weathercloud_success=0,aprs_success=0,pws_success=0,windy_success=0;
 };

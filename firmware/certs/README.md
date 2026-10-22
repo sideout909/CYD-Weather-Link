@@ -18,3 +18,13 @@ Google chain directly at R4; the older IDF bundle verifier failed on this
 service's cross-signed chain with `MBEDTLS_ERR_X509_FATAL_ERROR` (-12288).
 It is a CA trust anchor, not a leaf-certificate pin. Certificate/hostname
 verification remains enabled. Update trust if the provider changes CA.
+
+The Windy.com v2 uploader uses public
+[GTS Root R1 PEM](https://pki.goog/repo/certs/gtsr1.pem) in `include/windy_root.h`.
+SHA-256: `d947432abde7b7fa90fc2e6b59101b1280e0e1c7e4e40fa3c6887fff57a7f4cf`.
+The downloaded certificate was matched against the PC's trusted root store and
+used to verify the Windy hostname from the PC. On October 22, 2026 the ESP32's
+bundle verifier failed on Windy's WR3 → cross-signed R1 → GlobalSign chain with
+TLS -12288 / HTTP -1 despite successful DNS. Trusting self-signed R1 directly
+avoids that framework bundle-verification path. Certificate expiry, signature and
+hostname verification stay enabled; there is no insecure fallback or leaf pin.
