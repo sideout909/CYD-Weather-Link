@@ -1,4 +1,9 @@
-# Optional lightning on Home — local concepts
+# Optional lightning on Home — original exploration
+
+**Owner selected option B with revisions.** See the [selected v2 concept](selected-v2/index.html)
+and [behavior/distance research](selected-v2/README.md): alternate with Barometer
+every five seconds, include last-strike distance, expire after thirty minutes
+without a real lightning-data change. The A/B notes below are the earlier study.
 
 [Interactive preview](index.html) · [Comparison PNG](comparison.png) ·
 [Editable comparison SVG](comparison.svg). Open locally; no network or device needed.

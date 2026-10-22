@@ -333,13 +333,19 @@ calibration, low-sun exclusions and limitations; firmware/NWS_PRESSURE.md for th
 investigated fallback. No inferred cloud data or external pressure enters uploads.
 
 
-## Proposed optional lightning presentation — October 22
+## Selected optional lightning concept — October 22
 
-Local concepts only: [preview](concepts/lightning/index.html),
-[comparison](concepts/lightning/comparison.png), [data rules](concepts/lightning/README.md).
-Recommended A uses the light/UV row temporarily for recent local strike count/age;
-optional B substitutes a lightning tile for Barometer. Both preserve the NWS alert
-area. Most stations lack this capability: Auto leaves Home unchanged until the
-confirmed selected station reports supported lightning fields. Once observed,
-stale lightning is distinct from zero. Counter/window semantics and distance
-units require validation; no firmware implementation or live detection claimed.
+Owner chose B: alternate the Barometer tile with lightning every five seconds
+while validated lightning activity/data changes are recent. Include last-strike
+estimated distance and age plus the proposed ten-minute count. Stop rotating and
+show only Barometer after thirty minutes without a real lightning-data change;
+identical repeated packets do not refresh it. Stations without capability retain
+normal Home. Keep last-event age separate from data-correction age; missing distance
+is unknown, not zero. Miles are documented in the Atlas packet legend; reserved
+codes and display agreement still need validation. Existing RF/field freshness
+rules are independent from this Home activity expiry.
+
+[Selected prototype](concepts/lightning/selected-v2/index.html) ·
+[Both phases](concepts/lightning/selected-v2/proposal.png) ·
+[Behavior and sources](concepts/lightning/selected-v2/README.md).
+Local concept only; no firmware implementation or live lightning reception claimed.
