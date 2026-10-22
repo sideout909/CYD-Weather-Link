@@ -89,7 +89,7 @@ Do not substitute a UART transparent-data radio for a CC1101 SPI module. The rec
 ## Weather-sharing interfaces
 
 Internet weather sharing to APRS/CWOP, Weather Underground, Weathercloud, Windy,
-and later PWSWeather uses the existing Wi-Fi hardware; see
+and PWSWeather uses the existing Wi-Fi hardware; see
 [WEATHER_SHARING.md](WEATHER_SHARING.md).
 No additional part or price allowance is introduced. Meshtastic was reviewed
 as a possible later bridge, but compatible radio hardware and an interface are
@@ -143,3 +143,15 @@ The October 21 BARO display fallback uses nearby NWS station observations while
 no local pressure sensor is fitted. This adds no hardware and is not a local
 barometric measurement; see DESIGN.md and HOME_SCREEN.md for freshness/source
 labeling. A local barometer remains an optional addition.
+
+
+## v0.8.0 software additions and hardware impact
+
+PWSWeather/Windy.com v2 sharing, configurable hostnames, factory reset and unit
+preferences use the existing ESP32/Wi-Fi/flash; they need no extra parts. The
+NWS AWC fallback retrieves nearby pressure, not a local pressure measurement.
+Experimental calibrated cloud inference uses the Atlas light sensor with the
+configured latitude/longitude and UTC solar geometry; it needs full-sun exposure
+and clear-sky calibration, not an added radiation sensor. Neither addition
+allocates GPIO or changes the debug-header power limits. A real local barometer
+and optional D710 output remain separate hardware work, consistent with DESIGN.md.

@@ -14,6 +14,8 @@
 #include "firmware_updates.h"
 #include "startup_health.h"
 #include "nws_pressure.h"
+#include "pws_weather.h"
+#include "windy_weather.h"
 #include <lwip/sockets.h>
 #include <lwip/tcp.h>
 
@@ -27,6 +29,8 @@ struct PsramAllocator {
 };
 using Document=BasicJsonDocument<PsramAllocator>;
 String forecast_url,hourly_url,stations_url;
+uint32_t next_pws=0,pws_delay=300000;
+windy_weather::Schedule windy_schedule;
 std::array<String,3> pressure_stations;unsigned pressure_station_index=0;uint32_t next_pressure=0;
 time_t point_fetched=0;
 uint32_t next_forecast=0,next_alerts=0,next_sun=0;
@@ -68,7 +72,7 @@ bool maintainAprs(State& s){
       if(ch=='\n'){
         if(!overflow){
           if(!greeting&&line.startsWith("#")){
-            greeting=true;aprs_socket.print("user "+config.callsign+" pass "+(cwop?String("-1"):config.aprs_passcode)+" vers CYDWeatherLink 0.2\r\n");
+            greeting=true;aprs_socket.print("user "+config.callsign+" pass "+(cwop?String("-1"):config.aprs_passcode)+" vers WX-Link "+String(firmware_version::current)+"\r\n");
           }else reply=aprs_login::parse(line.c_str(),config.callsign.c_str());
         }
         line="";overflow=false;
@@ -83,20 +87,42 @@ bool maintainAprs(State& s){
 }
 time_t isoTime(const char* input){return time_t(nws::isoTime(input));}
 bool getJson(const String& url,Document& out,const JsonDocument& filter,String& error){
-  if(!url.startsWith("https://api.weather.gov/")){error="Invalid NWS endpoint";return false;}
+  if(!url.startsWith("https://api.weather.gov/")&&!url.startsWith("https://aviationweather.gov/api/data/metar?")){error="Invalid NWS endpoint";return false;}
   WiFiClientSecure tls;tls.setCACertBundle(root_bundle);tls.setHandshakeTimeout(6);
   HTTPClient http;http.useHTTP10(true);http.setConnectTimeout(4000);http.setTimeout(5000);
   http.setFollowRedirects(HTTPC_STRICT_FOLLOW_REDIRECTS);http.setRedirectLimit(3);
   const char* response_headers[]={"Cache-Control","Retry-After"};http.collectHeaders(response_headers,2);
   server_delay=retry_delay=0;
   if(!http.begin(tls,url)){error="NWS connection failed";return false;}
-  http.addHeader("User-Agent","CYD-Weather-Link/0.2 (personal weather display)");http.addHeader("Accept","application/geo+json");
+  http.addHeader("User-Agent",String("WX-Link/")+firmware_version::current+" (personal weather display)");http.addHeader("Accept","application/geo+json");
   int code=http.GET();
   String retry=http.header("Retry-After");if(retry.length()){long seconds=retry.toInt();retry_delay=seconds>0?std::min(uint32_t(86400000),uint32_t(seconds)*1000):300000;}
   String cache=http.header("Cache-Control");int max_age=cache.indexOf("max-age=");if(max_age>=0){long seconds=cache.substring(max_age+8).toInt();if(seconds>0)server_delay=std::min(uint32_t(86400000),uint32_t(seconds)*1000);}
   if(code!=200){error=code>0?"NWS HTTP "+String(code):"NWS connection unavailable";http.end();return false;}
   const auto parsed=deserializeJson(out,http.getStream(),DeserializationOption::Filter(filter),DeserializationOption::NestingLimit(16));
   http.end();if(parsed){error="NWS response incomplete";return false;}error="Current";return true;
+}
+bool aviationPressure(State& s){
+  String ids;for(const auto& id:pressure_stations){if(id.length()!=4)continue;if(ids.length())ids+=",";ids+=id;}
+  if(ids.isEmpty())return false;
+  Document doc(8192);StaticJsonDocument<384> filter;
+  for(const char* key:{"icaoId","obsTime","altim","slp"})filter[0][key]=true;
+  String error;
+  if(!getJson("https://aviationweather.gov/api/data/metar?ids="+ids+"&format=json",doc,filter,error)){
+    s.pressure_error=s.pressure_primary_error+"; AWC unavailable";return false;
+  }
+  // Prefer the nearest configured station, not arbitrary API result ordering.
+  for(const auto& station:pressure_stations)for(JsonObject p:doc.as<JsonArray>()){
+    if(p["icaoId"]!=station||!p["obsTime"].is<int64_t>())continue;
+    float pa=0;bool sea=false,altimeter=false;const time_t stamp=p["obsTime"].as<int64_t>();
+    const double slp=p["slp"].is<double>()?p["slp"].as<double>():NAN;
+    const double alt=p["altim"].is<double>()?p["altim"].as<double>():NAN;
+    if(!nws_pressure::metar(slp,alt,stamp,time(nullptr),pa,sea,altimeter))continue;
+    s.pressure_pa=pa;s.pressure_observed=stamp;s.pressure_station=station;
+    s.pressure_sea_level=sea;s.pressure_altimeter=altimeter;s.pressure_provider="NWS AWC";
+    s.pressure_error="Current";next_pressure=millis()+std::max(uint32_t(600000),std::max(server_delay,retry_delay));return true;
+  }
+  s.pressure_error=s.pressure_primary_error+"; no fresh AWC pressure";return false;
 }
 void pressure(State& s){
   // Nearby station observation, never a replacement local RF measurement.
@@ -114,10 +140,12 @@ void pressure(State& s){
     pressure_station_index=0;doc.clear();filter.clear();
   }
   const String station=pressure_stations[pressure_station_index];
+  s.pressure_attempt_station=station;s.pressure_attempted=time(nullptr);
   filter["properties"]["timestamp"]=true;
   for(const char* key:{"seaLevelPressure","barometricPressure"}){filter["properties"][key]["value"]=true;filter["properties"][key]["unitCode"]=true;filter["properties"][key]["qualityControl"]=true;}
   bool ok=getJson("https://api.weather.gov/stations/"+station+"/observations/latest",doc,filter,error);
-  const time_t stamp=isoTime(doc["properties"]["timestamp"]);float pa=0;bool sea=false;
+  s.pressure_attempt_timestamp=doc["properties"]["timestamp"]|String("");
+  const time_t stamp=isoTime(doc["properties"]["timestamp"]);s.pressure_attempt_observed=stamp;float pa=0;bool sea=false;
   if(ok&&!nws_pressure::fresh(stamp,time(nullptr))){ok=false;error="NWS pressure observation too old or invalid";}
   if(ok){
     ok=false;
@@ -129,8 +157,8 @@ void pressure(State& s){
     }
     if(!ok)error="NWS pressure unavailable";
   }
-  if(ok){s.pressure_pa=pa;s.pressure_observed=stamp;s.pressure_sea_level=sea;s.pressure_station=station;s.pressure_error="Current";next_pressure=millis()+std::max(uint32_t(600000),std::max(server_delay,retry_delay));}
-  else{s.pressure_error=error;pressure_station_index=(pressure_station_index+1)%pressure_stations.size();if(pressure_stations[pressure_station_index].isEmpty())pressure_station_index=0;}
+  if(ok){s.pressure_pa=pa;s.pressure_observed=stamp;s.pressure_sea_level=sea;s.pressure_altimeter=false;s.pressure_provider="NWS";s.pressure_primary_error="";s.pressure_station=station;s.pressure_error="Current";next_pressure=millis()+std::max(uint32_t(600000),std::max(server_delay,retry_delay));}
+  else{s.pressure_error=error;s.pressure_primary_error=error;if(aviationPressure(s))return;pressure_station_index=(pressure_station_index+1)%pressure_stations.size();if(pressure_stations[pressure_station_index].isEmpty())pressure_station_index=0;}
 }
 
 void forecast(State& s){
@@ -211,7 +239,7 @@ String encoded(const String& input){
 }
 void add(String& url,const char* key,const String& value){url+='&';url+=key;url+='=';url+=encoded(value);}
 String timestamp(uint64_t ms,const char* format){time_t t=ms/1000;struct tm utc{};gmtime_r(&t,&utc);char b[40];strftime(b,sizeof(b),format,&utc);return b;}
-bool upload(const String& url,bool weathercloud,String& result){
+bool upload(const String& url,bool weathercloud,String& result,bool pws=false){
   Observation current_observation{};if(xSemaphoreTake(state_mutex,pdMS_TO_TICKS(20))==pdTRUE){current_observation=latest;xSemaphoreGive(state_mutex);}
   if(!current_observation.live || !current_observation.fresh){result="Waiting for live observations";return false;}
   WiFiClientSecure tls;tls.setCACertBundle(root_bundle);tls.setHandshakeTimeout(6);
@@ -220,7 +248,7 @@ bool upload(const String& url,bool weathercloud,String& result){
   int code=http.GET();String body;
   if(code==200){char b[96];size_t n=http.getStream().readBytes(b,sizeof(b)-1);b[n]=0;body=b;body.trim();}
   http.end();
-  if(code==200 && (weathercloud?body=="200":body=="success")){result="Accepted";return true;}
+  if(code==200 && (pws?pws_weather::accepted(body.c_str()):weathercloud?body=="200":body=="success")){result="Accepted";return true;}
   if(code==200)result=weathercloud&&body=="401"?"Station ID / key rejected":weathercloud&&body=="429"?"Rate limited":"Upload rejected";
   else result=code>0?"HTTP "+String(code):"Connection unavailable";
   return false;
@@ -233,6 +261,37 @@ bool uploadWu(const Observation& o,String& result){
   if(o.gust_valid)add(url,"windgustmph",String(o.gust_mph,1));if(o.rain_today_valid)add(url,"dailyrainin",String(o.rain_today_in,2));
   if(o.rain_hour_valid)add(url,"rainin",String(o.rain_hour_in,2));if(o.uv_valid)add(url,"UV",String(o.uv,1));
   return upload(url,false,result);
+}
+bool uploadWindy(const Observation& o,State& s){
+  const uint64_t now_ms=clockMs();
+  const auto query=windy_weather::query(o,config.windy_id.c_str(),now_ms);
+  Observation current{};
+  if(xSemaphoreTake(state_mutex,pdMS_TO_TICKS(20))==pdTRUE){current=latest;xSemaphoreGive(state_mutex);}
+  if(query.empty()||!current.live||!current.fresh||!current.epoch_ms||
+      current.epoch_ms>now_ms||now_ms-current.epoch_ms>=120000){s.windy_state="Waiting for eligible live fields";return false;}
+  if(!windy_weather::validPassword(config.windy_password.c_str())){s.windy_state="Station password invalid";return false;}
+  WiFiClientSecure tls;tls.setCACertBundle(root_bundle);tls.setHandshakeTimeout(6);
+  HTTPClient http;http.useHTTP10(true);http.setConnectTimeout(4000);http.setTimeout(5000);
+  http.setFollowRedirects(HTTPC_DISABLE_FOLLOW_REDIRECTS);
+  if(!http.begin(tls,String(windy_weather::endpoint)+"?"+query.c_str())){
+    s.windy_state="Connection failed";windy_schedule.result(millis(),false,time(nullptr));return false;
+  }
+  http.addHeader("Authorization","Bearer "+config.windy_password);
+  const int code=http.GET();String retry;
+  if(code==429){
+    char body[257];const size_t n=http.getStream().readBytes(body,sizeof(body)-1);body[n]=0;
+    StaticJsonDocument<384> d;if(!deserializeJson(d,body))retry=d["retry_after"]|String("");
+  }
+  http.end();const bool accepted=windy_weather::accepted(code);
+  s.windy_state=windy_weather::resultMessage(code);
+  if(accepted)s.windy_success=time(nullptr);
+  windy_schedule.result(millis(),accepted,time(nullptr),retry.c_str());return accepted;
+}
+bool uploadPws(const Observation& o,String& result){
+  const std::string query=pws_weather::query(o,config.pws_id.c_str(),config.pws_key.c_str(),clockMs());
+  if(query.empty()){result="Waiting for eligible live fields";return false;}
+  const String url=String("https://www.pwsweather.com/pwsupdate/pwsupdate.php?")+query.c_str();
+  return upload(url,false,result,true);
 }
 bool uploadCloud(const Observation& o,String& result){
   String url="https://api.weathercloud.net/v01/set?wid="+encoded(config.weathercloud_id);add(url,"key",config.weathercloud_key);
@@ -291,14 +350,22 @@ bool portalSelftest(String& failure){
   if(!expect("Authenticated config","/api/config",200,config.setup_key,nullptr,none,&response))return false;
   DynamicJsonDocument d(4096);
   if(deserializeJson(d,response)||d["station_id"].as<unsigned>()!=config.station_id||
-     d.containsKey("setup_key")||d.containsKey("setup_wifi_key")||d.containsKey("wifi_password")||d.containsKey("wu_key")){
+     d.containsKey("setup_key")||d.containsKey("setup_wifi_key")||d.containsKey("wifi_password")||d.containsKey("wu_key")||d.containsKey("pws_key")||d.containsKey("windy_password")||d.containsKey("weathercloud_key")||d.containsKey("aprs_passcode")){
     failure="Config schema or secret masking";return false;
   }
   const String token=d["csrf"].as<String>();
   if(!token.length()){failure="Config CSRF token missing";return false;}
+  if(d["hostname"]!=config.hostname||d["units"]!=config.units||d["windy_enabled"]!=config.windy_enabled||d["pws_enabled"]!=config.pws_enabled){failure="Settings migration schema";return false;}
+  // Rejected validation probes cannot save or restart the device.
+  for(const char* invalid:{"{\"hostname\":\"bad.local\"}","{\"hostname\":42}","{\"windy_password\":\"bad\\r\\nheader\"}","{\"windy_enabled\":\"yes\"}","{\"pws_enabled\":\"yes\"}","{\"units\":\"unknown\"}","{\"lux_calibrate\":\"yes\"}"})
+    if(!expect("Settings validation rejection","/api/config",400,config.setup_key,invalid,token))return false;
+  // Negative reset probes only: never send the destructive confirmation.
+  if(!expect("Reset authentication","/api/factory-reset",401,none,"{}")||
+     !expect("Reset CSRF rejection","/api/factory-reset",403,config.setup_key,"{}")||
+     !expect("Reset confirmation rejection","/api/factory-reset",400,config.setup_key,"{}",token))return false;
   if(d["display_theme"]!=config.display_theme||d["date_format"]!=config.date_format||d["clock_24h"]!=config.clock_24h||d["display_sleep_mode"]!=config.display_sleep_mode||d["display_timeout_s"]!=config.display_timeout_s){failure="Display preferences schema";return false;}
   if(!expect("Local address status","/api/status",200,config.setup_key,nullptr,none,&response))return false;
-  if(deserializeJson(d,response)||d["local_url"]!="http://wxlink.local"||!d["mdns_ready"].is<bool>()||!d["ip"].is<const char*>()){failure="Local address schema";return false;}
+  if(deserializeJson(d,response)||d["local_url"]!=portalUrl()||!d["mdns_ready"].is<bool>()||!d["ip"].is<const char*>()){failure="Local address schema";return false;}
   if(!expect("Discovery schema","/api/discovery",200,config.setup_key,nullptr,none,&response))return false;
   if(deserializeJson(d,response)||d["duration_s"]!=300||!d["candidates"].is<JsonArray>()){failure="Discovery schema";return false;}
   if(!expect("Discovery CSRF rejection","/api/discovery/start",403,config.setup_key,""))return false;
@@ -413,20 +480,26 @@ void worker(void*){
     if(config.location_set&&int32_t(millis()-next_pressure)>=0){next_pressure=millis()+60000;pressure(s);if(retry_delay>uint32_t(next_pressure-millis()))next_pressure=millis()+retry_delay;writeState(s);}
     maintainAprs(s);writeState(s); // Due NWS checks run before a reconnect/login.
     // Exporters remain opt-in. No replay or stale observations may leave the device.
-    if(config.wu_enabled || config.weathercloud_enabled || config.aprs_enabled){
-      const bool allowed=o.live&&o.fresh&&o.epoch_ms&&uint64_t(time(nullptr))*1000>=o.epoch_ms&&uint64_t(time(nullptr))*1000-o.epoch_ms<120000;
+    if(config.wu_enabled || config.weathercloud_enabled || config.aprs_enabled || config.pws_enabled || config.windy_enabled){
+      const bool allowed=o.live&&o.fresh&&o.epoch_ms&&clockMs()>=o.epoch_ms&&clockMs()-o.epoch_ms<120000;
       if(!allowed){
+        s.windy_state=config.windy_enabled?"Waiting for live radio data":"Off";
+        s.pws_state=config.pws_enabled?"Waiting for live radio data":"Off";
         s.wu_state=config.wu_enabled?"Waiting for live radio data":"Off";
         s.weathercloud_state=config.weathercloud_enabled?"Waiting for live radio data":"Off";
         if(s.aprs_connected)s.aprs_state="Connected; waiting for fresh Atlas data";
       }else{
         // Refresh after slow NWS requests; never send the old queued observation.
         xQueueReceive(observations,&o,0);
-        if(o.live && o.fresh && uint64_t(time(nullptr))*1000-o.epoch_ms<120000 && config.wu_enabled && int32_t(millis()-next_wu)>=0){bool ok=uploadWu(o,s.wu_state);if(ok)s.wu_success=time(nullptr);wu_delay=ok?60000:std::min(uint32_t(1800000),wu_delay*2);next_wu=millis()+wu_delay;}
+        if(o.live && o.fresh && clockMs()-o.epoch_ms<120000 && config.wu_enabled && int32_t(millis()-next_wu)>=0){bool ok=uploadWu(o,s.wu_state);if(ok)s.wu_success=time(nullptr);wu_delay=ok?60000:std::min(uint32_t(1800000),wu_delay*2);next_wu=millis()+wu_delay;}
         xQueueReceive(observations,&o,0);
-        if(o.live && o.fresh && uint64_t(time(nullptr))*1000-o.epoch_ms<120000 && config.weathercloud_enabled && int32_t(millis()-next_cloud)>=0){bool ok=uploadCloud(o,s.weathercloud_state);if(ok)s.weathercloud_success=time(nullptr);cloud_delay=ok?600000:std::min(uint32_t(3600000),cloud_delay*2);next_cloud=millis()+cloud_delay;}
+        if(o.live && o.fresh && clockMs()-o.epoch_ms<120000 && config.weathercloud_enabled && int32_t(millis()-next_cloud)>=0){bool ok=uploadCloud(o,s.weathercloud_state);if(ok)s.weathercloud_success=time(nullptr);cloud_delay=ok?600000:std::min(uint32_t(3600000),cloud_delay*2);next_cloud=millis()+cloud_delay;}
         xQueueReceive(observations,&o,0);
-        if(o.live && o.fresh && uint64_t(time(nullptr))*1000-o.epoch_ms<120000 && config.aprs_enabled && int32_t(millis()-next_aprs)>=0){bool ok=uploadAprs(o,s.aprs_state);if(ok)s.aprs_success=time(nullptr);aprs_delay=ok?300000:std::min(uint32_t(3600000),aprs_delay*2);next_aprs=millis()+aprs_delay;}
+        if(o.live && o.fresh && config.windy_enabled && windy_schedule.due(millis()))uploadWindy(o,s);
+        xQueueReceive(observations,&o,0);
+        if(o.live && o.fresh && config.pws_enabled && int32_t(millis()-next_pws)>=0){bool ok=uploadPws(o,s.pws_state);if(ok)s.pws_success=time(nullptr);pws_delay=ok?300000:std::min(uint32_t(3600000),pws_delay*2);next_pws=millis()+pws_delay;}
+        xQueueReceive(observations,&o,0);
+        if(o.live && o.fresh && clockMs()-o.epoch_ms<120000 && config.aprs_enabled && int32_t(millis()-next_aprs)>=0){bool ok=uploadAprs(o,s.aprs_state);if(ok)s.aprs_success=time(nullptr);aprs_delay=ok?300000:std::min(uint32_t(3600000),aprs_delay*2);next_aprs=millis()+aprs_delay;}
       }
       if(s.aprs_connected&&!aprs_socket.connected())stopAprs(s,"Disconnected; reconnecting");
       writeState(s);

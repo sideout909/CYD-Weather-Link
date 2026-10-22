@@ -40,6 +40,7 @@ def main():
             daytime=True, daytime_known=True, start=now-900+i*duration,
             end=now-900+(i+1)*duration) for i in range(count)]
     alert_entries = []
+    reset_requests = []
     freshness = dict(forecast=True, alerts=True)
     api_offline = dict(enabled=False)
     initial_status = dict(hold=True, requests=[])
@@ -67,6 +68,13 @@ def main():
             assert request.request.headers['x-csrf-token'] == config['csrf']
             saves.append(request.request.post_data_json)
             result = dict(saved=True, restarting=True)
+        elif path == '/api/factory-reset':
+            assert request.request.method == 'POST'
+            assert request.request.headers['x-csrf-token'] == config['csrf']
+            body=request.request.post_data_json
+            assert body == {'confirmation':'RESET WX LINK'}
+            reset_requests.append(body)
+            result = {'resetting':True,'restarting':True}
         elif path == '/api/config': result = config
         elif path == '/api/status':
             if initial_status['hold']:
@@ -155,6 +163,27 @@ def main():
         status['mdns_ready']=True
         page.evaluate('status()')
         page.wait_for_function("!document.querySelector('#local-address').textContent.includes('unavailable')")
+        page.evaluate("tab('overview')")
+        assert page.locator('#sunmoon').is_visible()
+        for pane in ['station','sharing','updates','wiring']:
+            page.evaluate('(name)=>tab(name)',pane)
+            assert not page.locator('#sunmoon').is_visible()
+        assert page.locator('#wiring > .card').first.locator('h2').inner_text()=='Connection health'
+        assert not page.locator('#wiring-guide').evaluate('(x)=>x.open')
+        assert not page.locator('#wiring-guide table').is_visible()
+        page.locator('#wiring-guide summary').click()
+        assert page.locator('#wiring-guide table').is_visible()
+        page.locator('#wiring-guide summary').click()
+        page.evaluate("tab('overview')")
+        status.update(source='radio',wifi=True,lux_cloud_valid=True,lux_cloud_kind=3,lux_cloud_label='Likely cloudy')
+        page.evaluate('status()')
+        page.wait_for_function("document.querySelector('#sky small').textContent==='LUX*'")
+        assert 'Experimental light estimate' in page.locator('#sky-image').get_attribute('alt')
+        assert page.locator('#sky-cloud').is_visible()
+        status.update(lux_cloud_valid=False)
+        page.evaluate('status()')
+        page.wait_for_function("document.querySelector('#sky small').textContent==='NWS'")
+        status.update(wifi=False,source='none')
         assert page.locator('#temperature').inner_text() == '55.2 °F'
         assert page.locator('#gust').inner_text() == '8.3 mph'
         assert page.locator('#wind').inner_text() == '6.2 mph'
@@ -162,8 +191,9 @@ def main():
         assert page.locator('#lux').inner_text() == '0 lx'
         assert page.locator('#pressure').inner_text() == '29.92 inHg'
         page.wait_for_function("document.querySelectorAll('#forecast-periods article').length===14")
-        assert page.locator('#forecast-periods .forecast-art img').count()==14
-        assert 'partly-cloudy' in page.locator('#forecast-periods .forecast-art img').first.get_attribute('src')
+        assert page.locator('#forecast-periods .forecast-art > img:first-child').count()==14
+        assert 'name=sunny' in page.locator('#forecast-periods .forecast-art > img:first-child').first.get_attribute('src')
+        assert page.locator('#forecast-periods .forecast-art .cloud-overlay').first.get_attribute('src').endswith('name=cloudy')
         assert '<b>plain text</b>' in page.locator('#forecast-periods').inner_text()
         assert page.locator('#forecast-periods b').count() == 0
         page.wait_for_function("document.querySelector('#history-chart path')!==null")
@@ -207,8 +237,8 @@ def main():
             assert page.evaluate("getComputedStyle(document.documentElement).getPropertyValue('--bg').trim()") == palette['background']
             assert page.evaluate("getComputedStyle(document.documentElement).getPropertyValue('--cyan').trim()") == palette['accent']
             assert page.locator('#temperature').inner_text()=='55.2 °F'
-            assert page.locator('#forecast-periods .forecast-art img').first.get_attribute('src').endswith('name=partly-cloudy')
-            assert ('theme='+theme) in page.locator('#forecast-periods .forecast-art img').first.get_attribute('src')
+            assert page.locator('#forecast-periods .forecast-art > img:first-child').first.get_attribute('src').endswith('name=sunny')
+            assert ('theme='+theme) in page.locator('#forecast-periods .forecast-art > img:first-child').first.get_attribute('src')
             if theme in ('matrix','paper','night'):page.screenshot(path=str(artifacts/('theme-'+theme+'-web.png')),full_page=True)
         page.locator('#display_theme').select_option('night')
         assert page.evaluate("getComputedStyle(document.documentElement).getPropertyValue('--green').trim()")=='#7d875b'
@@ -264,10 +294,22 @@ def main():
         assert page.locator('#weathercloud_id').is_visible()
         assert page.locator('#settings').evaluate('(f)=>f.elements.wu_id!==undefined && f.elements.station_id!==undefined')
         page.locator('#wu_id').fill('EXAMPLE1')
+        page.locator('[name=pws_enabled]').check()
+        page.locator('#pws_id').fill('TEST-STATION')
+        page.locator('#pws_key').fill('synthetic-pws-key')
+        page.locator('[name=windy_enabled]').check()
+        page.locator('#windy_id').fill('test-windy')
+        page.locator('#windy_password').fill('synthetic-windy-password')
         config['csrf'] = 'synthetic-after-reboot'  # Saving refreshes the token without losing edits.
         page.locator('#save').click()
         page.wait_for_function("document.querySelector('#feedback').textContent.startsWith('Saved.')")
         assert saves[0]['station_id'] == 679 and saves[0]['wu_id'] == 'EXAMPLE1'
+        assert saves[0]['windy_enabled'] is True and saves[0]['windy_id']=='test-windy'
+        assert saves[0]['windy_password']=='synthetic-windy-password'
+        assert page.locator('#windy_password').input_value()==''
+        assert saves[0]['pws_enabled'] is True and saves[0]['pws_id']=='TEST-STATION'
+        assert saves[0]['pws_key']=='synthetic-pws-key'
+        assert page.locator('#pws_key').input_value()==''
         assert saves[0]['wu_key'] == '' and saves[0]['radio_enabled'] is True
         assert saves[0]['setup_key'] == '' and saves[0]['update_repo'] == 'owner/weather-link'
         assert saves[0]['update_enabled'] is False and saves[0]['update_auto'] is False
@@ -351,8 +393,8 @@ def main():
         forecast_periods['daily'][0]['short']='Mostly Clear Then Patchy Fog'
         forecast_periods['daily'][0]['daytime']=False
         page.reload()
-        page.wait_for_function("document.querySelector('#sky-image').classList.contains('small-moon') && document.querySelector('#sky-cloud').src.endsWith('name=fog')")
-        page.wait_for_function("document.querySelector('#forecast-periods .forecast-art .small-moon') && document.querySelector('#forecast-periods .forecast-art .cloud-overlay').src.endsWith('name=fog')")
+        page.wait_for_function("document.querySelector('#sky-image').classList.contains('small-celestial') && document.querySelector('#sky-cloud').src.endsWith('name=fog')")
+        page.wait_for_function("document.querySelector('#forecast-periods .forecast-art .small-celestial') && document.querySelector('#forecast-periods .forecast-art .cloud-overlay').src.endsWith('name=fog')")
         # Late-arriving moon data updates rendered cards; future nights advance phase.
         from datetime import datetime
         from zoneinfo import ZoneInfo
@@ -361,19 +403,19 @@ def main():
         status['moon_reference']=int(local_now.replace(hour=12,minute=0,second=0,microsecond=0).timestamp())
         status['moon_illumination']=80
         status['moon_phase']='Waxing Gibbous'
-        old_moon=page.locator('#forecast-periods .forecast-art img').first.get_attribute('src')
+        old_moon=page.locator('#forecast-periods .forecast-art > img:first-child').first.get_attribute('src')
         page.evaluate('status()')
-        page.wait_for_function("old=>document.querySelector('#forecast-periods .forecast-art img').src!==old",arg=old_moon)
+        page.wait_for_function("old=>document.querySelector('#forecast-periods .forecast-art > img:first-child').src!==old",arg=old_moon)
         forecast_periods['daily'][2]['short']='Mostly Clear'
         forecast_periods['daily'][2]['daytime']=False
         page.reload()
-        page.wait_for_function("document.querySelectorAll('#forecast-periods .forecast-art img').length>=14 && document.querySelector('#station-callsign').textContent==='N0CALL'")
-        current_moon=page.locator('#forecast-periods .forecast-art img').nth(0).get_attribute('src')
-        future_moon=page.locator('#forecast-periods .forecast-art img').nth(3).get_attribute('src')
+        page.wait_for_function("document.querySelectorAll('#forecast-periods .forecast-art > img:first-child').length>=14 && document.querySelector('#station-callsign').textContent==='N0CALL'")
+        current_moon=page.locator('#forecast-periods .forecast-art > img:first-child').nth(0).get_attribute('src')
+        future_moon=page.locator('#forecast-periods .forecast-art > img:first-child').nth(2).get_attribute('src')
         assert current_moon.startswith('data:') and future_moon.startswith('data:') and current_moon!=future_moon
         status['moon_phase']='Waning Gibbous'
         page.evaluate('status()')
-        page.wait_for_function("old=>document.querySelector('#forecast-periods .forecast-art img').src!==old",arg=current_moon)
+        page.wait_for_function("old=>document.querySelector('#forecast-periods .forecast-art > img:first-child').src!==old",arg=current_moon)
         freshness['alerts'] = False; freshness['forecast'] = False
         page.reload()
         page.wait_for_function("document.querySelector('#station-alert').textContent.includes('UNVERIFIED')")
@@ -392,9 +434,48 @@ def main():
         assert page.locator('#overview').is_visible()
         assert page.locator('#get-connected').is_hidden()
         assert page.locator('nav [data-tab=station]').is_visible()
+        # Unit preference persists through a mocked save/reload; raw API fields stay imperial.
+        page.get_by_role('button',name='Station & Wi-Fi',exact=True).click()
+        page.locator('#hostname').fill('wxlink-shack')
+        page.locator('[name=lux_cloud_enabled]').check()
+        assert not page.locator('[name=lux_calibrate]').is_checked()
+        page.locator('#units').select_option('metric')
+        page.locator('#settings').evaluate('form=>form.requestSubmit()')
+        page.wait_for_function("document.querySelector('#feedback').textContent.includes('Saved.')")
+        assert saves[-1]['units']=='metric'
+        assert saves[-1]['hostname']=='wxlink-shack'
+        assert saves[-1]['lux_cloud_enabled'] is True and saves[-1]['lux_calibrate'] is False
+        config['hostname']='wxlink-shack'
+
+        config['units']='metric';status['nws_pressure_valid']=True
+        page.reload()
+        page.wait_for_function("document.querySelector('#temperature').textContent==='12.9 °C'")
+        assert page.locator('#wind').inner_text()=='10.0 km/h'
+        assert page.locator('#gust').inner_text()=='13.4 km/h'
+        assert page.locator('#rain').inner_text().startswith('3.0 mm')
+        assert page.locator('#pressure').inner_text()=='1013.3 hPa'
+        assert '°C' in page.locator('#history-chart').get_attribute('aria-label')
+        assert '18.3 °C' in page.locator('#forecast-periods .forecast-temp').first.inner_text()
+        assert '8 to 16 km/h' in page.locator('#forecast-periods .forecast-period').first.inner_text()
+        assert status['temperature_F']==55.200000076
+        assert page.locator('#local-address a').first.get_attribute('href')=='http://wxlink-shack.local/'
+        page.screenshot(path=str(artifacts/'dashboard-metric-local.png'),full_page=True)
+        # Synthetic reset endpoint only; no physical device is contacted.
+        page.get_by_role('button',name='Wiring & health',exact=True).click()
+        page.locator('#factory-reset-panel summary').click()
+        assert page.locator('#factory-reset').is_disabled()
+        page.locator('#factory-confirm').fill('RESET')
+        assert page.locator('#factory-reset').is_disabled()
+        page.locator('#factory-cancel').click()
+        assert not reset_requests
+        page.locator('#factory-reset-panel summary').click()
+        page.locator('#factory-confirm').fill('RESET WX LINK')
+        page.locator('#factory-reset').click()
+        page.wait_for_function("document.querySelector('#factory-feedback').textContent.includes('Reset requested')")
+        assert len(reset_requests)==1
         assert not errors, errors
         browser.close()
-    print('Setup browser checks passed: local hostname/IP and unavailable-name fallback, seven shared palettes, preview/save/reload, Paper alert contrast, three link indicators, startup status races, dashboard rounding, live/partial/missing fields, gapped history, complete day/hourly forecasts, alert text safety, stale/offline states, setup-first onboarding, tabs, settings ownership, secret masking, scan text, CSRF save, repeated saves, cross-tab validation, fractional elevation, mobile layout, no JavaScript errors.')
+    print('Setup browser checks passed: Overview-only sun/moon, collapsed bottom wiring, metric/custom hostname, Windy/PWS settings and local LUX attribution, local hostname/IP and unavailable-name fallback, seven shared palettes, preview/save/reload, Paper alert contrast, three link indicators, startup status races, dashboard rounding, live/partial/missing fields, gapped history, complete day/hourly forecasts, alert text safety, stale/offline states, setup-first onboarding, tabs, settings ownership, secret masking, scan text, CSRF save, repeated saves, cross-tab validation, fractional elevation, mobile layout, no JavaScript errors.')
 
 
 if __name__ == '__main__': main()

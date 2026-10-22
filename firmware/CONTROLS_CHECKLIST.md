@@ -4,6 +4,49 @@ Board: PanelLan ZX2D80CE02S-V10, 320×240 landscape. Record date/build and mark
 each result. These checks use touch and a phone/browser; the CC1101 is not
 needed for navigation. Missing local readings are expected until reception.
 
+## Owner verification for v0.8.0-rc.1
+
+- [ ] Left header x 0–103 across both rows opens Outdoor/status; the rest of
+      the full header opens WEB SETTINGS, including all RF/Wi-Fi/APRS indicators.
+- [ ] Outdoor/status includes per-field ages and receiver/APRS state without
+      clipped/overlapping rows; old Link Status is no longer a separate page.
+- [ ] WEB SETTINGS prominently explains browser access and shows wxlink.local
+      plus IP/admin guidance; custom password remains hidden. Recovery works.
+- [ ] First touch after dim/off still only wakes; the next touch activates its target.
+- [ ] Home and forecast sun/condition layers look consistent with nighttime moon
+      overlays across themes. Check clear, partly cloudy, overcast and precipitation.
+
+Candidate is installed over USB. Source/host/browser checks and screenshots do
+not replace your physical control verification. Published stable remains v0.7.5.
+
+- [ ] Factory reset: first confirm Cancel leaves settings/history intact. Only
+      test the actual erase when you are ready to reconfigure everything. Web
+      requires typing RESET WX LINK; forgotten-password recovery is Settings
+      footer hold 10 seconds, release, then hold Reset 3 seconds. Firmware stays.
+- [x] Metric units and custom hostname persisted through a bench save/reboot;
+      temporary custom .local name resolved; original settings restored.
+- [ ] Check metric/imperial visual fit on all desired pages and themes.
+- [ ] Enter real PWSWeather/Windy station credentials if desired, enable separately,
+      and verify ingestion on each service; accepting HTTP is not map verification.
+- [x] Live web check: connection health first, wiring collapsed at bottom, Sun &
+      Moon only in Overview; saved secrets absent from public configuration.
+- [x] Fresh nearby NWS AWC barometer fallback accepted on hardware. Check pressure
+      details for station, type and age; altimeter is explicitly distinguished.
+- [ ] Compare LUX / LUX* estimate to actual clear/cloudy conditions over multiple days.
+      NWS returns at low sun/night, stale light or missing calibration. Only
+      recalibrate in clear direct sunlight, sun at least 15 degrees above horizon.
+- [ ] Verify final 0.8.0 owner acceptance before approving a stable release.
+
+## Owner update — October 22, v0.7.5
+
+Owner confirmed hostname on setup Wi-Fi, all themes, normal Dim/Off sleep/wake,
+and forecast moon appearance. Detailed lists below remain available for regression;
+these broad confirmations do not assert every listed edge case was exercised.
+The overnight dim/touch lockup is still open. Touch-target geometry is being
+reviewed using the local interactive overlay at
+captures/firmware-validation/touch-map-v075/index.html (or home-review.png).
+Interrupted OTA testing will be performed by the owner; awaiting results.
+
 ## New v0.7.2 local address checks
 
 - [ ] Open http://wxlink.local on the home LAN; admin authentication and all
@@ -12,8 +55,9 @@ needed for navigation. Missing local readings are expected until reception.
       underneath. Custom admin passwords remain hidden.
 - [ ] After Wi-Fi reconnect/restart, the name reaches the device's current IP.
       If local multicast is blocked, the numeric address remains usable.
-- [ ] On setup Wi-Fi, try the name and 192.168.4.1 fallback. First-run still
-      shows the setup network/key and retains recovery details after setup.
+- [x] Setup Wi-Fi hostname access works (owner-confirmed October 22).
+- [ ] Recheck numeric-IP fallback and first-run/recovery details if doing a full
+      setup regression.
 
 ## New v0.7.1 Night and moon checks
 

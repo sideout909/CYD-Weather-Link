@@ -24,7 +24,7 @@ Use a dark navy background in normal operation, warm white numbers, cyan measure
 | --- | --- |
 | Header, y=0–43 | Compact `WX LINK` title, larger centered callsign/SSID, configurable local date/time, Atlas health and received-packet age, and right-aligned RF/WiFi/APRS states with no sound icon. Subtle page dots indicate position. No large page-switching banner or permanent header arrows; swipes navigate. |
 | Main readings, y=44–135 | Large outdoor temperature, a 60-minute trend, and a small NWS forecast graphic with local lux; current wind speed, compass arrow showing where wind comes **from**, and `Gust 5m` showing the highest received wind reading in the trailing five minutes. Tap either half for field ages, light/UV or wind/gust details. Swipe an outdoor/wind detail to open its trend. |
-| Measurements, y=136–183 | Humidity, local-day rain, and BARO with units/source. Tap a tile for details: humidity age/source, rain today/hour/24-hour totals and coverage, or pressure availability. Without a local barometer, fresh nearby NWS pressure can appear with NWS attribution; missing/expired data is unavailable. |
+| Measurements, y=136–183 | Humidity, local-day rain, and BAROMETER with units/source. Tap a tile for details: humidity age/source, rain today/hour/24-hour totals and coverage, or pressure availability. Without a local barometer, fresh nearby NWS pressure can appear with NWS attribution; missing/expired data is unavailable. |
 | Alert strip, y=184–239 | Highest-priority NWS event and alert count, or explicit check status. Tap anywhere in the strip for the alert list and full text. |
 
 Use approximately 44-pixel or larger touch targets. Keep home reachable with a large Back button on detail pages. Detailed UV/light, lightning if fitted, battery and extended history belong on secondary pages; compact UV index/level accompanies klux on Home. NWS pressure is display-only; do not upload/archive it as local telemetry.
@@ -307,3 +307,27 @@ The [interactive concepts](concepts/themes/index.html), [comparison sheet](conce
 and [generation notes](concepts/themes/README.md) retain the original five
 color-only studies. Their palettes were implemented in v0.7.0; the historical
 SVGs retain their original sample header, including the since-removed speaker.
+
+## Local v0.7.6 touch revision — pending device review
+
+Owner markup replaces the old narrow Wi-Fi target with two full-height header
+regions: x 0–103/y 0–43 opens Outdoor/status; x 104–319/y 0–43 opens the
+on-device browser-settings guide. The Outdoor temperature target opens the same
+combined page, now including receiver/APRS status. There is no separate Link
+Status page. Daytime icons compose the sun and condition overlays separately,
+as night icons already do with the moon. This build is local and unflashed.
+
+
+## v0.8.0 prerelease additions
+
+The header split and combined Outdoor/status behavior above are included. Units
+are a persisted presentation setting, independent of raw history and sharing
+protocol units. The pressure tile says BAROMETER. Its source remains NWS; details
+identify AWC altimeter setting when used rather than claiming measured MSLP.
+
+The original NWS-only sky requirement is superseded for the optional experimental
+local daylight mode: a calibrated, fresh, stable lux estimate uses centered LUX attribution on the display (LUX* on the webpage).
+Otherwise retain the existing NWS freshness/day/night/moon-phase rules. This does
+not change forecast pages or alert sources. See firmware/LUX_CLOUDS.md for
+calibration, low-sun exclusions and limitations; firmware/NWS_PRESSURE.md for the
+investigated fallback. No inferred cloud data or external pressure enters uploads.

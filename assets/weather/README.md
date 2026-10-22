@@ -35,3 +35,9 @@ SVGs into `firmware/include/theme_icons.h`. Geometry is unchanged; moon phase
 rendering stays separate. The original Midnight PNGs remain the fallback set.
 Browser icon requests can select one of the six fixed theme IDs; unknown
 names/themes are rejected. See `assets/themes/palettes.json`.
+
+Local v0.7.6 composes a separate sunny base beneath cloud/condition overlays for
+both daytime Home and forecast icons, on device and webpage. It reuses the
+original transparent themed assets; the precomposed partly-cloudy asset remains
+available but is no longer used by these paths. Night phases and texture remain
+unchanged. This build has not yet been inspected on the physical display.

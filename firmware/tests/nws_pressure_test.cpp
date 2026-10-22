@@ -14,5 +14,12 @@ int main(){
   assert(!nws_pressure::pascals(std::numeric_limits<double>::quiet_NaN(),"wmoUnit:Pa",true,pa));
   assert(nws_pressure::fresh(10000,15399));assert(!nws_pressure::fresh(10000,15400));
   assert(!nws_pressure::fresh(10000,9999));assert(!nws_pressure::fresh(0,10000));
+  bool sea=false,alt=false;const double missing=std::numeric_limits<double>::quiet_NaN();
+  assert(nws_pressure::metar(missing,1025.1,10000,10030,pa,sea,alt)&&alt&&!sea&&pa==102510);
+  assert(nws_pressure::metar(1013.2,1025.1,10000,10030,pa,sea,alt)&&sea&&!alt);
+  assert(!nws_pressure::metar(missing,1025.1,10000,15400,pa,sea,alt));
+  assert(!nws_pressure::metar(missing,1025.1,10001,10000,pa,sea,alt));
+  assert(!nws_pressure::metar(missing,missing,10000,10030,pa,sea,alt));
+  assert(!nws_pressure::metar(missing,29.92,10000,10030,pa,sea,alt));
   std::cout<<"NWS pressure checks passed: units, sea-level/reported bounds, missing/NaN, future and expiration.\n";
 }

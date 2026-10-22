@@ -3,14 +3,18 @@
 #include <array>
 #include "firmware_version.h"
 #include "station_discovery.h"
+#include "lux_cloud.h"
 namespace weather { class Store; }
 
 namespace services {
 struct Settings {
   String ssid, wifi_password, setup_key, setup_wifi_key;
+  String hostname="wxlink";
+  bool lux_cloud_enabled=false;
+  float lux_reference=0;
   bool admin_custom=false;
   String timezone = "EST5EDT,M3.2.0,M11.1.0";
-  String date_format="md",display_sleep_mode="never",display_theme="midnight";
+  String date_format="md",display_sleep_mode="never",display_theme="midnight",units="imperial";
   bool clock_24h=false;
   uint16_t display_timeout_s=300;
   uint16_t station_id = 679;
@@ -19,19 +23,20 @@ struct Settings {
   bool radio_enabled = true, location_set = false;
   double latitude = 0, longitude = 0;
   float elevation_m = 0;
-  bool wu_enabled = false, weathercloud_enabled = false, aprs_enabled = false;
-  String wu_id, wu_key, weathercloud_id, weathercloud_key;
+  bool wu_enabled = false, weathercloud_enabled = false, aprs_enabled = false,pws_enabled=false,windy_enabled=false;
+  String wu_id, wu_key, weathercloud_id, weathercloud_key,pws_id,pws_key,windy_id,windy_password;
   String aprs_profile = "ham", callsign, aprs_passcode;
   String update_repo=firmware_version::repository;
   bool update_enabled=false,update_auto=false;
 };
 struct Observation {
-  uint64_t epoch_ms = 0;
+  uint64_t epoch_ms = 0, snapshot_ms=0;
   bool live = false, fresh = false;
   bool temperature_valid=false,humidity_valid=false,wind_valid=false,direction_valid=false,gust_valid=false;
   float temperature_f=0,wind_mph=0,direction_deg=0,gust_mph=0;
   uint16_t humidity=0;
   uint32_t lux=0;
+  uint64_t lux_epoch_ms=0;
   bool rain_today_observed=false,rain_24h_observed=false;
   bool lux_valid=false,uv_valid=false,rain_today_valid=false,rain_hour_valid=false,rain_24h_valid=false;
   float uv=0,rain_today_in=0,rain_hour_in=0,rain_24h_in=0;
@@ -69,8 +74,10 @@ struct State {
   float moon_illumination=-1;
   float pressure_pa=0;
   time_t pressure_observed=0;
-  bool pressure_sea_level=false;
-  String pressure_station,pressure_error="Not configured";
+  bool pressure_sea_level=false,pressure_altimeter=false;
+  String pressure_provider="NWS",pressure_primary_error;
+  String pressure_station,pressure_error="Not configured",pressure_attempt_station,pressure_attempt_timestamp;
+  time_t pressure_attempted=0,pressure_attempt_observed=0;
   String forecast_error="Not configured",hourly_error="Not configured",alert_error="Not configured";
   time_t forecast_fetched=0,hourly_fetched=0,forecast_issued=0,hourly_issued=0,alert_fetched=0;
   bool forecast_valid=false,alerts_valid=false,alerts_truncated=false;
@@ -81,14 +88,15 @@ struct State {
   uint8_t forecast_count=0;
   std::array<Alert,8> alerts;
   uint8_t alert_count=0,alert_theme=0;
-  String wu_state="Off",weathercloud_state="Off",aprs_state="Off";
+  String wu_state="Off",weathercloud_state="Off",aprs_state="Off",pws_state="Off",windy_state="Off";
   bool aprs_connected=false,aprs_verified=false;
-  time_t wu_success=0,weathercloud_success=0,aprs_success=0;
+  time_t wu_success=0,weathercloud_success=0,aprs_success=0,pws_success=0,windy_success=0;
 };
 void begin();
 void loop();
 const Settings& settings();
 State state();
+lux_cloud::Estimate cloudEstimate();
 void publish(const Observation& sample);
 // Called/read only on the application loop, never from the network worker.
 void bindHistory(const weather::Store* store,uint64_t (*now)());
@@ -99,4 +107,7 @@ String portalAddress();
 String portalUrl();
 bool localNameReady();
 bool clockValid();
+uint64_t clockMs();
+bool requestFactoryReset();
+bool factoryResetPending();
 }  // namespace services

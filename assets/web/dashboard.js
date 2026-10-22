@@ -7,7 +7,15 @@
   let daily = [], hourly = [], forecastMeta = {}, alertMeta = {}, alertEntries = [], reachable = true, statusKnown = false;
   let historyAttempt = 0, forecastAttempt = 0, alertAttempt = 0;
   let historyBusy = false, forecastBusy = false, alertBusy = false;
-  const metricNames = ['', 'Temperature (°F)', 'Wind peaks (mph)', 'Light (lx)', 'Humidity (%)'];
+  const metricUnits=()=>config.units==='metric';
+  const temperature=v=>metricUnits()?(v-32)/1.8:v;
+  const wind=v=>metricUnits()?v*1.609344:v;
+  const rain=v=>metricUnits()?v*25.4:v;
+  const temperatureUnit=()=>metricUnits()?'°C':'°F',windUnit=()=>metricUnits()?'km/h':'mph';
+  const series=(v,index)=>index===1?temperature(v):index===2?wind(v):v;
+  const metricNames=()=>['','Temperature ('+temperatureUnit()+')','Wind peaks ('+windUnit()+')','Light (lx)','Humidity (%)'];
+  const windDescription=value=>!metricUnits()?value:value.replace(/([\d.]+(?:\s+to\s+[\d.]+)?)\s*mph\b/g,part=>part.replace(/\d+(?:\.\d+)?/g,v=>Math.round(Number(v)*1.609344)).replace('mph','km/h'));
+
   const zones = {'EST5EDT,M3.2.0,M11.1.0':'America/New_York','CST6CDT,M3.2.0,M11.1.0':'America/Chicago','MST7MDT,M3.2.0,M11.1.0':'America/Denver','MST7':'America/Phoenix','PST8PDT,M3.2.0,M11.1.0':'America/Los_Angeles','UTC0':'UTC'};
   const zone = () => zones[config.timezone] || 'UTC';
   const finite = value => typeof value === 'number' && Number.isFinite(value);
@@ -54,6 +62,7 @@
     text('onboarding-message', value.ssid ? 'Station readings work locally. Add your location in Station & Wi-Fi to enable the local forecast, alerts, sun and moon.' : 'Start with Station & Wi-Fi: join your home network, confirm the Atlas sensor and choose your location. Sharing services are optional.');
     if (!value.ssid || value.station_confirmed===false) tab('station');
     if(value.station_confirmed===false){text('onboarding-title','Find your weather station');text('onboarding-message','Choose Find my station in Station & Wi-Fi. Detection can take up to 5 minutes; no sensor ID is needed.');}
+    if(statusKnown)status(latest);
     drawHistory();
   }
   function status(value) {
@@ -64,7 +73,8 @@
     if(value.forecast_fetched!==undefined&&(value.forecast_fetched!==forecastMeta.daily?.fetched||value.hourly_fetched!==forecastMeta.hourly?.fetched||value.forecast_state!==forecastMeta.daily?.state||value.hourly_state!==forecastMeta.hourly?.state))forecastAttempt=0;
     if(value.alert_last_check!==undefined&&(value.alert_last_check!==alertMeta.checked||value.alert_state!==alertMeta.state))alertAttempt=0;
     const address=$('local-address');address.replaceChildren();
-    const named=document.createElement('a');named.href='http://wxlink.local/';named.textContent='http://wxlink.local';address.append(named);
+    const named=document.createElement('a');const host=typeof config.hostname==='string'&&/^[a-z0-9](?:[a-z0-9-]{0,30}[a-z0-9])?$/.test(config.hostname)?config.hostname:'wxlink';
+    const localUrl='http://'+host+'.local';named.href=localUrl+'/';named.textContent=localUrl;address.append(named);
     const ip=value.ip;
     if(typeof ip==='string'&&/^(?:[0-9]{1,3}\.){3}[0-9]{1,3}$/.test(ip)){
       const fallback=document.createElement('a');fallback.href='http://'+ip+'/';fallback.textContent=ip;address.append(' · IP: ',fallback);
@@ -76,19 +86,19 @@
     $('station-links').replaceChildren();
     const links = [['RF',!!value.radio_ready],['Wi-Fi',!!value.wifi],[value.aprs_profile === 'cwop' ? 'CWOP' : 'APRS',!!value.aprs_connected]];
     for (const [label, connected] of links) $('station-links').append(element('span', label + (connected ? ' ✓' : ' ×'), connected ? 'ok' : 'muted'));
-    text('temperature', finite(d.temperature_F) ? rounded(d.temperature_F) + ' °F' : '—');
+    text('temperature', finite(d.temperature_F) ? rounded(temperature(d.temperature_F)) + ' '+temperatureUnit() : '—');
     $('temperature').classList.toggle('stale-reading', finite(d.temperature_F) && (!!(stale & 1) || ['Data stale','Disconnected','No signal'].includes(value.sensor_status)));
-    text('wind', finite(d.wind_mph) ? rounded(d.wind_mph) + ' mph' : '—');
+    text('wind', finite(d.wind_mph) ? rounded(wind(d.wind_mph)) + ' '+windUnit() : '—');
     const directions = ['N','NNE','NE','ENE','E','ESE','SE','SSE','S','SSW','SW','WSW','W','WNW','NW','NNW'];
     text('direction', finite(d.direction_deg) ? directions[Math.round(d.direction_deg / 22.5) % 16] + ' · ' + Math.round(d.direction_deg) + '°' : 'Direction unavailable');
-    text('gust', finite(d.gust_mph) ? rounded(d.gust_mph) + ' mph' + (d.gust_partial ? ' *' : '') : '—');
+    text('gust', finite(d.gust_mph) ? rounded(wind(d.gust_mph)) + ' '+windUnit() + (d.gust_partial ? ' *' : '') : '—');
     text('humidity', finite(d.humidity) ? Math.round(d.humidity) + ' %' : '—');
-    text('rain', finite(value.rain_today_in) ? rounded(value.rain_today_in, 2) + ' in' + ((d.rain_partial ?? value.rain_partial) ? ' *' : '') : '—');
+    text('rain', finite(value.rain_today_in) ? rounded(rain(value.rain_today_in), metricUnits()?1:2) + (metricUnits()?' mm':' in') + ((d.rain_partial ?? value.rain_partial) ? ' *' : '') : '—');
     text('lux', finite(d.lux) ? (d.lux >= 1000 ? rounded(d.lux / 1000) + ' klx' : Math.round(d.lux) + ' lx') : '— lx');
     text('uv', finite(d.uv)&&!(stale&32) ? 'UV ' + rounded(d.uv,0)+' '+uvLevel(d.uv) : 'UV —');
     for (const [id, bit] of [['humidity',2],['wind',4],['direction',8],['lux',16],['uv',32]]) $(id).classList.toggle('aged-reading', !!(stale & bit));
-    text('pressure', value.nws_pressure_valid && finite(value.nws_pressure_pa) ? rounded(value.nws_pressure_pa / 3386.389, 2) + ' inHg' : '—');
-    text('pressure-source', value.nws_pressure_valid ? 'NWS · ' + value.nws_pressure_station : 'NWS · unavailable');
+    text('pressure', value.nws_pressure_valid && finite(value.nws_pressure_pa) ? rounded(value.nws_pressure_pa / (metricUnits()?100:3386.389), metricUnits()?1:2) + (metricUnits()?' hPa':' inHg') : '—');
+    text('pressure-source', value.nws_pressure_valid ? (value.nws_pressure_provider||'NWS')+' · ' + value.nws_pressure_station+(value.nws_pressure_altimeter?' · altimeter':'') : 'NWS · unavailable');
     text('sunmoon', value.sunrise ? 'Sunrise ' + time(value.sunrise) + ' · Sunset ' + time(value.sunset) + ' · ' + (value.moon_phase || 'Moon unavailable') + (finite(value.moon_illumination) && value.moon_illumination >= 0 ? ' (' + rounded(value.moon_illumination) + '%)' : '') : value.sun_state || 'Set your location for sun and moon data.');
     updateSky();
     renderAlertSummary();
@@ -109,10 +119,10 @@
   function drawHistory() {
     const chart = $('history-chart');chart.replaceChildren();
     const data = rows.filter(row => finite(row[metric]));
-    chart.setAttribute('aria-label', metricNames[metric] + ' over 24 hours, missing samples are gaps');
-    if (!data.length) { if (rows.length) text('trend-status','No received samples for ' + metricNames[metric].toLowerCase() + '.'); drawHome();return; }
-    const values = data.map(row => row[metric]), low = Math.min(...values), high = Math.max(...values), range = high > low ? high - low : 1;
-    text('trend-status',metricNames[metric] + ' · ' + rounded(low) + ' to ' + rounded(high) + ' · ' + data.length + ' observed minutes');
+    chart.setAttribute('aria-label', metricNames()[metric] + ' over 24 hours, missing samples are gaps');
+    if (!data.length) { if (rows.length) text('trend-status','No received samples for ' + metricNames()[metric].toLowerCase() + '.'); drawHome();return; }
+    const values = data.map(row => series(row[metric],metric)), low = Math.min(...values), high = Math.max(...values), range = high > low ? high - low : 1;
+    text('trend-status',metricNames()[metric] + ' · ' + rounded(low) + ' to ' + rounded(high) + ' · ' + data.length + ' observed minutes');
     const x = i => 62 + i * 874 / 1439, y = value => 218 - (value - low) * 185 / range;
     for (const value of [low, high]) {
       chart.append(svg('line',{x1:62,y1:y(value),x2:936,y2:y(value),stroke:'var(--line)'}));
@@ -121,7 +131,7 @@
     let path = '', connected = false;
     rows.forEach((row,i) => {
       if (!finite(row[metric])) { connected=false;return; }
-      path += (connected ? 'L' : 'M') + x(i).toFixed(2) + ',' + y(row[metric]).toFixed(2);
+      path += (connected ? 'L' : 'M') + x(i).toFixed(2) + ',' + y(series(row[metric],metric)).toFixed(2);
       if (!connected && (!rows[i+1] || !finite(rows[i+1][metric]))) chart.append(svg('circle',{cx:x(i),cy:y(row[metric]),r:2,fill:'var(--cyan)'}));
       connected=true;
     });
@@ -158,7 +168,7 @@
   function inspect(event) {
     if(!rows.length)return;const box=$('history-chart').getBoundingClientRect(),x=(event.clientX-box.left)*960/box.width;
     const i=Math.max(0,Math.min(1439,Math.round((x-62)*1439/874))),row=rows[i];
-    text('trend-reading',time(row[0]*60)+' · '+(finite(row[metric])?rounded(row[metric])+' '+metricNames[metric].match(/\((.*)\)/)[1]:'No received sample'));
+    text('trend-reading',time(row[0]*60)+' · '+(finite(row[metric])?rounded(series(row[metric],metric))+' '+metricNames()[metric].match(/\((.*)\)/)[1]:'No received sample'));
   }
   async function periods(type) {
     let offset=0,total;const result=[];let metadata;
@@ -183,8 +193,8 @@
     const now=Date.now()/1000;
     for(const period of list.filter(p=>p.end>now)){
       const card=element('article',undefined,'forecast-period');const heading=element('div',undefined,'forecast-heading');heading.append(element('h3',period.name));heading.append(forecastArt(period));card.append(heading);
-      card.append(element('div',finite(period.temperature_F)?rounded(period.temperature_F)+' °F':'Temperature unavailable','forecast-temp'));
-      card.append(element('p',period.short));card.append(element('p','Wind '+(period.wind||'unavailable'),'muted'));
+      card.append(element('div',finite(period.temperature_F)?rounded(temperature(period.temperature_F))+' '+temperatureUnit():'Temperature unavailable','forecast-temp'));
+      card.append(element('p',period.short));card.append(element('p','Wind '+windDescription(period.wind||'unavailable'),'muted'));
       if(finite(period.rain_probability)&&period.rain_probability>=0)card.append(element('p','Rain chance '+Math.round(period.rain_probability)+'%','muted'));
       if(period.detail){const detail=element('details');detail.open=period===list[0];detail.append(element('summary','Full forecast'));detail.append(element('p',period.detail,'detail'));card.append(detail);}
       card.append(element('small',time(period.start)+' – '+time(period.end)));$('forecast-periods').append(card);
@@ -256,13 +266,21 @@
     const art=element('span',undefined,'forecast-art'),image=document.createElement('img');
     image.alt='NWS forecast: '+period.short+(night?' · night':'');
     const phase=forecastMoon(period);
-    image.src=night&&kind!=='unknown'?moon(phase.illumination,phase.waning,config.latitude<0,false):iconUrl(kind);
-    if(night&&!sky&&kind!=='unknown')image.className='small-moon';
+    image.src=kind==='unknown'?iconUrl('unknown'):night?moon(phase.illumination,phase.waning,config.latitude<0,false):iconUrl('sunny');
+    if(!sky&&kind!=='unknown')image.className='small-celestial';
     art.append(image);
-    if(night&&kind!=='sunny'&&kind!=='unknown'){const cloud=document.createElement('img');cloud.src=iconUrl(sky?'cloudy':kind);cloud.alt='';cloud.className='cloud-overlay';art.append(cloud);}
+    if(kind!=='sunny'&&kind!=='unknown'){const cloud=document.createElement('img');cloud.src=iconUrl(sky?'cloudy':kind);cloud.alt='';cloud.className='cloud-overlay';art.append(cloud);}
     return art;
   }
   function updateSky() {
+    if(reachable&&latest.clock_valid&&latest.source==='radio'&&latest.lux_cloud_valid){
+      const kinds={1:'sunny',2:'partly-cloudy',3:'cloudy'},kind=kinds[latest.lux_cloud_kind];
+      if(kind){const image=$('sky-image'),cloud=$('sky-cloud');image.classList.remove('small-celestial');
+        image.src=iconUrl('sunny');image.alt='Experimental light estimate: '+(latest.lux_cloud_label||kind);
+        cloud.hidden=kind==='sunny';if(!cloud.hidden)cloud.src=iconUrl('cloudy');
+        $('sky').querySelector('small').textContent='LUX*';$('sky').hidden=false;return;}
+    }
+    $('sky').querySelector('small').textContent='NWS';
     const now=Date.now()/1000,meta=forecastMeta.hourly,p=hourly.find(p=>p.start<=now&&p.end>now);
     $('sky').hidden=true;
     if(!latest.wifi||!latest.clock_valid||!meta?.fresh||now-meta.fetched>=7200||!p||(latest.hourly_state!==undefined&&latest.hourly_state!=='Current'))return;
@@ -276,9 +294,9 @@
     else if(!p.daytime_known)return;
     const kind=classify(p.short),image=$('sky-image');
     const sky=['sunny','partly-cloudy','cloudy'].includes(kind);
-    const src=!day&&kind!=='unknown'?moon(solarCurrent?latest.moon_illumination:-1,/Waning|Last Quarter/.test(latest.moon_phase||''),config.latitude<0,false):iconUrl(kind==='cloudy'?'sunny':kind);
-    image.classList.toggle('small-moon',!day&&!sky&&kind!=='unknown');
-    const cloud=$('sky-cloud');cloud.hidden=!(kind==='cloudy'||(!day&&kind!=='sunny'&&kind!=='unknown'));if(!cloud.hidden)cloud.src=iconUrl(sky?'cloudy':kind);
+    const src=!day&&kind!=='unknown'?moon(solarCurrent?latest.moon_illumination:-1,/Waning|Last Quarter/.test(latest.moon_phase||''),config.latitude<0,false):iconUrl(kind==='unknown'?'unknown':'sunny');
+    image.classList.toggle('small-celestial',!sky&&kind!=='unknown');
+    const cloud=$('sky-cloud');cloud.hidden=!(kind!=='sunny'&&kind!=='unknown');if(!cloud.hidden)cloud.src=iconUrl(sky?'cloudy':kind);
     if(image.getAttribute('src')!==src)image.src=src;
     image.alt='NWS forecast: '+p.short+(!day?' · night':'');$('sky').hidden=false;
   }

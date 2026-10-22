@@ -18,9 +18,11 @@ def main():
     args = parser.parse_args()
     if len(args.repo)>180 or not re.fullmatch(r'[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+', args.repo) or any(p in ('.', '..') for p in args.repo.split('/')):
         parser.error('--repo must be owner/repository')
-    version = re.search(r'current="([0-9]+\.[0-9]+\.[0-9]+)"', (ROOT/'firmware/include/firmware_version.h').read_text())[1]
-    if any(len(p)>5 or int(p)>65535 for p in version.split('.')):
+    version = re.search(r'current="([0-9]+\.[0-9]+\.[0-9]+(?:-rc\.[0-9]+)?)"', (ROOT/'firmware/include/firmware_version.h').read_text())[1]
+    if any(len(p)>5 or int(p)>65535 for p in re.split(r'\.|-rc\.', version)):
         parser.error('Version components must fit the updater’s 0–65535 range')
+    if '-rc.' in version and int(version.split('-rc.')[1])==0:
+        parser.error('Release candidate number must be positive')
     data = args.binary.read_bytes()
     if not 32768 <= len(data) <= 0x330000 or data[0] != 0xe9 or int.from_bytes(data[12:14], 'little') != 9 or int.from_bytes(data[32:36], 'little') != 0xabcd5432:
         parser.error('Binary is not a slot-sized ESP32-S3 application image')

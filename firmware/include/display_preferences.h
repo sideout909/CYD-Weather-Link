@@ -35,6 +35,15 @@ struct Idle {
   bool returnHome(uint64_t now,bool eligible,bool touched)const{return eligible&&!touched&&now>=last_interaction&&now-last_interaction>=60000;}
 };
 inline bool setupComplete(bool home_wifi_saved,bool station_confirmed){return home_wifi_saved&&station_confirmed;}
+// Owner markup: the left third of both header rows opens Outdoor/status;
+// the callsign, clock and all connection indicators open web settings.
+constexpr int kHeaderHeight = 44;
+constexpr int kOutdoorHeaderWidth = 104;
+enum class HeaderTarget : uint8_t { None, Outdoor, Settings };
+inline HeaderTarget headerTarget(int x,int y){
+  if(x<0||x>=320||y<0||y>=kHeaderHeight)return HeaderTarget::None;
+  return x<kOutdoorHeaderWidth?HeaderTarget::Outdoor:HeaderTarget::Settings;
+}
 struct StatusLayout {
   int rf,wifi,aprs;
   int wifi_left,wifi_right;

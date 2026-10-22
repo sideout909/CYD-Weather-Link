@@ -15,12 +15,16 @@
 #include "web_history.h"
 #include "radio_receiver.h"
 #include "display_preferences.h"
+#include "factory_reset.h"
+#include "weather_units.h"
+#include "local_hostname.h"
 #include <ArduinoJson.h>
 #include <Preferences.h>
 #include <WebServer.h>
 #include <WiFi.h>
 #include <DNSServer.h>
 #include <ESPmDNS.h>
+#include <sys/time.h>
 #include <cmath>
 #include "aprs_weather.h"
 
@@ -41,22 +45,21 @@ WebServer server(80);
 DNSServer dns;
 Preferences prefs;
 String csrf,ap_name;
-uint32_t restart_at=0,last_link_check=0;
+lux_cloud::Tracker cloud_tracker;
+uint32_t restart_at=0,last_link_check=0,factory_restart_at=0;
 bool scan_started=false,mdns_started=false;
 uint32_t last_mdns_attempt=0;
-constexpr const char* kLocalHostname="wxlink";
-constexpr const char* kLocalUrl="http://wxlink.local";
 void startLocalName(){
   last_mdns_attempt=millis();
-  if(!MDNS.begin(kLocalHostname)){MDNS.end();return;}
-  MDNS.setInstanceName("CYD Weather Link");
+  if(!MDNS.begin(detail::config.hostname.c_str())){MDNS.end();return;}
+  MDNS.setInstanceName("WX-Link");
   if(!MDNS.addService("http","tcp",80)){MDNS.end();return;}
   mdns_started=true;
 }
 station_discovery::Scan discovery;
 const weather::Store* history_source=nullptr;
 uint64_t (*history_now)()=nullptr;
-const char* headers[]={"X-CSRF-Token"};
+const char* headers[]={"X-CSRF-Token","Origin"};
 String randomKey() {
   const char alphabet[]="23456789ABCDEFGHJKLMNPQRSTUVWXYZ";
   String key;for(int i=0;i<12;++i)key+=alphabet[esp_random()&31];return key;
@@ -70,20 +73,27 @@ void error(const char* message,int code=400) {
   StaticJsonDocument<192> d;d["error"]=message;String body;serializeJson(d,body);server.send(code,"application/json",body);
 }
 void encodeConfig(JsonDocument& d,bool secrets,const Settings& c=detail::config) {
+  d["lux_cloud_enabled"]=c.lux_cloud_enabled;d["lux_reference"]=c.lux_reference;
+  d["hostname"]=c.hostname;d["units"]=c.units;
   d["ssid"]=c.ssid;d["timezone"]=c.timezone;d["station_id"]=c.station_id;
   d["display_theme"]=c.display_theme;d["date_format"]=c.date_format;d["clock_24h"]=c.clock_24h;
   d["display_sleep_mode"]=c.display_sleep_mode;d["display_timeout_s"]=c.display_timeout_s;
   d["channel"]=String(c.channel);d["radio_enabled"]=c.radio_enabled;
   d["station_confirmed"]=c.station_confirmed;
   d["location_set"]=c.location_set;d["latitude"]=c.latitude;d["longitude"]=c.longitude;d["elevation_m"]=c.elevation_m;
+  d["windy_enabled"]=c.windy_enabled;d["windy_id"]=c.windy_id;
+  d["pws_enabled"]=c.pws_enabled;d["pws_id"]=c.pws_id;
   d["wu_enabled"]=c.wu_enabled;d["wu_id"]=c.wu_id;
   d["weathercloud_enabled"]=c.weathercloud_enabled;d["weathercloud_id"]=c.weathercloud_id;
   d["aprs_enabled"]=c.aprs_enabled;d["aprs_profile"]=c.aprs_profile;d["callsign"]=c.callsign;
   d["update_repo"]=c.update_repo;d["update_enabled"]=c.update_enabled;d["update_auto"]=c.update_auto;
-  if(secrets){d["wifi_password"]=c.wifi_password;d["setup_key"]=c.setup_key;d["setup_wifi_key"]=c.setup_wifi_key;d["admin_custom"]=c.admin_custom;d["wu_key"]=c.wu_key;d["weathercloud_key"]=c.weathercloud_key;d["aprs_passcode"]=c.aprs_passcode;}
-  else{d["wu_key_set"]=c.wu_key.length()>0;d["weathercloud_key_set"]=c.weathercloud_key.length()>0;d["aprs_passcode_set"]=c.aprs_passcode.length()>0;d["wifi_password_set"]=c.wifi_password.length()>0;d["csrf"]=csrf;}
+  if(secrets){d["windy_password"]=c.windy_password;d["pws_key"]=c.pws_key;d["wifi_password"]=c.wifi_password;d["setup_key"]=c.setup_key;d["setup_wifi_key"]=c.setup_wifi_key;d["admin_custom"]=c.admin_custom;d["wu_key"]=c.wu_key;d["weathercloud_key"]=c.weathercloud_key;d["aprs_passcode"]=c.aprs_passcode;}
+  else{d["windy_password_set"]=c.windy_password.length()>0;d["pws_key_set"]=c.pws_key.length()>0;d["wu_key_set"]=c.wu_key.length()>0;d["weathercloud_key_set"]=c.weathercloud_key.length()>0;d["aprs_passcode_set"]=c.aprs_passcode.length()>0;d["wifi_password_set"]=c.wifi_password.length()>0;d["csrf"]=csrf;}
 }
 void readConfig(JsonDocument& d,Settings& c,bool keep_empty) {
+  c.lux_cloud_enabled=d["lux_cloud_enabled"]|c.lux_cloud_enabled;c.lux_reference=d["lux_reference"]|c.lux_reference;
+  c.hostname=d["hostname"]|c.hostname;
+  c.units=d["units"]|c.units;
   c.ssid=d["ssid"]|c.ssid;c.timezone=d["timezone"]|c.timezone;
   c.display_theme=d["display_theme"]|c.display_theme;c.date_format=d["date_format"]|c.date_format;c.clock_24h=d["clock_24h"]|c.clock_24h;
   c.display_sleep_mode=d["display_sleep_mode"]|c.display_sleep_mode;c.display_timeout_s=d["display_timeout_s"]|c.display_timeout_s;
@@ -92,16 +102,20 @@ void readConfig(JsonDocument& d,Settings& c,bool keep_empty) {
   c.radio_enabled=d["radio_enabled"]|c.radio_enabled;
   c.location_set=d["location_set"]|c.location_set;
   c.latitude=d["latitude"]|c.latitude;c.longitude=d["longitude"]|c.longitude;c.elevation_m=d["elevation_m"]|c.elevation_m;
+  c.windy_enabled=d["windy_enabled"]|c.windy_enabled;c.windy_id=d["windy_id"]|c.windy_id;
+  c.pws_enabled=d["pws_enabled"]|c.pws_enabled;c.pws_id=d["pws_id"]|c.pws_id;
   c.wu_enabled=d["wu_enabled"]|c.wu_enabled;c.wu_id=d["wu_id"]|c.wu_id;
   c.weathercloud_enabled=d["weathercloud_enabled"]|c.weathercloud_enabled;c.weathercloud_id=d["weathercloud_id"]|c.weathercloud_id;
   c.aprs_enabled=d["aprs_enabled"]|c.aprs_enabled;c.aprs_profile=d["aprs_profile"]|c.aprs_profile;c.callsign=d["callsign"]|c.callsign;c.callsign.toUpperCase();
   c.update_repo=d["update_repo"]|c.update_repo;c.update_repo.trim();c.update_enabled=d["update_enabled"]|c.update_enabled;c.update_auto=d["update_auto"]|c.update_auto;
   c.update_repo=update_policy::migratedProjectRepository(c.update_repo.c_str(),firmware_version::repository).c_str();
   auto secret=[&](const char* name,String& value){if(d[name].is<const char*>()){String next=d[name].as<String>();if(!keep_empty || next.length())value=next;}};
-  secret("wifi_password",c.wifi_password);secret("setup_key",c.setup_key);secret("wu_key",c.wu_key);secret("weathercloud_key",c.weathercloud_key);secret("aprs_passcode",c.aprs_passcode);
+  secret("windy_password",c.windy_password);secret("pws_key",c.pws_key);secret("wifi_password",c.wifi_password);secret("setup_key",c.setup_key);secret("wu_key",c.wu_key);secret("weathercloud_key",c.weathercloud_key);secret("aprs_passcode",c.aprs_passcode);
 }
 bool cleanId(const String& value) {for(char ch:value)if(!isalnum(ch)&&ch!='-'&&ch!='_')return false;return true;}
 const char* validate(const Settings& c) {
+  if(!std::isfinite(c.lux_reference)||c.lux_reference<0||c.lux_reference>200000)return "Invalid clear-sky calibration.";
+  if(!weather_units::valid(c.units.c_str()))return "Choose metric or imperial units.";
   if(!display_themes::find(c.display_theme.c_str()))return "Choose a supported color theme.";
   if(!display_preferences::validDate(c.date_format.c_str()))return "Choose a supported date format.";
   if(!display_preferences::validSleep(c.display_sleep_mode.c_str())||!display_preferences::validTimeout(c.display_timeout_s))return "Choose a supported display sleep mode and timeout.";
@@ -112,6 +126,12 @@ const char* validate(const Settings& c) {
   bool zone=false;for(const auto& z:zones)zone|=c.timezone==z;if(!zone)return "Choose a supported timezone.";
   if(!std::isfinite(c.latitude)||!std::isfinite(c.longitude)||c.latitude < -90 || c.latitude>90 || c.longitude < -180 || c.longitude>180)return "Invalid coordinates.";
   if(!std::isfinite(c.elevation_m)||c.elevation_m < -500 || c.elevation_m>9000)return "Invalid ground elevation.";
+  if(!local_hostname::valid(c.hostname.c_str()))return "Hostname must be 1–32 lowercase letters, digits or interior hyphens; include a letter or hyphen.";
+  if(c.windy_id.length()>30||!cleanId(c.windy_id)||c.windy_password.length()>100)return "Invalid Windy station ID or password length.";
+  for(unsigned char ch:c.windy_password)if(ch<=32||ch>=127)return "Windy station password must contain printable characters without spaces.";
+  if(c.windy_enabled&&(c.windy_id.isEmpty()||c.windy_password.isEmpty()))return "Windy needs a station ID and station password.";
+  if(c.pws_id.length()>64||!cleanId(c.pws_id)||c.pws_key.length()>100)return "Invalid PWSWeather station ID or key length.";
+  if(c.pws_enabled&&(c.pws_id.isEmpty()||c.pws_key.isEmpty()))return "PWSWeather needs a station ID and API key.";
   if(c.wu_id.length()>32 || !cleanId(c.wu_id)||c.weathercloud_id.length()>64 || !cleanId(c.weathercloud_id))return "Invalid sharing station ID.";
   if(c.wu_key.length()>100||c.weathercloud_key.length()>100)return "Upload key is too long.";
   if(c.wu_enabled && (!c.wu_id.length() || !c.wu_key.length()))return "Weather Underground needs a station ID and upload key.";
@@ -128,7 +148,8 @@ const char* validate(const Settings& c) {
   return nullptr;
 }
 void configGet() {
-  if(!authorize())return;DynamicJsonDocument d(4096);encodeConfig(d,false);
+  if(!authorize())return;DynamicJsonDocument d(6144);encodeConfig(d,false);
+  if(d.overflowed()){error("Configuration response exceeds storage budget.",503);return;}
   String body;serializeJson(d,body);server.send(200,"application/json",body);
 }
 void configPost() {
@@ -139,6 +160,14 @@ void configPost() {
   if(deserializeJson(d,server.arg("plain")) || !d.is<JsonObject>()){error("Invalid settings JSON.");return;}
   if(d.containsKey("station_id") && (!d["station_id"].is<unsigned>() || d["station_id"].as<unsigned>()>1023)){error("Invalid Atlas sensor ID.");return;}
   if(d.containsKey("display_timeout_s")&&(!d["display_timeout_s"].is<unsigned>()||!display_preferences::validTimeout(d["display_timeout_s"].as<unsigned>()))){error("Invalid display timeout.");return;}
+  for(const char* key:{"lux_cloud_enabled","lux_calibrate"})if(d.containsKey(key)&&!d[key].is<bool>()){error("Invalid light setting.");return;}
+  if(d.containsKey("lux_reference")&&!d["lux_reference"].is<float>()){error("Invalid light calibration.");return;}
+  if(d.containsKey("hostname")&&!d["hostname"].is<const char*>()){error("Invalid hostname setting.");return;}
+  if(d.containsKey("windy_enabled")&&!d["windy_enabled"].is<bool>()){error("Invalid Windy enable setting.");return;}
+  for(const char* key:{"windy_id","windy_password"})if(d.containsKey(key)&&!d[key].is<const char*>()){error("Invalid Windy credentials.");return;}
+  if(d.containsKey("pws_enabled")&&!d["pws_enabled"].is<bool>()){error("Invalid PWSWeather enable setting.");return;}
+  for(const char* key:{"pws_id","pws_key"})if(d.containsKey(key)&&!d[key].is<const char*>()){error("Invalid PWSWeather credentials.");return;}
+  if(d.containsKey("units")&&!d["units"].is<const char*>()){error("Invalid units setting.");return;}
   if(d.containsKey("clock_24h")&&!d["clock_24h"].is<bool>()){error("Invalid clock setting.");return;}
   if(d.containsKey("display_theme")&&(!d["display_theme"].is<const char*>()||!display_themes::find(d["display_theme"].as<const char*>()))){error("Invalid color theme.");return;}
   const auto update=firmware_updates::state();
@@ -154,18 +183,50 @@ void configPost() {
     if(!next.radio_enabled){error("Enable reception before using a detected station.");return;}
   }else if(d["manual_binding"]==true){next.station_confirmed=true;}
   else if(next.station_id!=detail::config.station_id||next.channel!=detail::config.channel){error("Find your station, or choose manual binding under Advanced.");return;}
+  // Moving the station or changing the light sensor invalidates old calibration.
+  if((next.latitude!=detail::config.latitude||next.longitude!=detail::config.longitude||
+      next.station_id!=detail::config.station_id||next.channel!=detail::config.channel)&&!d.containsKey("lux_reference"))next.lux_reference=0;
+  if(d["lux_calibrate"]==true){
+    Observation live{};if(xSemaphoreTake(detail::state_mutex,pdMS_TO_TICKS(20))==pdTRUE){live=detail::latest;xSemaphoreGive(detail::state_mutex);}
+    const uint64_t now_ms=clockMs();
+    const auto calibration=lux_cloud::calibratedReference(live.lux,lux_cloud::elevation(now_ms/1000,next.latitude,next.longitude));
+    if(!next.location_set||!clockValid()||!live.live||!live.lux_valid||!live.lux_epoch_ms||
+        now_ms<live.lux_epoch_ms||now_ms-live.lux_epoch_ms>=120000||!calibration||
+        next.station_id!=detail::config.station_id||next.channel!=detail::config.channel||
+        next.latitude!=detail::config.latitude||next.longitude!=detail::config.longitude){error("Calibration needs fresh light, an unchanged station/location and sun at least 15 degrees high. Confirm clear direct sunlight.");return;}
+    next.lux_reference=calibration;
+  }
   if(const char* message=validate(next)){error(message);return;}
   if(d["setup_key"].is<const char*>())setup_credentials::chooseAdmin(next.setup_wifi_key,next.setup_key,next.admin_custom,String(d["setup_key"].as<const char*>()),randomKey);
-  DynamicJsonDocument saved(4096);encodeConfig(saved,true,next);String body;serializeJson(saved,body);
+  DynamicJsonDocument saved(6144);encodeConfig(saved,true,next);
+  if(saved.overflowed()){error("Settings exceed storage budget.",413);return;}
+  String body;serializeJson(saved,body);
   if(prefs.putString("settings",body)!=body.length()){error("Settings could not be saved.",500);return;}
   server.send(200,"application/json","{\"saved\":true,\"restarting\":true}");restart_at=millis()+1500;
+}
+void factoryResetPost(){
+  if(!authorize())return;
+  const String origin=server.header("Origin");
+  if(origin.length()&&origin!="http://"+server.hostHeader()){
+    error("Reset must be requested from this device's webpage.",403);return;
+  }
+  if(server.header("X-CSRF-Token")!=csrf){error("Refresh this page before resetting.",403);return;}
+  if(server.arg("plain").length()>128){error("Reset request is too large.",413);return;}
+  StaticJsonDocument<192> request;
+  if(deserializeJson(request,server.arg("plain"))||!request.is<JsonObject>()||
+      !request["confirmation"].is<const char*>()||
+      !factory_reset::confirmed(request["confirmation"].as<const char*>())){
+    error("Type RESET WX LINK to confirm removal of all settings and local history.");return;
+  }
+  if(!requestFactoryReset()){error("Reset unavailable: wait for updates/restart or check storage.",409);return;}
+  server.send(202,"application/json","{\"resetting\":true,\"restarting\":true}");
 }
 void statusGet() {
   if(!authorize())return;
   State s=state();Observation o;
   if(xSemaphoreTake(detail::state_mutex,pdMS_TO_TICKS(10))==pdTRUE){o=detail::latest;xSemaphoreGive(detail::state_mutex);}
-  DynamicJsonDocument d(4096);
-  d["wifi"]=WiFi.status()==WL_CONNECTED;d["ip"]=portalAddress();d["local_url"]=kLocalUrl;d["mdns_ready"]=mdns_started;d["clock_valid"]=clockValid();
+  DynamicJsonDocument d(6144);
+  d["wifi"]=WiFi.status()==WL_CONNECTED;d["ip"]=portalAddress();d["local_url"]=portalUrl();d["mdns_ready"]=mdns_started;d["clock_valid"]=clockValid();
   d["source"]=o.live?"radio":(o.epoch_ms?"usb_replay":"none");d["radio_ready"]=o.radio_ready;
   d["station_confirmed"]=detail::config.station_confirmed;
   d["sensor_status"]=sensor_health::label(sensor_health::State(o.sensor_health));
@@ -192,7 +253,15 @@ void statusGet() {
   d["rain_partial"]=o.rain_today_observed&&!o.rain_today_valid;
   if(o.rain_24h_observed)d["rain_24h_in"]=o.rain_24h_in;
   d["rain_24h_partial"]=o.rain_24h_observed&&!o.rain_24h_valid;
-  d["nws_pressure_pa"]=s.pressure_pa;d["nws_pressure_observed"]=s.pressure_observed;d["nws_pressure_station"]=s.pressure_station;d["nws_pressure_sea_level"]=s.pressure_sea_level;d["nws_pressure_state"]=s.pressure_error;
+  const auto cloud=cloudEstimate();d["lux_cloud_valid"]=cloud.valid();d["lux_cloud_kind"]=uint8_t(cloud.kind);
+  d["lux_cloud_state"]=cloud.reason;d["lux_cloud_label"]=lux_cloud::label(cloud.kind);d["lux_solar_elevation"]=cloud.altitude;
+  d["lux_cloud_samples"]=cloud.samples;d["lux_cloud_span_s"]=cloud.candidate_age_s;d["lux_sampled_ms"]=cloud.sampled_ms;
+  d["lux_clear_expected"]=cloud.expected;d["lux_clear_ratio"]=cloud.ratio;
+  d["windy_state"]=s.windy_state;d["windy_last_success"]=s.windy_success;
+  d["pws_state"]=s.pws_state;d["pws_last_success"]=s.pws_success;
+  d["nws_pressure_attempt_station"]=s.pressure_attempt_station;d["nws_pressure_attempted"]=s.pressure_attempted;
+  d["nws_pressure_attempt_observed"]=s.pressure_attempt_observed;d["nws_pressure_attempt_timestamp"]=s.pressure_attempt_timestamp;
+  d["nws_pressure_pa"]=s.pressure_pa;d["nws_pressure_observed"]=s.pressure_observed;d["nws_pressure_station"]=s.pressure_station;d["nws_pressure_sea_level"]=s.pressure_sea_level;d["nws_pressure_state"]=s.pressure_error;d["nws_pressure_provider"]=s.pressure_provider;d["nws_pressure_altimeter"]=s.pressure_altimeter;d["nws_pressure_primary_state"]=s.pressure_primary_error;
   d["nws_pressure_valid"]=s.wifi&&clockValid()&&nws_pressure::fresh(s.pressure_observed,time(nullptr));
   d["sunrise"]=s.sunrise;d["sunset"]=s.sunset;d["sun_day"]=s.sun_day;d["sun_state"]=s.sun_error;d["moon_reference"]=lunar_phase::referenceNoon(s.sun_day);d["moon_phase"]=s.moon_phase;d["moon_illumination"]=s.moon_illumination;
   d["solar_mode"]=s.sun_status;
@@ -302,32 +371,50 @@ void discoveryGet(){
 const Settings& settings(){return detail::config;}
 State state(){State copy;if(detail::state_mutex && xSemaphoreTake(detail::state_mutex,pdMS_TO_TICKS(10))==pdTRUE){copy=detail::current;xSemaphoreGive(detail::state_mutex);}return copy;}
 bool clockValid(){return time(nullptr)>1700000000;}
+uint64_t clockMs(){timeval now{};gettimeofday(&now,nullptr);return uint64_t(now.tv_sec)*1000+now.tv_usec/1000;}
 String setupWifiKey(){return detail::config.setup_wifi_key;}
 String setupSsid(){return ap_name;}
 String portalAddress(){return WiFi.status()==WL_CONNECTED?WiFi.localIP().toString():WiFi.softAPIP().toString();}
-String portalUrl(){return kLocalUrl;}
+String portalUrl(){return local_hostname::url(detail::config.hostname.c_str()).c_str();}
 bool localNameReady(){return mdns_started;}
+lux_cloud::Estimate cloudEstimate(){return cloud_tracker.estimate;}
 void publish(const Observation& sample){
+  const auto& c=detail::config;
+  // RF fields and snapshot share the anchored millisecond clock. Rounding wall
+  // time down to whole seconds can falsely mark a new subsecond sample future.
+  cloud_tracker.update(c.lux_cloud_enabled,c.lux_reference,c.location_set&&clockValid(),c.latitude,c.longitude,
+    sample.live,sample.lux_valid,sample.lux_epoch_ms,sample.lux,sample.snapshot_ms);
+
   if(xSemaphoreTake(detail::state_mutex,pdMS_TO_TICKS(2))==pdTRUE){detail::latest=sample;xSemaphoreGive(detail::state_mutex);}
   if(detail::observations)xQueueOverwrite(detail::observations,&sample);
 }
 void bindHistory(const weather::Store* store,uint64_t (*now)()){history_source=store;history_now=now;}
 void observeDiscovery(const station_discovery::Packet& packet,uint32_t now){discovery.observe(packet,now);}
+bool factoryResetPending(){return factory_restart_at!=0;}
+bool requestFactoryReset(){
+  const auto update=firmware_updates::state();
+  if(factory_restart_at||restart_at||update.busy||update.boot_pending||update.restart_pending)return false;
+  if(!factory_reset::arm())return false;
+  factory_restart_at=millis()+1000;
+  if(!factory_restart_at)factory_restart_at=1;
+  return true;
+}
 void begin(){
   detail::state_mutex=xSemaphoreCreateMutex();detail::observations=xQueueCreate(1,sizeof(Observation));
   prefs.begin("wxlink",false);String saved=prefs.getString("settings","");
   if(saved.length()){DynamicJsonDocument d(6144);if(!deserializeJson(d,saved)){readConfig(d,detail::config,false);detail::config.station_confirmed=d["station_confirmed"]|d.containsKey("station_id");detail::config.setup_wifi_key=d["setup_wifi_key"]|String("");detail::config.admin_custom=d["admin_custom"]|true;}}
+  if(!local_hostname::valid(detail::config.hostname.c_str()))detail::config.hostname="wxlink";
   if(setup_credentials::ensure(detail::config.setup_wifi_key,detail::config.setup_key,detail::config.admin_custom,randomKey)){
-    DynamicJsonDocument d(4096);encodeConfig(d,true);String body;serializeJson(d,body);prefs.putString("settings",body);
+    DynamicJsonDocument d(6144);encodeConfig(d,true);String body;serializeJson(d,body);prefs.putString("settings",body);
   }
   char token[33];snprintf(token,sizeof(token),"%08x%08x%08x%08x",esp_random(),esp_random(),esp_random(),esp_random());csrf=token;
   const uint64_t mac=ESP.getEfuseMac();char ssid[24];snprintf(ssid,sizeof(ssid),"WXLink-%06X",unsigned((mac>>24)&0xffffff));ap_name=ssid;
-  WiFi.persistent(false);WiFi.mode(WIFI_AP_STA);WiFi.setAutoReconnect(true);
+  WiFi.persistent(false);WiFi.mode(WIFI_AP_STA);WiFi.setHostname(detail::config.hostname.c_str());WiFi.setAutoReconnect(true);
   WiFi.softAP(ap_name.c_str(),detail::config.setup_wifi_key.c_str());
   dns.start(53,"*",WiFi.softAPIP());
   if(detail::config.ssid.length())WiFi.begin(detail::config.ssid.c_str(),detail::config.wifi_password.c_str());
   configTzTime(detail::config.timezone.c_str(),"time.cloudflare.com","pool.ntp.org");
-  server.collectHeaders(headers,1);
+  server.collectHeaders(headers,2);
   server.on("/",HTTP_GET,[]{if(authorize()){server.sendHeader("X-Content-Type-Options","nosniff");server.send_P(200,"text/html; charset=utf-8",kSetupPage);}});
   server.on("/assets/location.js",HTTP_GET,[]{if(authorize()){server.sendHeader("Content-Encoding","gzip");server.sendHeader("X-Content-Type-Options","nosniff");server.send_P(200,"text/javascript",reinterpret_cast<const char*>(setup_assets::location_js),sizeof(setup_assets::location_js));}});
   server.on("/assets/dashboard.js",HTTP_GET,[]{if(authorize()){server.sendHeader("Content-Encoding","gzip");server.sendHeader("X-Content-Type-Options","nosniff");server.send_P(200,"text/javascript",reinterpret_cast<const char*>(setup_assets::dashboard_js),sizeof(setup_assets::dashboard_js));}});
@@ -352,6 +439,7 @@ void begin(){
     discovery.start(millis(),esp_random());server.send(202,"application/json","{\"started\":true}");
   });
   server.on("/api/discovery/cancel",HTTP_POST,[]{if(!discoveryMutation())return;discovery.cancel();server.send(200,"application/json","{\"cancelled\":true}");});
+  server.on("/api/factory-reset",HTTP_POST,factoryResetPost);
   server.on("/api/update",HTTP_GET,[]{if(!authorize())return;auto s=firmware_updates::state();StaticJsonDocument<1024>d;d["current_version"]=firmware_version::current;d["available_version"]=s.available_version;d["message"]=s.message;d["busy"]=s.busy;d["available"]=s.available;d["progress"]=s.progress;d["boot_pending"]=s.boot_pending;d["last_checked"]=s.last_checked;String body;serializeJson(d,body);server.send(200,"application/json",body);});
   server.on("/api/update/check",HTTP_POST,[]{if(!authorize())return;if(server.header("X-CSRF-Token")!=csrf){error("Refresh this page before checking.",403);return;}if(!firmware_updates::requestCheck()){error("An update operation is already pending.",409);return;}server.send(202,"application/json","{\"queued\":true}");});
   server.on("/api/update/install",HTTP_POST,[]{if(!authorize())return;if(server.header("X-CSRF-Token")!=csrf){error("Refresh this page before installing.",403);return;}if(!firmware_updates::requestInstall()){error("Check for a compatible update first, or wait for the current operation.",409);return;}server.send(202,"application/json","{\"queued\":true}");});
@@ -366,6 +454,10 @@ void begin(){
   server.begin();startLocalName();detail::startWorker();firmware_updates::startWorker();
 }
 void loop(){
+  if(factory_restart_at){
+    if(int32_t(millis()-factory_restart_at)>=0)ESP.restart();
+    return;
+  }
   if(!mdns_started&&uint32_t(millis()-last_mdns_attempt)>=30000)startLocalName();
   dns.processNextRequest();server.handleClient();
   detail::http_serving.store(true);

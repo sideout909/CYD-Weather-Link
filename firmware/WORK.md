@@ -1,21 +1,59 @@
 # Current development state
 
-Updated October 22, 2026 · firmware **v0.7.4**, installed over USB on the
-owner's PanelLan ZX2D80CE02S-V10 / SC05_X (8 MB flash, 2 MB PSRAM). v0.7.4 is the USB-installed build. The v0.7.5 release adds the canonical
-WX-Link update source and migration while retaining the validated UI.
-The PC RTL-SDR capture service remains stopped. Device recording continues
-independently of the PC. See [build and controls](README.md),
-[bench evidence](VALIDATION.md) and [owner checklist](CONTROLS_CHECKLIST.md).
+Updated October 22, 2026 · owner-test prerelease **v0.8.0-rc.1**, installed over
+USB with owner authorization. Published stable remains v0.7.5. Final release
+awaits owner verification; no 0.8.0 assets have been published. See
+[prerelease notes](RELEASE_0.8.0.md), [evidence](VALIDATION.md),
+[owner controls](CONTROLS_CHECKLIST.md) and [completed queue](FEATURE_QUEUE.md).
 
-## v0.7.5 — public release preparation
+The candidate includes factory reset, unit preferences, Barometer labeling,
+PWSWeather/Windy v2, configurable hostnames, owner-marked header targets,
+combined Outdoor/status, layered sun art and cleaned-up setup tabs. NWS AWC
+pressure fallback works on hardware. Experimental local daylight clouds are
+calibrated from today's owner-confirmed clear-sky history and enabled on the
+owner's unit. Default for other users is off/uncalibrated. Actual PWSWeather and
+Windy account ingestion, real reset and longer-term cloud accuracy remain gates.
+
+Temporary metric/custom-hostname settings survived reboot, and the custom .local
+name resolved over mDNS; original imperial/wxlink settings were then restored.
+New uploaders remain off; existing sharing settings and calibration are retained.
+The separate overnight dim/touch incident and interrupted OTA tests remain open.
+The sections below are historical records; later 0.8.0 evidence supersedes their
+no-USB/no-flash and not-implemented statements.
+
+## Historical local v0.7.6 work — included in 0.8.0-rc.1
+
+Built locally; not flashed, pushed or released. USB has been handed back to the
+owner for Connect testing; make no further device calls without coordination.
+
+- Owner markup: left header x 0–103, y 0–43 opens combined Outdoor/status;
+  x 104–319 across both header rows opens Settings. These regions are independent
+  of theme and APRS/CWOP text width. First dim/off contact still only wakes.
+- Outdoor now includes temperature/light/UV with ages plus Atlas health,
+  last packet, missing message types, APRS/CWOP state and last report. Separate
+  Link Status navigation is removed; the old USB detail index aliases Outdoor.
+- On-device WEB SETTINGS explicitly says “Change settings in a web browser”
+  and “Use your phone or computer”, above wxlink.local/IP and admin guidance.
+  First-run WEB SETUP also names the browser workflow. Custom passwords stay hidden.
+- Daytime icons now use a separate sun layer and condition/cloud overlay, like
+  the existing moon composition. Home and forecast, display and webpage share
+  this approach; unknown/stale forecast handling and phase-aware moons remain.
+- SC05_X build, host suite (including full header-boundary coverage), and the
+  browser suite passed; browser checks exercise sun/cloud layers across themes
+  and retain moon-phase/night-overlay regression coverage.
+- Revised local header overlay: captures/firmware-validation/touch-map-v076-preview/index.html.
+  Uses old v0.7.5 capture backgrounds, explicitly labeled with proposed v0.7.6
+  routing. Physical layout/touch checks await the next authorized installation.
+
+## v0.7.5 — published release and owner OTA verification
 
 The owner verified the v0.7.4 dashboard cleanup and reports exercising the
 preceding firmware over the last 24 hours. v0.7.5 includes the renamed default
 update source and migrates a saved old project source while preserving custom
-forks. This version is newer than installed v0.7.4 so OTA can offer it. Build,
-host checks, package integrity and public download verification are release gates;
-hosted interruption/rollback validation and remaining hardware/service gates
-remain open. Release preparation does not flash the owner's device.
+forks. Build, host checks, package integrity and unauthenticated public download
+verification passed. The owner installed it through OTA after saving the renamed
+repository and confirmed the requested sustained/restart checks. Hosted
+interruption/deliberate rollback and remaining hardware/service gates remain open.
 
 ## v0.7.4 — completed-setup dashboard cleanup
 
@@ -63,7 +101,8 @@ startup test. No GitHub Release or OTA asset was published.
   minutes. Stale, incomplete and replay data cannot upload.
 - Opt-in GitHub OTA, compatible inactive-slot images, SHA-256 checking and
   deferred startup confirmation. USB-installed startup self-tests pass.
-  Corrected hosted OTA acceptance remains open after the earlier rollback.
+  Normal hosted OTA to v0.7.5 is owner-confirmed; interruption and deliberate
+  failed-boot recovery tests remain open.
 
 The v0.6.2 follow-up renames Collecting to Receiving without changing health
 policy and adds moon backgrounds to recognized night fog/precipitation/wind
@@ -166,31 +205,50 @@ original priority checks were:
 
 ## Remaining engineering and acceptance work
 
-- Add a persisted metric/imperial units setting in web setup, applied consistently
+The owner's authoritative implementation order and current checkpoints are in
+[FEATURE_QUEUE.md](FEATURE_QUEUE.md). Factory reset, units and Barometer label
+are locally implemented/tested; physical acceptance is pending.
+
+- Want: signed OTA releases with independent publisher-signature verification,
+  protected signing keys, rotation/recovery and negative validation tests. Keep
+  owner-controlled custom firmware/reflashing available; do not enable Secure
+  Boot, flash encryption or burn permanent eFuses. Planning only.
+- Support explicitly selected multiple measurement sources (for example separate
+  temperature, wind and pressure devices) feeding one station, with individual
+  source identities/freshness. Deferred; configurable hostnames were separately
+  restored and implemented in 0.8.0-rc.1.
+
+- Verify the implemented factory-reset feature: authenticated web control, destructive
+  confirmation, and physical recovery for a forgotten password. Define settings/
+  history erasure clearly, regenerate setup credentials and return to setup.
+  Scope erasure to project NVS/files; preserve bootloader and partition layout.
+
+- Verify the implemented persisted metric/imperial setting in web setup, applied consistently
   to the device display and web dashboard. Keep stored measurements and service
   upload units independent of presentation; verify conversions and unit labels.
-- Change the main-screen pressure label from "Baro" to "Barometer" and verify
+- Main-screen pressure is now "Barometer"; verify
   it fits the existing tile across themes.
 - Compare CC1101 reception/field values with the RTL-SDR reference; measure
   debug-header voltage under simultaneous radio/display/Wi-Fi load. Live RF
   alone does not establish spare regulator capacity or antenna performance.
 - Validate prolonged TLS/flash/RF load, transmitter silence and unchanged-data
-  recovery, natural-midnight rain, clock/DST transitions, abrupt power loss,
-  extended network outages and a multiday soak.
+  recovery, natural-midnight rain, clock/DST transitions, extended network
+  outages and a multiday soak. Power-loss/history-retention stress checks are
+  lower priority at the owner's request; they are deferred, not marked passed.
 - Verify separate CWOP registration/routing/ingestion and uploaded field
   accuracy for each destination. A connected session or sent TCP packet alone
   does not establish remote acceptance.
-- Test corrected hosted OTA beyond 90 seconds and a subsequent restart,
-  interrupted transfer and deliberate failed-boot rollback before unattended
-  installation. Automatic checking/installation default off and remain
+- Test interrupted OTA transfer and deliberate failed-boot rollback before
+  unattended installation. Normal v0.7.5 OTA, beyond-90-second operation and
+  subsequent restart are owner-confirmed. Automatic checking/installation default off and remain
   owner-controlled; publishing source does not enable them.
 - Expand station integrations with real community captures, identity/field/
   unit/integrity review and appropriate OOK/FSK receiver profiles. Discovery
   confidence must fit each station's transmission cadence. See
   [decoder scope](../DECODER_SUPPORT.md) and [candidates](../STATION_SUPPORT.md).
-- Add Windy, then consider PWSWeather. D710 serial and a local barometer
+- PWSWeather/Windy v2 are implemented in 0.8.0-rc.1; validate live ingestion. D710 serial and a local barometer
   are optional additions with unresolved hardware/pin requirements. SD remains
-  optional. Calibrated lux-based cloud inference is deferred; current icons
+  optional. Calibrated lux-based cloud inference is experimental in 0.8.0-rc.1; default icons
   derive from NWS forecasts.
 
 Repository: [sideout909/WX-Link](https://github.com/sideout909/WX-Link).
@@ -204,3 +262,26 @@ The owner requested a separate Documents/WXLink Connect workspace for community
 capture firmware planning. [TODO_AUDIT.md](TODO_AUDIT.md) separates completed
 features from remaining validation/roadmap work. Main v0.7.3 code, running
 logger/device and release settings are unchanged by this handoff preparation.
+
+## Feature queue local implementation evidence
+
+Factory reset now has an authenticated CSRF/origin-checked typed-confirmation
+POST, browser cancel flow, and a deliberate on-device 10-second hold / release /
+3-second Reset hold. It persists a pending marker in wxreset and executes scoped
+wxlink settings/history/cache cleanup before workers at boot, with retry/fail-stop
+on interruption. It does not format flash, touch Connect files or change eFuses.
+New setup credentials are generated by the existing startup path. Logical deletion
+is not a guarantee of forensic erasure. No real device reset was requested/tested.
+
+Metric/imperial presentation is saved with default imperial migration; C/km/h/mm/
+hPa apply to device readings, detail/trend/forecast values and browser/discovery.
+Underlying raw fields, archive/CSV/API units and weather-service encodings stay
+unchanged. Dedicated forecast wind descriptors convert; narrative remains NWS
+wording. New host conversions and browser save/reload checks pass, including
+missing/negative/zero values and raw API preservation. Barometer replaces Baro
+on Home/web; font width fits the tile in host checks.
+
+APRS software login and packet comment now use WX-Link in source; reporting tests
+assert the packet identity. Local build and host/browser checks pass. All this
+remains local v0.7.6; no flash, live service submission, push or release performed.
+Owner is testing Connect on the USB-connected device; leave USB untouched.

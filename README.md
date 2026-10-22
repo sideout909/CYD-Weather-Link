@@ -10,13 +10,26 @@ NWS forecasts/alerts, local-midnight rain, five-minute received wind peaks,
 field-age/connection details, callsign/status header, protected browser setup,
 embedded ZIP/map/elevation selection, persistence and opt-in sharing. A separate
 seven-day archive retains five-minute summaries with browser/USB CSV export. Weather
-Underground and Weathercloud adapters are implemented. Live CC1101 reception,
+Underground, Weathercloud, PWSWeather and Windy.com v2 adapters are implemented. Live CC1101 reception,
 APRS.fi location/weather display and WU uploads are observed; the owner also
 confirmed Weathercloud is receiving data. CWOP ingestion, reference comparison
-and a full soak remain validation gates. Windy is later work; D710 serial, a
-local barometer are optional additions. Sound is excluded from this device. Nearby NWS pressure is available as an attributed display fallback.
+and a full soak remain validation gates. PWSWeather/Windy live ingestion needs owner verification; D710 serial and a local barometer are optional additions. Sound is excluded from this device. Nearby NWS pressure is available as an attributed display fallback.
 
 ## Current development status
+
+**v0.8.0-rc.1 is an owner-test prerelease**, installed locally over USB; v0.7.5
+remains the published stable release. No 0.8.0 GitHub Release is published yet.
+The candidate adds factory reset, metric/imperial presentation, Barometer naming,
+PWSWeather and Windy v2 uploaders, configurable local hostnames and cleaner setup
+tabs. Nearby NWS pressure now falls back to fresh NWS Aviation Weather Center
+METAR data when the normal API lags, with pressure type shown in details.
+
+An optional calibrated daylight cloud estimate uses local lux and solar position.
+Its current-sky label is **LUX** on the display and **LUX*** on the webpage when valid, otherwise **NWS**; forecasts remain
+NWS. It is experimental and never uploaded. See [candidate notes](firmware/RELEASE_0.8.0.md),
+[cloud calibration](firmware/LUX_CLOUDS.md), [pressure investigation](firmware/NWS_PRESSURE.md)
+and [owner acceptance checklist](firmware/CONTROLS_CHECKLIST.md).
+
 
 The v0.7.5 release includes the current UI and setup improvements plus the
 renamed `sideout909/WX-Link` update source. Atlas on the documented SC05_X
@@ -47,7 +60,7 @@ Watch/warning colors and stale-data indicators retain their meanings.
 ![Live CYD Weather Link home screen with Atlas readings, connection status, trends and NWS information](assets/screenshots/live-home-screen.png)
 
 Actual display capture from the owner's PanelLan board running v0.5.3,
-with live Atlas reception. The weather icon and barometer use NWS data.
+with live Atlas reception. The pictured weather icon and barometer use NWS data; 0.8.0 can optionally use calibrated local lux for current daylight sky art.
 
 ## 433 MHz station and sensor support
 

@@ -1,5 +1,6 @@
 #include "display_preferences.h"
 #include "display_themes.h"
+#include "home_fonts.h"
 #include "moon_icon.h"
 #include "lunar_phase.h"
 #include <cmath>
@@ -30,6 +31,20 @@ int main(){
   assert(!std::strcmp(uvLevel(3),"Moderate"));assert(!std::strcmp(uvLevel(5),"Moderate"));
   assert(!std::strcmp(uvLevel(6),"High"));assert(!std::strcmp(uvLevel(8),"Very High"));assert(!std::strcmp(uvLevel(11),"Extreme"));
   assert(!std::strcmp(uvLevel(std::numeric_limits<float>::quiet_NaN()),"Unavailable"));
+  // Full-height targets follow the owner's marked-up header.
+  for(int y=0;y<44;++y){
+    assert(headerTarget(0,y)==HeaderTarget::Outdoor);
+    assert(headerTarget(103,y)==HeaderTarget::Outdoor);
+    for(int x:{104,160,223,240,278,310,319})assert(headerTarget(x,y)==HeaderTarget::Settings);
+  }
+  assert(headerTarget(10,44)==HeaderTarget::None);
+  assert(headerTarget(-1,10)==HeaderTarget::None);
+  assert(headerTarget(320,10)==HeaderTarget::None);
+  assert(headerTarget(10,-1)==HeaderTarget::None);
+  int barometer_width=0;
+  for(const char* c="BAROMETER";*c;++c)for(unsigned i=0;i<home_fonts::tile_label.count;++i)
+    if(home_fonts::tile_label.glyphs[i].code==unsigned(*c)){barometer_width+=home_fonts::tile_label.glyphs[i].advance;break;}
+  assert((barometer_width+32)/64<=82);
   const auto layout=statusLayout(20,28,30);assert(layout.rf>167&&layout.wifi>layout.rf+20&&layout.aprs>layout.wifi+28);
   assert(layout.wifi_left<layout.wifi&&layout.wifi_right<layout.aprs&&layout.aprs+30==310);
   assert(forecast_icon::classify("Partly Cloudy And Breezy")==forecast_icon::Kind::PartlyCloudy);

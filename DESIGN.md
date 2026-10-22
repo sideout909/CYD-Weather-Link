@@ -27,7 +27,7 @@ CC1101 receiver + antenna -- SPI/interrupts --> CYD ESP32
                                               |-> Weather Underground over Wi-Fi
                                               |-> direct APRS-IS / CWOP over Wi-Fi
                                               |-> Weathercloud over Wi-Fi
-                                              |-> planned Windy/PWSWeather adapters
+                                              |-> opt-in Windy/PWSWeather adapters
                                               |<- local NWS alerts/forecast over Wi-Fi
                                               `-> optional UART -> serial level interface
                                                           -> D710 GPS/weather port
@@ -71,7 +71,7 @@ Use a single embedded application, initially targeting PlatformIO/Arduino with r
 9. Retrieve active local NWS alerts for configured station coordinates without blocking reception. Track alert-fetch health separately from local measurements and output connections.
 10. Apply orange full-screen watch and red warning themes; this version uses visual alerts only.
 11. Retrieve a local NWS day/night and hourly forecast for configured station coordinates in a bounded background task. Cache the last good forecast, expose its source/age, and track forecast health independently of alerts and local measurements.
-12. Support configured CWOP participation and selectable Weathercloud, Windy.com, and later PWSWeather observation uploaders, reusing the observation model while keeping destination identity, scheduling, credentials, and health separate. Focus initial PWS upload work on Weather Underground, Weathercloud, and Windy. Validate APRS/CWOP routing to avoid duplicate uploads.
+12. Support configured CWOP participation and selectable Weathercloud, Windy.com, and PWSWeather observation uploaders, reusing the observation model while keeping destination identity, scheduling, credentials, and health separate. Focus initial PWS upload work on Weather Underground, Weathercloud, and Windy. Validate APRS/CWOP routing to avoid duplicate uploads.
 
 Use separate tasks or nonblocking scheduling with explicit ownership of shared state. Network outages, TLS handshakes, and screen updates must not stall receiver processing or serial output. Benchmark memory with display buffers, decoder, Wi-Fi, and TLS active together. Watchdog recovery and brownout/restart behavior are acceptance requirements.
 
@@ -586,3 +586,26 @@ Failed mDNS startup retries every 30 seconds and does not block core weather
 operation. Existing setup DNS and 192.168.4.1 remain available. Default name
 assumes one unit per local network; clients without local multicast support
 can use the IP. No component, GPIO or storage-layout change is required.
+
+
+## v0.8.0 owner-test candidate
+
+Firmware adds independent PWSWeather and Windy.com v2 credentials, scheduling and
+status, with live ingestion pending owner verification. All exporters still use
+strict live field freshness and protocol-defined units; a metric/imperial display
+setting never alters archival or uploader units. Hostnames are saved per device
+and change mDNS/DHCP/browser/display addresses; numeric IP is always available.
+
+Factory reset requires authenticated typed confirmation or a deliberate physical
+hold/release/hold sequence for forgotten credentials. It clears only wxlink
+settings and enumerated weather history/cache files, retains firmware/partitions,
+and completes a durable reset marker last so interrupted work retries at boot
+before workers start. Logical deletion is not forensic credential erasure.
+
+NWS AWC pressure fallback and an opt-in calibrated daylight lux estimator add no
+hardware or GPIO. The estimator affects current sky art only and is source-labeled,
+with low-sun/night/stale/uncalibrated fallback to NWS. Neither it nor NWS pressure
+is passed off as local observation telemetry. Details and evidence are in
+firmware/LUX_CLOUDS.md and firmware/NWS_PRESSURE.md. PARTS.md is reconciled below
+with these software-only additions; the optional local barometer still requires
+its own electrical and calibration review.

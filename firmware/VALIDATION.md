@@ -1,9 +1,126 @@
 # Core firmware validation
 
-Current installed build: **v0.7.4**, October 22, 2026. This is a bench
+Current installed candidate: **v0.8.0-rc.1**, October 22, 2026. Published stable: v0.7.5. This is a bench
 log: older version sections describe the state at the time, not current
 limitations. The latest results are below; [WORK.md](WORK.md) tracks remaining
 work and [CONTROLS_CHECKLIST.md](CONTROLS_CHECKLIST.md) tracks owner checks.
+
+## v0.8.0-rc.1 prerelease bench checks — October 22
+
+Owner reauthorized USB and requested an owner-test prerelease, including pressure
+and lux implementation. Before installation, weather/archive checkpoints saved
+successfully and a private full-flash backup was stored under ignored captures.
+No backup, credentials, raw captures or NVS images are release assets.
+
+- SC05_X build, host suite and synthetic browser checks pass. Host coverage
+  includes durable scoped reset failure/retry, conversion boundaries, hostname
+  validation, PWS/Windy fields/freshness, Windy scheduling/timer wrap, candidate
+  version ordering and solar/light stabilization/replay/low-sun guards.
+- USB upload succeeded; device reports 0.8.0-rc.1, restored history/archive,
+  working display/radio/Wi-Fi, real Atlas packets and APRS connection. Startup
+  HTTP authentication/schema/CSRF checks passed. The updated startup test also
+  rejects invalid new settings and verifies new secret fields remain masked.
+- Direct NWS and device KRNP samples both lagged four hours. Fresh NWS AWC
+  pressure was accepted on-device without relaxing the 90-minute age limit.
+  Provider NWS AWC, station KRNP and Altimeter setting are explicit. See NWS_PRESSURE.md.
+- Actual browser checks pass for secret masking, negative configuration requests,
+  current fallback pressure, Overview-only Sun & Moon, top connection health and
+  closed-by-default/tappable wiring. Local screenshots are ignored in captures.
+- Temporary metric/hostname save/reboot succeeded. `wxlink-bench.local` resolved
+  via avahi to the device IP. Metric display was captured. Restored original
+  imperial/wxlink preferences; calibration and original exporter enable flags
+  survived. New PWS/Windy uploaders remain off, with no test uploads submitted.
+- Owner confirmed a cloud-free day. Median normalized calibration used 153 minutes
+  of today's light and was saved/enabled. Startup correctly showed warmup while
+  awaiting distinct fresh samples. Bench caught whole-second/anchored RF clock
+  mismatch during warmup; using the same millisecond snapshot clock fixed it.
+  Five distinct samples over 122 seconds then produced Likely clear; six over
+  184 seconds retained it. Live web source became LUX*; owner requested centered
+  LUX without an asterisk on the display only.
+  See LUX_CLOUDS.md for experimental limitations and thresholds.
+
+Final-image snapshots showed roughly 72–123 KiB free internal heap across
+startup/TLS and steady operation, with about 10.7 KiB loop-stack high-water
+headroom. These are snapshots, not worst-case soak measurements. Device-specific artifacts remain ignored under
+captures/firmware-validation/v080-*.json and PNGs.
+
+A real destructive reset was not executed against owner data. Physical touch,
+cloudy-day/seasonal classifier accuracy, new service-account ingestion, interrupted
+OTA and the reported overnight touch failure still require owner acceptance.
+Nothing from this prerelease has been published as stable.
+
+## Local v0.7.6 build — header targets, Outdoor/status and layered sun
+
+Owner supplied captures/firmware-validation/touch-map-v075/home-overlay owner markup.png.
+Implemented header split at x=104 over y=0–43, consolidated Outdoor/status,
+explicit browser-settings guidance and composed daytime sun/condition layers.
+The existing screenshot credential guard remains unchanged. Legacy USB detail
+index 5 now aliases Outdoor index 0; no separate Link Status screen remains.
+
+SC05_X firmware build and host checks passed; header tests cover both sides of
+the boundary over all 44 rows and ensure body/out-of-bounds points do not route
+as headers. The browser suite passed day sun/cloud layering across themes,
+night overlays, moon-phase changes, setup and existing dashboard checks.
+The changed forecast test selects base celestial images separately from the
+new overlay images so two-layer cards do not shift its night-period indices.
+
+No v0.7.6 device installation, GitHub push or release was performed. Owner
+requested USB be disconnected and left available for Connect testing; the last
+console session completed, fuser showed no holder, and no further USB calls
+were made. Physical combined-page/settings/sun appearance awaits owner review.
+
+An installed-v0.7.5 pressure detail screenshot (before USB handoff) reported
+“NWS pressure observation too old or invalid”; no accepted station/sample was
+shown. This is a combined failure message, not proof NWS returned stale data.
+Investigation remains a non-critical priority bug; no freshness rule was changed.
+
+## Owner checks and touch-target review — October 22
+
+Owner confirmed setup-network hostname access, all themes, normal Dim/Off sleep
+and wake, and forecast moon appearance. Home-LAN hostname had already been
+confirmed. This does not resolve the separate overnight touch failure or assert
+that every detailed outage/contrast/recovery permutation was tested.
+
+Owner will perform interrupted OTA testing; no result reported yet. Power-loss/
+history-retention stress testing is lower priority because external services
+retain successfully uploaded observations. This is prioritization, not a claim
+that local persistence or unsent observations cannot be lost.
+
+A source-derived touch map was generated from nine live v0.7.5 screenshots;
+Settings and Alerts use labeled schematics to avoid setup credentials or a fake
+alert capture. No replay was used, and the device was returned to Home. Local
+artifact: captures/firmware-validation/touch-map-v075/index.html; static preview:
+home-review.png. Rebuild with tools/generate-touch-map.py after refreshing PNGs.
+
+Host/browser checks passed: exclusive full-screen pixel coverage, boundary checks
+for Wi-Fi/measurement/alert regions, 11 screen views, APRS/CWOP geometry, gesture
+layers and wake-only mode, with no JavaScript errors. These verify the generated
+review artifact, not physical touch accuracy or the unresolved overnight failure.
+The map is not empirical touch-frequency data; no firmware hit regions changed.
+Review notes: Wi-Fi target is y 26–43 (18 px); Home y 184–187 is inactive; the
+full y 0–25 header opens Settings. Await owner feedback before adjusting targets.
+
+## Open observation — overnight dim/touch failure on v0.7.5
+
+Owner reported the device remained in dim mode overnight and did not respond
+to touch. It was already reset before the investigation. Post-reset USB status
+reported v0.7.5, display initialized, brightness 160, idle 41 seconds, uptime
+46 seconds and touch_events 3. Wi-Fi/radio/APRS were working; checkpoint/archive
+restored with no reported archive failures. These are post-reset observations,
+not a diagnosis of the failed state. A brief source review found no clear cause.
+Owner requested stopping the deep investigation and will leave it running on
+recurrence for read-only status/touch/wake checks. No firmware changes made.
+
+## Owner-confirmed normal hosted OTA — v0.7.5
+
+After publication, v0.7.4 initially reported “Release is incompatible or invalid”.
+The public image URL named the new WX-Link repository while the device still
+used the old saved source. Saving `sideout909/WX-Link` and restarting resolved
+lookup/validation. The owner then tested OTA and confirmed all good after being
+asked to verify beyond 90 seconds and perform a subsequent controlled restart.
+This is owner-reported evidence; no separate post-update USB inspection was run.
+No unexpected rollback was reported. Interrupted transfers and deliberate
+failed-boot recovery were not exercised and remain separate acceptance items.
 
 ## Public release package — v0.7.5
 

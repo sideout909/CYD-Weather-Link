@@ -13,4 +13,11 @@ inline bool pascals(double value,const char* unit,bool sea_level,float& out){
   if(value<(sea_level?80000:20000)||value>110000)return false;
   out=value;return true;
 }
+inline bool metar(double sea_level_hpa,double altimeter_hpa,int64_t stamp,int64_t now,float& pa,bool& sea,bool& altimeter){
+  if(!fresh(stamp,now))return false;
+  if(pascals(sea_level_hpa,"wmoUnit:hPa",true,pa)){sea=true;altimeter=false;return true;}
+  if(pascals(altimeter_hpa,"wmoUnit:hPa",true,pa)){sea=false;altimeter=true;return true;}
+  return false;
+}
+
 }

@@ -13,6 +13,15 @@ The owner reports exercising the preceding firmware over the last 24 hours.
 USB startup checks and owner use do not complete interrupted-transfer or
 deliberate failed-boot hosted OTA acceptance tests.
 
+## 0.8.0 prerelease
+
+0.8.0-rc.1 is an owner-test candidate installed locally. Final 0.8.0 release and
+publication require owner approval. The updater/package tools accept bounded
+`-rc.N` identifiers, order final 0.8.0 after 0.8.0-rc.N and keep GitHub's stable
+`releases/latest` lookup. A prerelease therefore does not become the normal
+stable OTA target. Existing stable numeric versions and strict release-URL,
+board/image/hash/rollback checks remain in force.
+
 ## Owner setup
 
 1. On the setup page, open Updates. The project source is prefilled in newer

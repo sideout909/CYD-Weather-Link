@@ -11,7 +11,13 @@ int main(){
   for(const char* bad:{"","owner","/repo","owner/","owner/repo/more","../repo","owner/..","owner/repo?token=SECRET","https://github.com/owner/repo"})assert(!repository(bad));
   assert(newer("0.3.1","0.3.0"));assert(newer("1.0.0","0.99.99"));
   assert(!newer("0.3.0","0.3.0"));assert(!newer("0.2.9","0.3.0"));
+  assert(newer("0.8.0","0.8.0-rc.1"));assert(newer("0.8.0-rc.2","0.8.0-rc.1"));
+  assert(newer("0.8.0-rc.1","0.7.5"));assert(!newer("0.8.0-rc.1","0.8.0"));
+  assert(!newer("0.8.0-rc.1","0.8.0-rc.1"));
   std::array<unsigned,3> parts{};
+  assert(version("0.8.0-rc.1",parts));
+  for(const char* bad:{"0.8.0-rc.","0.8.0-rc.0","0.8.0-rc.-1","0.8.0-rc.65536","0.8.0-rc.1/evil"})assert(!version(bad,parts));
+  assert(firmwareUrl("https://github.com/owner/repo/releases/download/v0.8.0-rc.1/weather-link-panellan_sc05_x.bin","owner/repo"));
   for(const char* bad:{"0.3","0.3.0-beta","v0.3.0","0.3.0.1","-1.0.0","65536.0.0","0..0"})assert(!version(bad,parts));
   assert(sha256(std::string(64,'a')));assert(!sha256(std::string(63,'a')));assert(!sha256(std::string(64,'z')));
   assert(firmwareUrl("https://github.com/owner/repo/releases/download/v0.3.1/weather-link-panellan_sc05_x.bin","owner/repo"));

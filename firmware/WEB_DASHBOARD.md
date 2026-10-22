@@ -142,3 +142,14 @@ The Overview “Get connected” card follows the existing onboarding completion
 rule: saved home Wi-Fi, a configured location and a confirmed station. It hides
 after completion; new/incomplete setups retain guidance and top tabs remain
 available. Visibility follows configuration rather than temporary Wi-Fi outages.
+
+
+## v0.8.0 setup organization
+
+Overview alone contains Sun & Moon. Wiring & Health starts with connection
+health, followed by the guarded factory-reset card, then a collapsed/tappable
+CC1101 wiring guide at the bottom. Station & Wi-Fi includes metric/imperial,
+validated hostname and experimental daylight calibration; Sharing includes
+independent PWSWeather and Windy.com v2 options with masked retained secrets.
+Local source labels are LUX on the display / LUX* on web only for a valid daylight estimate,
+otherwise NWS. AWC pressure identifies its provider and altimeter type.

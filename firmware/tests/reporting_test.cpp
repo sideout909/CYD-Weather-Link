@@ -45,6 +45,8 @@ int main(){
   aprs::Weather w;w.epoch=1792497600;w.latitude=42.999999;w.longitude=-83.5;
   w.temperature_valid=true;w.temperature_f=-9;w.humidity_valid=true;w.humidity=100;w.gust_valid=true;w.gust_mph=25.4;
   auto p=aprs::packet("N0CALL-13",w);
+  assert(p.find(" WX-Link\r\n")!=std::string::npos);
+  assert(p.find("CYDWeatherLink")==std::string::npos);
   assert(p.find("4300.00N/08330.00W_.../...g025t-09h00")!=std::string::npos);
   assert(p.find("r000")==std::string::npos);assert(p.find("b00000")==std::string::npos);
   assert(p.size()<512 && p.substr(p.size()-2)=="\r\n");

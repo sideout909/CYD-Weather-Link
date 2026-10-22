@@ -2,7 +2,7 @@
 
 ## Project Structure & Module Organization
 
-This repository contains hardware and firmware planning documents, display concepts/assets, a PC-side RTL-SDR reference-capture tool, and PanelLan ESP32-S3 development firmware. The core firmware includes Atlas/CC1101 input, display/history, protected setup, persistence, NWS clients and opt-in exporters. Live Atlas RF and owner-observed APRS.fi/WU/Weathercloud ingestion are confirmed; SDR comparison, separate CWOP ingestion, hosted OTA and extended soak validation remain open. Windy is follow-up work; D710 serial output and barometer are optional additions. Sound was removed from this hardware version on October 21; earlier audio plans are archived for a possible larger display.
+This repository contains hardware and firmware planning documents, display concepts/assets, a PC-side RTL-SDR reference-capture tool, and PanelLan ESP32-S3 development firmware. The core firmware includes Atlas/CC1101 input, display/history, protected setup, persistence, NWS clients and opt-in exporters. Live Atlas RF and owner-observed APRS.fi/WU/Weathercloud ingestion are confirmed; SDR comparison, separate CWOP ingestion, hosted OTA and extended soak validation remain open. PWSWeather and Windy.com v2 adapters are implemented with live ingestion pending; D710 serial output and barometer are optional additions. Sound was removed from this hardware version on October 21; earlier audio plans are archived for a possible larger display.
 
 - `DESIGN.md` defines the all-in-one weather appliance, data handling, interfaces, and acceptance criteria.
 - `PARTS.md` proposes an ESP32-S3 hardware baseline and purchasing specifications.
@@ -18,7 +18,9 @@ This repository contains hardware and firmware planning documents, display conce
 - `tools/pack-weather-icons.py` packs existing original assets; `tools/verify_setup_page.py` optionally checks the embedded page in headless Brave/Playwright.
 - `tools/pack-home-fonts.py` packs the v2 study's DejaVu glyphs into `firmware/include/home_fonts.h`; source font licensing lives in `assets/fonts/`.
 - `assets/web/` contains local Leaflet 1.9.4 and the browser ZIP/map/elevation and phone dashboard modules; `tools/pack-setup-assets.py` creates deterministic gzip firmware assets. Optional `tools/verify_location_setup.py` mocks every map tile/provider request.
-- `firmware/src/services.cpp` advertises `wxlink.local` via mDNS with HTTP on port 80; device/browser show a numeric IP fallback. Responder startup retries without blocking core weather operation. The default name assumes one unit per LAN.
+- `firmware/src/services.cpp` advertises `wxlink.local` via mDNS with HTTP on port 80; device/browser show a numeric IP fallback. Responder startup retries without blocking core weather operation. A validated saved hostname supports multiple units per LAN; default wxlink and numeric IP fallback remain.
+- `firmware/include/factory_reset.h` and `firmware/src/factory_reset.cpp` implement a durable project-only reset before workers start; do not execute a real reset against owner data during tests.
+- `firmware/include/weather_units.h`, `local_hostname.h`, `pws_weather.h`, `windy_weather.h` and `lux_cloud.h` keep conversions, safe naming, uploader fields/scheduling and experimental solar/light modeling portable for host checks. See `firmware/RELEASE_0.8.0.md` for prerelease acceptance gates.
 - `firmware/include/setup_credentials.h` separates the visible generated AP key from custom admin credentials; legacy migration must preserve private admin login.
 - `firmware/include/web_history.h` bounds the protected browser minute-history pages; `firmware/WEB_DASHBOARD.md` documents the phone overview, cached forecast/alerts and setup-first behavior.
 - `firmware/include/display_preferences.h` defines persisted clock/date choices, display inactivity policy, UV levels and compact status layout; touch wakes the display without pausing reception or network services.

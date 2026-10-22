@@ -48,9 +48,9 @@
       const card=text('div','');card.className='card';
       card.append(text('h3',candidate.name));
       const readings=[];
-      if(Number.isFinite(candidate.temperature_F))readings.push(candidate.temperature_F.toFixed(1)+' °F');
+      if(Number.isFinite(candidate.temperature_F))readings.push((window.wxConfig?.units==='metric'?(candidate.temperature_F-32)/1.8:candidate.temperature_F).toFixed(1)+(window.wxConfig?.units==='metric'?' °C':' °F'));
       if(Number.isFinite(candidate.humidity))readings.push(candidate.humidity+'% humidity');
-      if(Number.isFinite(candidate.wind_mph))readings.push(candidate.wind_mph.toFixed(1)+' mph wind');
+      if(Number.isFinite(candidate.wind_mph))readings.push((window.wxConfig?.units==='metric'?candidate.wind_mph*1.609344:candidate.wind_mph).toFixed(1)+(window.wxConfig?.units==='metric'?' km/h wind':' mph wind'));
       card.append(text('p',readings.join(' · ')||'Waiting for more measurements…'));
       const details=document.createElement('details');details.append(text('summary','Detection details'));
       details.append(text('p','Sensor '+candidate.id+' · channel '+candidate.channel+' · '+candidate.sightings+' independent sightings · last heard '+candidate.age_s+'s ago · '+state.profile));

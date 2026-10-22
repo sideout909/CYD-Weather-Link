@@ -33,6 +33,6 @@ inline std::string packet(const std::string& call,const Weather& w){
   if(w.humidity_valid&&w.humidity>0&&w.humidity<=100){std::snprintf(b,sizeof(b),"h%02u",w.humidity==100?0:w.humidity);out+=b;}
   auto rain=[&](char code,bool valid,float inches){if(valid&&std::isfinite(inches)&&inches>=0&&inches<9.995f){std::snprintf(b,sizeof(b),"%c%03d",code,int(std::lround(inches*100)));out+=b;}};
   rain('r',w.rain_hour_valid,w.rain_hour);rain('p',w.rain_24h_valid,w.rain_24h);rain('P',w.rain_today_valid,w.rain_today);
-  out+=" CYDWeatherLink\r\n";return out.size()<=512?out:std::string{};
+  out+=" WX-Link\r\n";return out.size()<=512?out:std::string{};
 }
 }

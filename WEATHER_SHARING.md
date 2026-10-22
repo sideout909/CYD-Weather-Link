@@ -234,3 +234,14 @@ service is receiving its data. Record Weathercloud alongside APRS.fi and WU
 as owner-verified ingestion. This is an owner observation, not a new automated
 comparison of every uploaded field or a validation of separate CWOP routing.
 No account identifiers or upload keys belong in this record.
+
+
+## 0.8.0 prerelease implementation
+
+PWSWeather and Windy.com v2 adapters now join WU/Weathercloud/APRS-CWOP as
+independent opt-in destinations. Both new integrations use five-minute successful
+cadences and strict live field eligibility, with bounded retry backoff. They are
+software-tested and built, but not yet verified with real owner station accounts.
+See firmware/PWSWEATHER.md and firmware/WINDY.md for authentication, units,
+acceptance semantics and the current API contract. Display units never change
+protocol units. APRS software/login and weather comment now identify WX-Link.

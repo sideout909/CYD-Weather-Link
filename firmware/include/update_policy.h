@@ -27,10 +27,21 @@ inline bool version(const std::string& value,std::array<unsigned,3>& parts){
     parts[i]=number;
     if(i<2){if(at==value.size()||value[at++]!='.')return false;}
   }
-  return at==value.size();
+  if(at==value.size())return true;
+  if(value.compare(at,4,"-rc."))return false;
+  at+=4;unsigned rc=0,count=0;
+  while(at<value.size()&&std::isdigit(static_cast<unsigned char>(value[at]))){rc=rc*10+unsigned(value[at++]-'0');if(++count>5||rc>65535)return false;}
+  return count&&rc>0&&at==value.size();
+}
+inline unsigned releaseCandidate(const std::string& value){
+  const auto at=value.find("-rc.");if(at==std::string::npos)return 0;
+  unsigned n=0;for(size_t i=at+4;i<value.size();++i)n=n*10+unsigned(value[i]-'0');return n;
 }
 inline bool newer(const std::string& candidate,const std::string& current){
-  std::array<unsigned,3>a{},b{};return version(candidate,a)&&version(current,b)&&a>b;
+  std::array<unsigned,3>a{},b{};if(!version(candidate,a)||!version(current,b))return false;
+  if(a!=b)return a>b;
+  const unsigned ar=releaseCandidate(candidate),br=releaseCandidate(current);
+  return ar==0?br!=0:br!=0&&ar>br;
 }
 inline bool sha256(const std::string& value){
   if(value.size()!=64)return false;

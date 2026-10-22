@@ -4,6 +4,30 @@ script_dir=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)
 project_dir=$(dirname -- "$script_dir")
 test_binary=$(mktemp /tmp/cyd-weather-test.XXXXXX)
 trap 'rm -f -- "$test_binary"' EXIT
+g++ -std=c++17 -Wall -Wextra -Werror -Wno-misleading-indentation \
+    -I"$project_dir/firmware/include" \
+    "$project_dir/firmware/tests/lux_cloud_test.cpp" -o "$test_binary"
+"$test_binary"
+g++ -std=c++17 -Wall -Wextra -Werror \
+    -I"$project_dir/firmware/include" \
+    "$project_dir/firmware/tests/local_hostname_test.cpp" -o "$test_binary"
+"$test_binary"
+g++ -std=c++17 -Wall -Wextra -Werror \
+    -I"$project_dir/firmware/include" \
+    "$project_dir/firmware/tests/windy_weather_test.cpp" -o "$test_binary"
+"$test_binary"
+g++ -std=c++17 -Wall -Wextra -Werror \
+    -I"$project_dir/firmware/include" \
+    "$project_dir/firmware/tests/pws_weather_test.cpp" -o "$test_binary"
+"$test_binary"
+g++ -std=c++17 -Wall -Wextra -Werror \
+    -I"$project_dir/firmware/include" \
+    "$project_dir/firmware/tests/weather_units_test.cpp" -o "$test_binary"
+"$test_binary"
+g++ -std=c++17 -Wall -Wextra -Werror \
+    -I"$project_dir/firmware/include" \
+    "$project_dir/firmware/tests/factory_reset_test.cpp" -o "$test_binary"
+"$test_binary"
 g++ -std=c++17 -Wall -Wextra -Werror \
     -I"$project_dir/firmware/include" \
     "$project_dir/firmware/tests/display_preferences_test.cpp" -o "$test_binary"
