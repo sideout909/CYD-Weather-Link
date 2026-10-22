@@ -1,37 +1,26 @@
 # Current development state
 
-## Current release: Windy TLS fix 0.8.1
+## Current release: 0.8.2 — October 22, 2026
 
-After stable 0.8.0 publication, owner reported Windy offline. Diagnostic firmware
-confirmed successful DNS but HTTP -1 / TLS -12288. Direct trust of verified GTS
-Root R1 fixed the bundle-chain failure; real-device HTTP 200 acceptance is now
-confirmed. Network credentials and DNS were unchanged. Protected health fields
-now separate DNS, HTTP, TLS, last attempt and last success; success normalizes
-SDK positive handshake return codes to zero TLS error. Owner confirmed Windy online and approved stable 0.8.1 publication. The installed
-rc.1 is left running for an owner OTA update; stable diagnostics also normalize
-positive SDK handshake results to zero TLS error. See WINDY_TLS_FIX.md.
+Published stable and installed firmware are **0.8.2**. The public GitHub image
+installed through OTA, passed portal startup checks, confirmed at 33 seconds and
+remained running beyond 100 seconds. The semantic-settings validation/save-lock
+deadlock and resulting 0.8.1 rollback are fixed; normal OTA acceptance is complete.
+Windy's verified-root TLS fix is retained and ingestion is owner-confirmed.
+No credentials, DNS settings or weather history were changed by the repair.
 
+The 0.8.0 feature batch is included: scoped factory reset, unit preferences,
+Barometer label, PWSWeather/Windy, configurable hostname, updated touch targets,
+layered sun, cleaner web tabs, fresh AWC pressure fallback and experimental local
+lux clouds. Owner calibration remains enabled; other units default off/uncalibrated.
+Metric/custom-hostname persistence and mDNS resolved on the bench; original
+imperial/wxlink preferences were restored. PWSWeather ingestion, destructive reset,
+cloud accuracy and extended acceptance checks remain open.
 
-Updated October 22, 2026 · **v0.8.0 stable release**, approved by the owner after
-use of the USB-installed **v0.8.0-rc.1** candidate. The device remains on that
-candidate so the owner can test the stable update through OTA. See
-[release notes](RELEASE_0.8.0.md), [evidence](VALIDATION.md),
-[owner controls](CONTROLS_CHECKLIST.md) and [completed queue](FEATURE_QUEUE.md).
-
-The candidate includes factory reset, unit preferences, Barometer labeling,
-PWSWeather/Windy v2, configurable hostnames, owner-marked header targets,
-combined Outdoor/status, layered sun art and cleaned-up setup tabs. NWS AWC
-pressure fallback works on hardware. Experimental local daylight clouds are
-calibrated from today's owner-confirmed clear-sky history and enabled on the
-owner's unit. Default for other users is off/uncalibrated. Actual PWSWeather and
-Windy account ingestion, real reset and longer-term cloud accuracy remain gates.
-
-Temporary metric/custom-hostname settings survived reboot, and the custom .local
-name resolved over mDNS; original imperial/wxlink settings were then restored.
-New uploaders remain off; existing sharing settings and calibration are retained.
-The separate overnight dim/touch incident and interrupted OTA tests remain open.
-The sections below are historical records; later 0.8.0 evidence supersedes their
-no-USB/no-flash and not-implemented statements.
+Current assignments and remaining gates: [TODO_AUDIT.md](TODO_AUDIT.md),
+[FEATURE_QUEUE.md](FEATURE_QUEUE.md), [CONTROLS_CHECKLIST.md](CONTROLS_CHECKLIST.md).
+Earlier records below retain their original version-specific evidence and may
+mention restrictions or pending checks that were subsequently superseded.
 
 ## Historical local v0.7.6 work — included in 0.8.0-rc.1
 
@@ -219,7 +208,7 @@ original priority checks were:
 
 The owner's authoritative implementation order and current checkpoints are in
 [FEATURE_QUEUE.md](FEATURE_QUEUE.md). Factory reset, units and Barometer label
-are locally implemented/tested; physical acceptance is pending.
+are implemented, tested and installed; specific physical acceptance remains open.
 
 - Want: signed OTA releases with independent publisher-signature verification,
   protected signing keys, rotation/recovery and negative validation tests. Keep
@@ -252,13 +241,14 @@ are locally implemented/tested; physical acceptance is pending.
   does not establish remote acceptance.
 - Test interrupted OTA transfer and deliberate failed-boot rollback before
   unattended installation. Normal v0.7.5 OTA, beyond-90-second operation and
-  subsequent restart are owner-confirmed. Automatic checking/installation default off and remain
+  subsequent restart are owner-confirmed. Hosted 0.8.2 startup confirmation and
+  beyond-100-second operation also passed. Automatic checking/installation default off and remain
   owner-controlled; publishing source does not enable them.
 - Expand station integrations with real community captures, identity/field/
   unit/integrity review and appropriate OOK/FSK receiver profiles. Discovery
   confidence must fit each station's transmission cadence. See
   [decoder scope](../DECODER_SUPPORT.md) and [candidates](../STATION_SUPPORT.md).
-- PWSWeather/Windy v2 are implemented in 0.8.0-rc.1; validate live ingestion. D710 serial and a local barometer
+- PWSWeather live ingestion remains unverified; Windy v2 ingestion is owner-confirmed. D710 serial and a local barometer
   are optional additions with unresolved hardware/pin requirements. SD remains
   optional. Calibrated lux-based cloud inference is experimental in 0.8.0-rc.1; default icons
   derive from NWS forecasts.

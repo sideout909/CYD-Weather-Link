@@ -29,7 +29,8 @@ deliberate failed-boot tests remain open; see [patch notes](RELEASE_0.8.2.md).
 ## 0.8.1 Windy patch
 
 Owner confirmed the Windy station online after the TLS fix and approved stable
-0.8.1. Check now offers it to 0.8.0 and 0.8.1-rc.1 devices. This patch uses verified
+0.8.1. That release was superseded by 0.8.2 after its OTA startup validation
+regression was reproduced. Check now offers 0.8.2. The retained Windy fix uses verified
 GTS Root R1 for Windy; certificate/hostname checks remain enabled. New protected
 health diagnostics separate DNS, HTTP, TLS, last attempt and last acceptance.
 Other services keep their existing trust. No 0.8.0 release asset was replaced.
@@ -37,7 +38,8 @@ Other services keep their existing trust. No 0.8.0 release asset was replaced.
 ## 0.8.0 stable release and candidate upgrade
 
 The owner approved stable 0.8.0 after using the locally installed 0.8.0-rc.1
-candidate. Stable 0.8.0 is available through Check now; no USB flash is needed. The updater/package tools accept bounded
+candidate. This historical release is superseded by 0.8.2 through Check now;
+no USB flash is needed. The updater/package tools accept bounded
 `-rc.N` identifiers, order final 0.8.0 after 0.8.0-rc.N and keep GitHub's stable
 `releases/latest` lookup. A prerelease therefore does not become the normal
 stable OTA target. Existing stable numeric versions and strict release-URL,

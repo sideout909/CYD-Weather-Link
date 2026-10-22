@@ -4,7 +4,7 @@ Board: PanelLan ZX2D80CE02S-V10, 320×240 landscape. Record date/build and mark
 each result. These checks use touch and a phone/browser; the CC1101 is not
 needed for navigation. Missing local readings are expected until reception.
 
-## Owner verification for v0.8.0-rc.1
+## Current owner verification — v0.8.2
 
 - [ ] Left header x 0–103 across both rows opens Outdoor/status; the rest of
       the full header opens WEB SETTINGS, including all RF/Wi-Fi/APRS indicators.
@@ -16,8 +16,10 @@ needed for navigation. Missing local readings are expected until reception.
 - [ ] Home and forecast sun/condition layers look consistent with nighttime moon
       overlays across themes. Check clear, partly cloudy, overcast and precipitation.
 
-Candidate is installed over USB. Source/host/browser checks and screenshots do
-not replace your physical control verification. Published stable is now v0.8.0, approved after owner use of the candidate.
+Installed and published stable is v0.8.2, accepted through hosted OTA with startup
+confirmation and beyond-100-second operation. Source/host/browser checks and
+screenshots do not replace physical control verification. Unchecked items below
+remain specific acceptance checks, not claims that the features are missing.
 
 - [ ] Factory reset: first confirm Cancel leaves settings/history intact. Only
       test the actual erase when you are ready to reconfigure everything. Web
@@ -26,8 +28,11 @@ not replace your physical control verification. Published stable is now v0.8.0, 
 - [x] Metric units and custom hostname persisted through a bench save/reboot;
       temporary custom .local name resolved; original settings restored.
 - [ ] Check metric/imperial visual fit on all desired pages and themes.
-- [ ] Enter real PWSWeather/Windy station credentials if desired, enable separately,
-      and verify ingestion on each service; accepting HTTP is not map verification.
+- [ ] Verify PWSWeather ingestion with a real account if desired.
+- [x] Windy received HTTP 200 on hardware and owner confirmed station online.
+- [x] Hosted OTA to 0.8.2 passed startup confirmation and >100-second operation.
+- [ ] Interrupted OTA download and controlled deliberate failed-boot rollback;
+      separate from normal OTA acceptance.
 - [x] Live web check: connection health first, wiring collapsed at bottom, Sun &
       Moon only in Overview; saved secrets absent from public configuration.
 - [x] Fresh nearby NWS AWC barometer fallback accepted on hardware. Check pressure

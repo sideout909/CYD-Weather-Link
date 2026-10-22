@@ -6,4 +6,4 @@ Startup checks now explicitly verify both invalid-setting rejection and a valid 
 
 The Windy TLS fix from 0.8.1 is retained. Stable/Dev update-channel selection is documented for a future release only.
 
-Validation: SC05_X firmware build and complete host-check script pass. Live pending-boot confirmation is checked separately after installation; interrupted-transfer and deliberate failed-boot testing remain open.
+Validation: SC05_X firmware build and complete host-check script pass. The owner device installed the public image through OTA, passed startup checks, confirmed at 33 seconds and remained running beyond 100 seconds without rollback. Interrupted-transfer and deliberate failed-boot testing remain open.

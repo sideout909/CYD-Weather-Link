@@ -1,7 +1,8 @@
 # Ordered implementation queue — October 22, 2026
 
 Owner requested this order and later authorized USB/device updates again.
-Owner approved publication after 0.8.0-rc.1 use. Stable version is 0.8.0;
+Published stable and installed device are 0.8.2; hosted OTA startup confirmation
+and beyond-100-second operation passed. Windy ingestion is owner-confirmed;
 remaining field-specific validation gates below stay explicit.
 Save actual checks and next steps here at each feature boundary.
 
@@ -17,9 +18,10 @@ Save actual checks and next steps here at each feature boundary.
    station/key controls, protected persistence, status, five-minute cadence and
    bounded backoff. SC05_X firmware build, host and browser checks pass.
    Live provider acceptance remains unverified. See `PWSWEATHER.md`.
-5. **Windy uploading — software complete; live ingestion pending.** v2 HTTPS,
+5. **Windy uploading — implemented; live ingestion owner-confirmed.** v2 HTTPS,
    Bearer station password, safe status, five-minute cadence/backoff/retry_after.
-   Host/browser checks pass. See `WINDY.md`.
+   Host/browser checks pass; real device HTTP 200 and owner station-online check
+   passed after the TLS fix retained in 0.8.2. See `WINDY.md`.
 6. **Configurable hostnames — implemented.** Validated persisted DNS labels,
    mDNS, DHCP hostname, display/web URLs and IP fallback; default wxlink preserved.
    Multi-sensor field sources remain a separate deferred idea.
@@ -33,10 +35,10 @@ Save actual checks and next steps here at each feature boundary.
    LUX on display / LUX* on web only when valid, NWS fallback otherwise.
    Owner authorized today's clear-day data for calibration. See `LUX_CLOUDS.md`.
 
-## Additional request for the next local build
+## Additional completed request
 
 APRS login software identity and weather-packet comment now use WX-Link in
-the installed prerelease, with its current firmware version in the login. Build
+the installed stable firmware, with its current firmware version in the login. Build
 and reporting host checks pass; normal live reporting resumed after USB update.
 
 ## Existing local v0.7.6 work
@@ -63,5 +65,15 @@ provider narrative is kept verbatim. Existing settings default to imperial.
 SC05_X build, host suite and browser suite pass for reset/units.
 
 Barometer label fits the original tile font in the host check; build and host
-suite pass. PWSWeather implementation is now present. Windy is now integrated; live ingestion remains owner acceptance.
+suite pass. PWSWeather implementation is present with live acceptance pending.
+Windy live ingestion is owner-confirmed.
 USB access was reauthorized for the 0.8.0 prerelease bench checks.
+
+
+## Next release / deferred roadmap
+
+- Stable/Dev update-channel selector: Stable default, explicit Dev opt-in,
+  persisted selection and clear labeling; compatibility/hash/rollback checks retained.
+  Define channel-switch/downgrade policy. Note only; no channel code yet.
+- Signed OTA, multiple selected sensor sources, additional validated station families,
+  optional D710/local barometer. See [current TODO assignments](TODO_AUDIT.md).

@@ -1,102 +1,75 @@
-# Outstanding work audit — October 21, 2026
+# Remaining work — stable 0.8.2, October 22, 2026
 
-Quick documentation/source review before preparing the separate WXLink Connect
-handoff. Baseline is local v0.7.3, installed over USB. This audit does not claim
-new soak, RF, power or provider tests. Updated October 22 with the release/OTA
-result and local feature requests; historical baseline entries remain below.
+Published GitHub Latest and installed device are **0.8.2**. This is the current
+TODO index; dated work/validation logs retain historical results.
 
-## Already completed; do not reopen as feature TODOs
+## Completed
 
-- Atlas/CC1101 reception, protected setup/discovery, dashboard, recording/export.
-- Owner-confirmed APRS.fi, Weather Underground and Weathercloud ingestion.
-- Date/clock, main header/status updates, packet age, Receiving wording.
-- Seven shared themes, Night low backlight/soft NWS green, forecast moon phases.
-- Sound removed from this hardware; future audio notes are archived.
-- wxlink.local and numeric IP fallback; owner confirmed the name works.
-- v0.7.3 loopback portal startup checks passed on attempt one after the earlier
-  AP-route probe failure. This is not a hosted OTA acceptance test.
+- Atlas/CC1101 reception, protected setup/discovery, dashboard and bounded history/export.
+- Owner-confirmed APRS.fi, Weather Underground, Weathercloud and Windy ingestion.
+- Normal hosted 0.8.2 OTA: startup checks passed, image confirmed at 33 seconds,
+  still running beyond 100 seconds. Settings validation/save-lock deadlock fixed.
+- Factory-reset implementation, metric/imperial presentation, Barometer label,
+  configurable hostname, web tab/health cleanup and NWS AWC pressure fallback.
+- Seven themes, clock/date settings, packet age/status, phase-aware forecast moons,
+  layered sun graphics, setup guidance, header navigation and graph/forecast timeout.
+- Normal Dim/Off wake, themes and forecast moons owner-confirmed. Sound removed.
+- Metric/custom-hostname persistence and mDNS checked on bench; owner defaults restored.
+- Experimental lux clouds implemented/calibrated on owner unit; default off elsewhere.
+- Local touch-target overlay delivered; physical review remains below.
 
-## Remaining priority acceptance checks
+## Owner checks — when convenient
 
-- NWS barometer incident investigated/fixed in 0.8.0-rc.1: api.weather.gov's
-  KRNP sample lagged four hours; NWS AWC had a fresh METAR. Added a validated
-  AWC fallback and explicit altimeter/source/age diagnostics. Physical device
-  accepted the fresh sample; see NWS_PRESSURE.md. No age guard was relaxed.
+- Test interrupted OTA download; report recovery behavior. Deliberate failed-boot
+  rollback needs a separate coordinated bench procedure, not a routine update.
+- If overnight dim/touch lockup recurs, leave the unit powered on for inspection
+  before resetting. Normal short-term wake checks do not resolve that incident.
+- Check updated header touch targets, Settings browser guidance, Barometer fit and
+  metric/imperial layout on desired pages/themes. See [controls](CONTROLS_CHECKLIST.md).
+- Verify PWSWeather ingestion with an account if desired. Windy is already confirmed.
+- Compare LUX/LUX* sky estimates against actual cloudy transitions over several days;
+  recalibrate only in clear direct sun, solar elevation at least 15 degrees.
+- Factory reset is optional acceptance only when ready to erase settings/history
+  and reconfigure. No real destructive reset has been run against owner data.
 
-- Investigate owner-reported v0.7.5 overnight dim/wake failure: screen remained
-  dim and touchscreen did not respond. Owner reset before inspection. After
-  reset, USB status showed a running display/main loop, three touch events,
-  working Wi-Fi/radio/APRS and restored history/archive; this cannot establish
-  the pre-reset cause. No clear dim/wake logic cause found in a brief review.
-  Owner requested no deep investigation yet. On recurrence leave powered on;
-  inspect USB status/uptime, brightness/idle age, touch-event count during taps,
-  live clock/web responsiveness and RF activity before resetting. No firmware
-  fix, touch-controller fault or whole-device freeze has been established.
+## Engineering and joint validation
 
-1. Normal hosted OTA to v0.7.5 is owner-confirmed, including the requested
-   beyond-90-second and restart checks. Interrupted download and deliberate
-   failed-boot rollback remain untested. v0.7.5 is published as Latest; automatic
-   installation remains owner-controlled.
-2. CC1101 versus RTL-SDR counts/fields, antenna/interference observations, and
-   debug-header voltage/headroom with radio/display/Wi-Fi active.
-3. Prolonged TLS/flash/RF load; transmitter silence/unchanged-data recovery;
-   natural-midnight rain, clock/DST transitions, extended network outages and
-   a multiday soak. Owner deprioritized power-loss/history-retention stress
-   testing because external services retain uploaded observations; recovery
-   checks remain deferred rather than claimed passed.
-4. Separate CWOP registration/routing/MADIS ingestion and field-level accuracy
-   at every destination. A connected session is not proof of ingestion.
-5. Owner confirmed themes, normal Dim/Off sleep/wake and forecast moon
-   appearance on October 22. Touch targets remain under review; a local
-   source-derived overlay was requested. The separate overnight dim/touch
-   failure remains open despite normal short-term wake checks passing.
-6. Owner confirmed hostname access on setup Wi-Fi. Home-LAN hostname access
-   was previously confirmed; additional reconnect regression remains optional.
-   Numeric IP remains the fallback when multicast is unavailable.
+- Diagnose overnight dim/touch failure on recurrence: check live clock/web/RF,
+  uptime, brightness/idle age and touch counters before reset. Owner requested
+  no deep dive without recurrence evidence; no cause/fix is established.
+- Compare CC1101 counts/fields with RTL-SDR; review antenna/interference and measure
+  debug-header supply/headroom under simultaneous radio/display/Wi-Fi load.
+- Extended RF/TLS/flash soak, transmitter silence/unchanged-data recovery, natural
+  midnight rain, DST/clock changes and network outages. Power-loss/history stress
+  is lower priority at owner's request, deferred rather than passed.
+- Separate CWOP registration/routing/MADIS ingestion and field-level accuracy at
+  each destination. Connected/sent alone is not ingestion confirmation.
+- Exercise deliberate failed-boot rollback with a controlled recoverable image.
+  Normal hosted OTA passed; interruption/fault testing is still separate.
+- Review seasonal/cloudy lux model accuracy and physical layout feedback.
 
-## Remaining feature roadmap
+## Next release and deferred features
 
-Implementation order/status: [FEATURE_QUEUE.md](FEATURE_QUEUE.md). Items with
-local software completion still require physical acceptance before release.
+- **Next release: Stable / Dev update selector.** Persist user choice in Updates;
+  default existing/new devices to Stable, require explicit Dev prerelease opt-in,
+  clearly label channel/version, and retain compatibility/hash/rollback guards.
+  Define return-to-Stable and downgrade behavior before implementation. TODO only;
+  no channel code yet.
+- **Signed OTA.** Independently verify publisher signatures; plan key protection,
+  rotation/recovery and rejection tests. Keep USB/custom firmware available;
+  no Secure Boot, flash encryption or permanent eFuse changes. Want only.
+- **Multiple sensor sources.** Explicitly assign temperature/wind/pressure devices
+  to one station with per-source/per-field freshness and provenance. Deferred.
+- **More station families.** Use community Connect captures, review native identity,
+  fields/units/integrity and receiver profiles. Atlas is operational; Iris/Notos
+  remain discovery previews. Decoder-library presence is not compatibility.
+- Optional D710 electrical/serial output and local barometer; verify interfaces/pins.
 
-- Next release: offer a persisted Stable / Dev update-channel selector in Updates.
-  Default existing/new devices to Stable; require explicit opt-in for development
-  prereleases. Clearly label the selected channel and retain image compatibility,
-  hash and rollback checks. Planning only; no channel implementation yet.
+## Separate capture project
 
-- Signed OTA releases: verify a publisher signature using a trusted public key
-  independently of GitHub HTTPS and the manifest hash. Cover image/version/board
-  identity, signing-key protection, key rotation and rejected-signature tests.
-  Preserve owner-controlled custom builds and USB reflashing; no Secure Boot,
-  flash-encryption enablement or permanent eFuse changes. Want only, not implemented.
-- User-accessible factory reset (implemented locally; hardware check pending): authenticated webpage action
-  with explicit destructive confirmation, plus a deliberate physical recovery
-  method for a forgotten admin password. Define reset scope visibly: Wi-Fi,
-  admin/AP keys, station/location, sharing credentials, update/display settings
-  and retained weather history. Regenerate initial setup credentials and return
-  to first-run setup. Clear only this project's settings/files; do not erase
-  unrelated flash or alter bootloader/partitions. Check reboot/power-loss behavior
-  and ensure no retained secret is displayed or exported.
+Documents/WXLink Connect has its own progress and hardware acceptance gates.
+Do not mix its NVS/storage, capture evidence or OTA source with production WX Link.
+Nothing in this audit validates or modifies Connect.
 
-- Metric/imperial presentation setting (implemented locally), persisted through restart and shared by
-  device/web views; preserve storage/export protocol units.
-- Main-screen/web "Barometer" label implemented locally; host font fit passes,
-  physical theme/layout check pending.
-- Receive from multiple sensor devices and combine explicitly assigned fields
-  into one station: separate temperature, wind and/or pressure devices. Let the
-  user choose each source identity; retain per-source/per-field freshness and
-  provenance so unrelated or stale measurements are not silently combined.
-  Deferred planning only; owner separately restored configurable hostnames, now implemented in 0.8.0-rc.1.
-- Other station families: Iris/Notos are detection previews, not operational
-  support. Require real captures and field/unit/integrity/profile validation.
-- PWSWeather/Windy v2 adapters implemented in 0.8.0-rc.1; live destination acceptance pending.
-- Optional D710 electrical/serial and local barometer with verified interfaces.
-- Experimental calibrated lux-to-sky inference is implemented in 0.8.0-rc.1; validate cloudy transitions and seasonal performance.
-
-## Separate follow-up workspace
-
-The owner requested Documents/WXLink Connect as a local-model handoff for
-community station capture. That workspace must not change production weather
-firmware, publish experimental updates to its OTA source, or silently upload
-weather from unverified stations. Capture evidence is not a compatibility claim.
-See WORK.md, VALIDATION.md and CONTROLS_CHECKLIST.md for original evidence.
+Implementation details: [FEATURE_QUEUE.md](FEATURE_QUEUE.md).
+Evidence: [VALIDATION.md](VALIDATION.md), [WORK.md](WORK.md).

@@ -1,6 +1,8 @@
 # Core firmware validation
 
-Current installed candidate: **v0.8.1-rc.1**, October 22, 2026. Published stable: v0.8.1, owner-approved after Windy ingestion confirmation. This is a bench
+Current installed and published stable: **v0.8.2**, October 22, 2026. Hosted OTA
+passed startup confirmation at 33 seconds and remained running beyond 100 seconds.
+Windy ingestion is owner-confirmed. This is a bench
 log: older version sections describe the state at the time, not current
 limitations. The latest results are below; [WORK.md](WORK.md) tracks remaining
 work and [CONTROLS_CHECKLIST.md](CONTROLS_CHECKLIST.md) tracks owner checks.

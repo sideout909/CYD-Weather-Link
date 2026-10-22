@@ -1,4 +1,7 @@
-# PWSWeather uploader — local v0.7.6
+# PWSWeather uploader
+
+Included in stable 0.8.2 (introduced with 0.8.0). Live provider ingestion remains
+unverified; software/build checks are recorded below.
 
 Opt-in, independent of Weather Underground, Weathercloud and APRS. Configure a
 PWSWeather station ID and station API key under Sharing. Blank key input keeps

@@ -15,7 +15,7 @@ seven-day archive retains five-minute summaries with browser/USB CSV export. Wea
 Underground, Weathercloud, PWSWeather and Windy.com v2 adapters are implemented. Live CC1101 reception,
 APRS.fi location/weather display and WU uploads are observed; the owner also
 confirmed Weathercloud is receiving data. CWOP ingestion, reference comparison
-and a full soak remain validation gates. PWSWeather/Windy live ingestion needs owner verification; D710 serial and a local barometer are optional additions. Sound is excluded from this device. Nearby NWS pressure is available as an attributed display fallback.
+and a full soak remain validation gates. Windy ingestion is owner-confirmed; PWSWeather live ingestion still needs verification; D710 serial and a local barometer are optional additions. Sound is excluded from this device. Nearby NWS pressure is available as an attributed display fallback.
 
 ## Current development status
 

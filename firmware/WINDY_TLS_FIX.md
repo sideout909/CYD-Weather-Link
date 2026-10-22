@@ -1,7 +1,9 @@
 # Windy connection investigation — October 22, 2026
 
-Stable fix: **0.8.1**, owner-approved after successful use of the 0.8.1-rc.1 candidate. No published 0.8.0
-asset is overwritten. Scope is Windy TLS trust and credential-free diagnostics.
+Fix introduced in **0.8.1**, retained in current stable **0.8.2**, now installed
+and confirmed through hosted OTA. Owner verified Windy online on the 0.8.1-rc.1
+candidate. The unrelated startup validation regression is fixed in 0.8.2; see
+[release notes](RELEASE_0.8.2.md). No published 0.8.0 asset was overwritten. Scope is Windy TLS trust and credential-free diagnostics.
 
 ## Observed failure
 
