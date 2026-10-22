@@ -1,5 +1,10 @@
 # Weather-station integration priorities
 
+October 22 follow-up: [Connect waveform review](firmware/CONNECT_WAVEFORM_REVIEW.md)
+reran 16 public fixtures/40 decoded callbacks and checked all 20 decoder sources
+against our pinned library. Iris/Notos are priority adapter candidates; production
+support remains Atlas-only until model-bound integration and live acceptance.
+
 Research date: October 21, 2026. This is a development shortlist, not a verified
 sales or installed-base ranking. Atlas remains the only station family enabled
 in CYD Weather Link. No receiver settings or firmware were changed by this research.

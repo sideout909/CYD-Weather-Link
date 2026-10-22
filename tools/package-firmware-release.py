@@ -6,6 +6,8 @@ import json
 from pathlib import Path
 import re
 import shutil
+import subprocess
+from ota_signing import sign
 
 ROOT = Path(__file__).resolve().parents[1]
 
@@ -15,6 +17,8 @@ def main():
     parser.add_argument('--repo', required=True, help='Public GitHub owner/repository')
     parser.add_argument('--binary', type=Path, default=ROOT/'firmware/.pio/build/panellan_sc05_x/firmware.bin')
     parser.add_argument('--output', type=Path, default=ROOT/'dist')
+    parser.add_argument('--signing-key', type=Path, required=True, help='Private publisher key outside the repository')
+    parser.add_argument('--trust-header', type=Path, default=ROOT/'firmware/include/ota_trust.h')
     args = parser.parse_args()
     if len(args.repo)>180 or not re.fullmatch(r'[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+', args.repo) or any(p in ('.', '..') for p in args.repo.split('/')):
         parser.error('--repo must be owner/repository')
@@ -33,6 +37,15 @@ def main():
     manifest = dict(schema=1, board='panellan_sc05_x', partition_layout='default_8MB-v1', flash_bytes=8388608,
                     version=version, size=len(data), sha256=hashlib.sha256(data).hexdigest(),
                     firmware_url=f'https://github.com/{args.repo}/releases/download/v{version}/{filename}')
+    if args.signing_key.resolve().is_relative_to(ROOT):
+        parser.error('Private signing key must remain outside the repository')
+    manifest['channel'] = 'dev' if '-rc.' in version else 'stable'
+    try:
+        sign(manifest, args.signing_key, args.trust_header)
+    except (ValueError, OSError, subprocess.CalledProcessError):
+        parser.error('Manifest signing failed; check publisher key and trust header')
+    if manifest['signing_key_id'].encode()+b'\0' not in data:
+        parser.error('Rebuild firmware: signing key identity was not found in the image')
     args.output.mkdir(parents=True, exist_ok=True)
     shutil.copyfile(args.binary, args.output/filename)
     (args.output/'weather-link-panellan_sc05_x.json').write_text(json.dumps(manifest, indent=2)+'\n')

@@ -28,7 +28,7 @@ remain specific acceptance checks, not claims that the features are missing.
 - [x] Metric units and custom hostname persisted through a bench save/reboot;
       temporary custom .local name resolved; original settings restored.
 - [ ] Check metric/imperial visual fit on all desired pages and themes.
-- [ ] Verify PWSWeather ingestion with a real account if desired.
+- [x] Owner confirmed PWSWeather ingestion.
 - [x] Windy received HTTP 200 on hardware and owner confirmed station online.
 - [x] Hosted OTA to 0.8.2 passed startup confirmation and >100-second operation.
 - [ ] Interrupted OTA download and controlled deliberate failed-boot rollback;
@@ -244,3 +244,16 @@ Full reception, outage, persistence and sharing gates are in [VALIDATION.md](VAL
       minutes of uncommitted data loss on an abrupt disconnect.
 - [ ] Bring the board back after the soak and export the rolling week via USB
       or browser. Keep that CSV separately to preserve it beyond seven days.
+
+
+## Local 0.9.0-rc.1 checks — not installed yet
+
+- [ ] Stable is default after migration; Dev opt-in survives save/restart.
+- [ ] Dev sees appropriate signed prereleases; Stable excludes them and never downgrades.
+- [ ] Repository starts read-only; unlock permits editing, reload locks it again.
+- [ ] Web header reads YOUR STATION. YOUR DATA. / WX Link, descriptive subtitle,
+      and clickable GitHub link beneath the local address/IP.
+- [ ] Bootstrap and subsequent enforced signed OTA pass on hardware; record
+      signature-verification timing/heap/stack and rejection behavior.
+
+Host crypto/model/browser checks pass; these are separate physical acceptance tasks.

@@ -1,12 +1,13 @@
 # Remaining work — stable 0.8.2, October 22, 2026
 
 Published GitHub Latest and installed device are **0.8.2**. This is the current
-TODO index; dated work/validation logs retain historical results.
+TODO index; dated work/validation logs retain historical results. Local source
+is 0.9.0-rc.1, not installed or published; see [SIGNED_OTA.md](SIGNED_OTA.md).
 
 ## Completed
 
 - Atlas/CC1101 reception, protected setup/discovery, dashboard and bounded history/export.
-- Owner-confirmed APRS.fi, Weather Underground, Weathercloud and Windy ingestion.
+- Owner-confirmed APRS.fi, Weather Underground, Weathercloud, Windy and PWSWeather ingestion.
 - Normal hosted 0.8.2 OTA: startup checks passed, image confirmed at 33 seconds,
   still running beyond 100 seconds. Settings validation/save-lock deadlock fixed.
 - Factory-reset implementation, metric/imperial presentation, Barometer label,
@@ -26,11 +27,13 @@ TODO index; dated work/validation logs retain historical results.
   before resetting. Normal short-term wake checks do not resolve that incident.
 - Check updated header touch targets, Settings browser guidance, Barometer fit and
   metric/imperial layout on desired pages/themes. See [controls](CONTROLS_CHECKLIST.md).
-- Verify PWSWeather ingestion with an account if desired. Windy is already confirmed.
+- PWSWeather and Windy ingestion are both owner-confirmed; no setup task remains.
 - Compare LUX/LUX* sky estimates against actual cloudy transitions over several days;
-  recalibrate only in clear direct sun, solar elevation at least 15 degrees.
+  recalibrate only in clear direct sun, solar elevation at least 15 degrees. Owner
+  expects cloudy days and is leaving the existing device powered overnight.
 - Factory reset is optional acceptance only when ready to erase settings/history
-  and reconfigure. No real destructive reset has been run against owner data.
+  and reconfigure. Owner plans to test later; no real destructive reset has been run
+  against owner data.
 
 ## Engineering and joint validation
 
@@ -50,19 +53,22 @@ TODO index; dated work/validation logs retain historical results.
 
 ## Next release and deferred features
 
-- **Next release: Stable / Dev update selector.** Persist user choice in Updates;
-  default existing/new devices to Stable, require explicit Dev prerelease opt-in,
-  clearly label channel/version, and retain compatibility/hash/rollback guards.
-  Define return-to-Stable and downgrade behavior before implementation. TODO only;
-  no channel code yet.
-- **Signed OTA.** Independently verify publisher signatures; plan key protection,
-  rotation/recovery and rejection tests. Keep USB/custom firmware available;
-  no Secure Boot, flash encryption or permanent eFuse changes. Want only.
+- **Stable / Dev selector — implemented locally in 0.9.0-rc.1.** Stable migration
+  default, explicit Dev opt-in, saved selection and no downgrades. Browser/model
+  checks pass; target-device lookup/persistence acceptance remains pending.
+- **Signed OTA — implemented locally.** Trusted embedded public key, ECDSA P-256/
+  SHA-256 envelope, fail-closed verification and required matching-key packaging.
+  Actual firmware verifier passes host mbedTLS tamper/wrong-key tests. Offline
+  publisher-key backup, target-device resource checks, bootstrap and enforced
+  subsequent OTA acceptance remain pending. Rotation/recovery still need a
+  dual-key transition implementation. No Secure Boot/eFuse/flash-encryption changes.
 - **Multiple sensor sources.** Explicitly assign temperature/wind/pressure devices
   to one station with per-source/per-field freshness and provenance. Deferred.
 - **More station families.** Use community Connect captures, review native identity,
   fields/units/integrity and receiver profiles. Atlas is operational; Iris/Notos
-  remain discovery previews. Decoder-library presence is not compatibility.
+  remain discovery previews. Connect review reran 16 public waveforms/40 callbacks
+  successfully; see [review and priorities](CONNECT_WAVEFORM_REVIEW.md). No new
+  station enabled. Decoder-library presence is not compatibility.
 - Optional D710 electrical/serial output and local barometer; verify interfaces/pins.
 
 ## Separate capture project

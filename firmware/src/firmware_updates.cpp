@@ -1,6 +1,8 @@
 #include "firmware_updates.h"
 #include "firmware_version.h"
 #include "update_policy.h"
+#include "ota_signature.h"
+#include "update_release_list.h"
 #include "startup_health.h"
 #include <ArduinoJson.h>
 #include <HTTPClient.h>
@@ -50,26 +52,57 @@ int get(HTTPClient& http,WiFiClientSecure& tls,String url){
   }
   return -102;
 }
-bool check(const services::Settings& config,State& state){
-  state.message="Checking GitHub release";state.available=false;state.progress=0;publish(state);
-  image_url="";image_sha="";image_size=0;
+bool developmentManifest(const services::Settings& config,State& state,String& manifest){
   WiFiClientSecure tls;HTTPClient http;
-  const String manifest=String("https://github.com/")+config.update_repo+"/releases/latest/download/weather-link-panellan_sc05_x.json";
+  const String endpoint=String("https://api.github.com/repos/")+config.update_repo+"/releases?per_page=10";
+  const int code=get(http,tls,endpoint);
+  if(code!=200){state.message=code==403||code==429?"GitHub rate limit; try later":"Dev release lookup failed (HTTP "+String(code)+")";http.end();return false;}
+  if(http.getSize()>262144){state.message="Dev release list too large";http.end();return false;}
+  std::string best;
+  const bool parsed=update_release_list::newest(http.getStream(),best);http.end();
+  if(!parsed){state.message="No supported release or invalid Dev release list";return false;}
+  manifest=String("https://github.com/")+config.update_repo+"/releases/download/v"+best.c_str()+"/weather-link-panellan_sc05_x.json";
+  return true;
+}
+bool check(const services::Settings& config,State& state){
+  state.message="Checking signed release";state.available=false;state.progress=0;state.available_version="";publish(state);
+  image_url="";image_sha="";image_size=0;state.last_checked=time(nullptr);
+  if(!update_policy::channel(config.update_channel.c_str())){state.message="Invalid update channel";return false;}
+  String manifest=String("https://github.com/")+config.update_repo+"/releases/latest/download/weather-link-panellan_sc05_x.json";
+  if(config.update_channel=="dev"&&!developmentManifest(config,state,manifest))return false;
+  WiFiClientSecure tls;HTTPClient http;
   const int code=get(http,tls,manifest);
-  state.last_checked=time(nullptr);
   if(code!=200){state.message=code==404?"No compatible release published":"Release lookup failed (HTTP "+String(code)+")";http.end();return false;}
   if(http.getSize()>4096){state.message="Release manifest too large";http.end();return false;}
-  DynamicJsonDocument doc(4096);const bool parsed=!deserializeJson(doc,http.getStream());http.end();
+  DynamicJsonDocument doc(4096);const bool parsed=!deserializeJson(doc,http.getStream(),DeserializationOption::NestingLimit(4));http.end();
   const String version=doc["version"]|String("");
   const String url=doc["firmware_url"]|String(""),sha=doc["sha256"]|String("");
   const auto* target=esp_ota_get_next_update_partition(nullptr);
   const uint32_t size=doc["size"]|uint32_t(0);
-  std::array<unsigned,3> parts{};
-  if(!parsed||doc["schema"]!=1||doc["board"]!=firmware_version::board||doc["partition_layout"]!=firmware_version::partition_layout||doc["flash_bytes"]!=ESP.getFlashChipSize()||!doc["size"].is<uint32_t>()||!target||size<32768||size>target->size||!update_policy::version(version.c_str(),parts)||!update_policy::sha256(sha.c_str())||!update_policy::firmwareUrl(url.c_str(),config.update_repo.c_str(),version.c_str())){state.message="Release is incompatible or invalid";return false;}
+  if(!parsed||!doc.is<JsonObject>()||doc["schema"]!=1||doc["signature_schema"]!=1||
+     doc["board"]!=firmware_version::board||doc["partition_layout"]!=firmware_version::partition_layout||
+     !doc["flash_bytes"].is<uint32_t>()||doc["flash_bytes"]!=ESP.getFlashChipSize()||
+     !doc["size"].is<uint32_t>()||!target||size<32768||size>target->size||
+     !update_policy::eligible(version.c_str(),config.update_channel.c_str())||
+     !update_policy::firmwareUrl(url.c_str(),config.update_repo.c_str(),version.c_str())){
+    state.message="Release is incompatible, unsigned or outside selected channel";return false;
+  }
+  ota_manifest::Manifest signed_manifest;
+  signed_manifest.board=doc["board"].as<const char*>();signed_manifest.partition_layout=doc["partition_layout"].as<const char*>();
+  signed_manifest.flash_bytes=doc["flash_bytes"].as<uint32_t>();signed_manifest.size=size;
+  signed_manifest.version=version.c_str();signed_manifest.sha256=sha.c_str();signed_manifest.firmware_url=url.c_str();
+  signed_manifest.channel=doc["channel"]|"";signed_manifest.key_id=doc["signing_key_id"]|"";
+  if(doc["signature_algorithm"]!=ota_manifest::algorithm||
+     !ota_signature::verify(signed_manifest,config.update_repo.c_str(),std::string(doc["signature"]|""))){
+    state.message="Publisher signature missing, invalid or untrusted";return false;
+  }
   state.available_version=version;
-  if(!update_policy::newer(version.c_str(),firmware_version::current)){state.message="Firmware is up to date";return true;}
-  image_url=url;image_sha=sha;image_sha.toLowerCase();image_size=size;
-  state.available=true;state.message="New firmware available";return true;
+  if(!update_policy::newer(version.c_str(),firmware_version::current)){
+    state.message=config.update_channel=="stable"&&update_policy::releaseCandidate(firmware_version::current)?
+        "Stable selected; waiting for a newer stable release (no downgrade)":"Firmware is up to date";return true;
+  }
+  image_url=url;image_sha=sha;image_size=size;
+  state.available=true;state.message="Trusted signed firmware available";return true;
 }
 bool install(State& state){
   if(!state.available||!image_size)return false;

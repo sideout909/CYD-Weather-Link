@@ -1,5 +1,16 @@
 # Current development state
 
+## Local source: 0.9.0-rc.1
+
+Stable/Dev selection and mandatory signed OTA are implemented locally, with
+repository editing unlock and revised WX Link header/subtitle/GitHub link.
+Build, host, browser and actual mbedTLS signature tests pass. Signed package is
+local under dist/v0.9.0-rc.1; nothing published/flashed. Publisher key is outside
+source/device; see SIGNED_OTA.md before any distribution. Owner confirmed
+PWSWeather ingestion and plans cloudy-day lux, overnight and later reset checks.
+Connect's public waveform suite passed read-only review (16 fixtures/40 packets);
+all 20 decoder C sources match our pinned library. See CONNECT_WAVEFORM_REVIEW.md.
+
 ## Current release: 0.8.2 — October 22, 2026
 
 Published stable and installed firmware are **0.8.2**. The public GitHub image
@@ -14,7 +25,7 @@ Barometer label, PWSWeather/Windy, configurable hostname, updated touch targets,
 layered sun, cleaner web tabs, fresh AWC pressure fallback and experimental local
 lux clouds. Owner calibration remains enabled; other units default off/uncalibrated.
 Metric/custom-hostname persistence and mDNS resolved on the bench; original
-imperial/wxlink preferences were restored. PWSWeather ingestion, destructive reset,
+imperial/wxlink preferences were restored. PWSWeather ingestion is owner-confirmed; destructive reset,
 cloud accuracy and extended acceptance checks remain open.
 
 Current assignments and remaining gates: [TODO_AUDIT.md](TODO_AUDIT.md),
@@ -210,10 +221,10 @@ The owner's authoritative implementation order and current checkpoints are in
 [FEATURE_QUEUE.md](FEATURE_QUEUE.md). Factory reset, units and Barometer label
 are implemented, tested and installed; specific physical acceptance remains open.
 
-- Want: signed OTA releases with independent publisher-signature verification,
-  protected signing keys, rotation/recovery and negative validation tests. Keep
-  owner-controlled custom firmware/reflashing available; do not enable Secure
-  Boot, flash encryption or burn permanent eFuses. Planning only.
+- Signed OTA/channel code and negative signature tests are local software complete.
+  Validate on target, back up publisher key before distribution, and implement
+  future dual-key rotation/recovery. Keep custom USB reflashing available;
+  no Secure Boot, flash encryption or permanent eFuse changes. See SIGNED_OTA.md.
 - Support explicitly selected multiple measurement sources (for example separate
   temperature, wind and pressure devices) feeding one station, with individual
   source identities/freshness. Deferred; configurable hostnames were separately
@@ -248,7 +259,7 @@ are implemented, tested and installed; specific physical acceptance remains open
   unit/integrity review and appropriate OOK/FSK receiver profiles. Discovery
   confidence must fit each station's transmission cadence. See
   [decoder scope](../DECODER_SUPPORT.md) and [candidates](../STATION_SUPPORT.md).
-- PWSWeather live ingestion remains unverified; Windy v2 ingestion is owner-confirmed. D710 serial and a local barometer
+- PWSWeather live ingestion is owner-confirmed; Windy v2 ingestion is owner-confirmed. D710 serial and a local barometer
   are optional additions with unresolved hardware/pin requirements. SD remains
   optional. Calibrated lux-based cloud inference is experimental in 0.8.0-rc.1; default icons
   derive from NWS forecasts.

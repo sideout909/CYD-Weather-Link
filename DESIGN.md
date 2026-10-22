@@ -1,11 +1,13 @@
 # CYD Weather Link — architecture and requirements
 
-Status: October 21, 2026. Local firmware v0.7.3 targets the owned PanelLan
+Status: October 22, 2026. Installed/published stable v0.8.2; local source
+v0.9.0-rc.1 adds signed OTA/channels (not installed/published). Firmware targets the owned PanelLan
 ZX2D80CE02S-V10 / SC05_X; see [firmware scope](firmware/README.md) and
 [bench validation](firmware/VALIDATION.md). Live Atlas/CC1101, display/touch,
 protected setup, NWS and history restoration are observed. The owner confirms
-APRS.fi, WU and Weathercloud ingestion and the new friendly local address.
-SDR comparison, separate CWOP acceptance, corrected hosted OTA and multiday
+APRS.fi, WU, Weathercloud, Windy and PWSWeather ingestion and the friendly local address.
+Normal hosted 0.8.2 OTA passed confirmation and >100-second operation.
+SDR comparison, separate CWOP acceptance, interrupted/failed-boot OTA and multiday
 soak remain open. D710 and local barometer are optional; sound is removed.
 The PC RTL-SDR capture service remains stopped.
 
@@ -382,7 +384,16 @@ classification. The custom password and visible Wi-Fi key must differ.
 ## Optional GitHub firmware updates
 
 Provide protected browser Check/Install controls plus separately opt-in daily
-checks and automatic installation. Start disabled with no repository selected.
+checks and automatic installation. Start automatic actions disabled with the
+project repository prefilled; preserve saved custom sources. Default Stable,
+require explicit Dev opt-in and retain no-downgrade behavior when switching back.
+Repository editing requires an unchecked-by-default browser unlock control.
+Require an independently verified publisher signature covering release metadata
+and image hash; public trust is compiled in, private signing keys stay off-device
+and outside the source tree. A repository change cannot change trusted keys.
+See [SIGNED_OTA.md](firmware/SIGNED_OTA.md) for the local implementation and
+bootstrap/rotation limits. This reuses the existing controller and adds no parts
+or changes to the hardware baseline in PARTS.md.
 Validate version, board, flash/partition layout, image size/header, HTTPS and
 SHA-256. Write the inactive application slot; preserve NVS and weather state.
 Keep OTA work off the NWS worker, defer unattended installation during active

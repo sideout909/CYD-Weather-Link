@@ -9,6 +9,17 @@ int main(){
   assert(migratedProjectRepository("owner/custom-fork", "sideout909/WX-Link")=="owner/custom-fork");
   assert(repository("owner/CYD-Weather-Link"));
   for(const char* bad:{"","owner","/repo","owner/","owner/repo/more","../repo","owner/..","owner/repo?token=SECRET","https://github.com/owner/repo"})assert(!repository(bad));
+  assert(listedRelease("v0.9.0-rc.1",false,true)=="0.9.0-rc.1");
+  assert(listedRelease("v0.9.0",false,false)=="0.9.0");
+  assert(listedRelease("v0.9.0-rc.1",false,false).empty());
+  assert(listedRelease("v0.9.0",false,true).empty());
+  assert(listedRelease("v0.9.0",true,false).empty());
+  assert(listedRelease("0.9.0",false,false).empty());
+  assert(listedRelease("vgarbage",false,false).empty());
+  assert(channel("stable")&&channel("dev")&&!channel("nightly"));
+  assert(eligible("0.9.0","stable")&&eligible("0.9.0","dev"));
+  assert(eligible("0.9.0-rc.1","dev")&&!eligible("0.9.0-rc.1","stable"));
+  assert(!eligible("0.9.0","nightly")&&!eligible("invalid","dev"));
   assert(newer("0.3.1","0.3.0"));assert(newer("1.0.0","0.99.99"));
   assert(!newer("0.3.0","0.3.0"));assert(!newer("0.2.9","0.3.0"));
   assert(newer("0.8.0","0.8.0-rc.1"));assert(newer("0.8.0-rc.2","0.8.0-rc.1"));

@@ -1,5 +1,10 @@
 # Decoder inventory, 433 MHz scope and station discovery
 
+October 22 follow-up: [Connect waveform review](firmware/CONNECT_WAVEFORM_REVIEW.md)
+reran 16 public fixtures/40 decoded callbacks and checked all 20 decoder sources
+against our pinned library. Iris/Notos are priority adapter candidates; production
+support remains Atlas-only until model-bound integration and live acceptance.
+
 Source review: October 21, 2026. Library: `rtl_433_ESP` pinned at
 `f0a81569b58a60ea8b3a5efd8e9b39670e8d8df8`. These are library capabilities and
 proposed integration rules. CYD Weather Link currently accepts **Atlas only**.

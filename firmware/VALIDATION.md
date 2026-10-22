@@ -1026,3 +1026,20 @@ Public manifest/image hash and size verified. Startup portal validation and
 pending-boot save-lock probes passed; confirmation cleared at 33 seconds and
 0.8.2 remained running beyond 100 seconds. No rollback observed. This does not
 claim interrupted-transfer or deliberate failed-boot validation.
+
+
+### Local 0.9.0-rc.1 software validation — October 22
+
+SC05_X build and host suite pass. Browser suite checks channel save, repository
+read-only/unlock/relock, WX Link title and project link, alongside existing flows.
+The actual firmware ota_signature.h verifier compiled against mbedTLS 2.28.7
+accepts valid Stable/Dev manifests and rejects metadata changes, wrong keys/repo,
+missing/invalid/truncated signatures and unsupported schema/algorithm. Ephemeral
+keys only in regression tests; signed local packaging separately used the local
+publisher key. Public trust is in source; private key is outside this checkout.
+No device access, upload, publication, factory reset or account change performed.
+Installed stable remains 0.8.2. See SIGNED_OTA.md for hardware/release gates.
+Owner separately confirmed PWSWeather ingestion; this is not a new host-side
+field comparison. Cloudy-day lux, overnight and reset checks are planned.
+Read-only Connect replay passed 16 public fixtures/40 callbacks; no new production
+station enabled. See CONNECT_WAVEFORM_REVIEW.md.

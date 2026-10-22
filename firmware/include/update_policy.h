@@ -37,6 +37,17 @@ inline unsigned releaseCandidate(const std::string& value){
   const auto at=value.find("-rc.");if(at==std::string::npos)return 0;
   unsigned n=0;for(size_t i=at+4;i<value.size();++i)n=n*10+unsigned(value[i]-'0');return n;
 }
+inline bool channel(const std::string& value){return value=="stable"||value=="dev";}
+inline bool eligible(const std::string& candidate,const std::string& selected){
+  std::array<unsigned,3> parts{};
+  return channel(selected)&&version(candidate,parts)&&(selected=="dev"||!releaseCandidate(candidate));
+}
+inline std::string listedRelease(const std::string& tag,bool draft,bool prerelease){
+  if(draft||tag.empty()||tag[0]!='v')return {};
+  const auto value=tag.substr(1);
+  if(!eligible(value,"dev")||bool(releaseCandidate(value))!=prerelease)return {};
+  return value;
+}
 inline bool newer(const std::string& candidate,const std::string& current){
   std::array<unsigned,3>a{},b{};if(!version(candidate,a)||!version(current,b))return false;
   if(a!=b)return a>b;
@@ -60,7 +71,7 @@ inline bool firmwareUrl(const std::string& url,const std::string& repo,const std
   return version(release,parts)&&(expected_version.empty()||release==expected_version);
 }
 inline bool downloadHost(const std::string& url){
-  for(const char* prefix:{"https://github.com/","https://release-assets.githubusercontent.com/","https://objects.githubusercontent.com/","https://github-releases.githubusercontent.com/"})if(url.compare(0,std::char_traits<char>::length(prefix),prefix)==0)return url.find_first_of("\r\n")==std::string::npos;
+  for(const char* prefix:{"https://api.github.com/","https://github.com/","https://release-assets.githubusercontent.com/","https://objects.githubusercontent.com/","https://github-releases.githubusercontent.com/"})if(url.compare(0,std::char_traits<char>::length(prefix),prefix)==0)return url.find_first_of("\r\n")==std::string::npos;
   return false;
 }
 }

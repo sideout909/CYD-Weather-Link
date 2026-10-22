@@ -26,7 +26,7 @@ struct Settings {
   bool wu_enabled = false, weathercloud_enabled = false, aprs_enabled = false,pws_enabled=false,windy_enabled=false;
   String wu_id, wu_key, weathercloud_id, weathercloud_key,pws_id,pws_key,windy_id,windy_password;
   String aprs_profile = "ham", callsign, aprs_passcode;
-  String update_repo=firmware_version::repository;
+  String update_repo=firmware_version::repository,update_channel="stable";
   bool update_enabled=false,update_auto=false;
 };
 struct Observation {

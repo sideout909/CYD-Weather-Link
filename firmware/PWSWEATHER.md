@@ -1,7 +1,7 @@
 # PWSWeather uploader
 
-Included in stable 0.8.2 (introduced with 0.8.0). Live provider ingestion remains
-unverified; software/build checks are recorded below.
+Included in stable 0.8.2 (introduced with 0.8.0). Live provider ingestion is now
+owner-confirmed; software/build checks are recorded below.
 
 Opt-in, independent of Weather Underground, Weathercloud and APRS. Configure a
 PWSWeather station ID and station API key under Sharing. Blank key input keeps
@@ -29,6 +29,6 @@ are not exposed in status. `/api/status` includes `pws_state` and
 
 Host tests cover protocol units, omissions/zeroes, encoding, stale/replay/future
 rejection and acknowledgment checks. Browser tests cover enable/ID/key submission
-and clearing the password input after save. Live provider acceptance, real station
-credentials and retry timing on hardware remain unverified. No fabricated data
-was submitted. Do not describe the integration as bench validated yet.
+and clearing the password input after save. Owner now confirms real provider ingestion. This is not an automated field-by-
+field comparison or a new hardware retry/backoff stress test; those remain
+separate checks. No fabricated observations were submitted for this work.

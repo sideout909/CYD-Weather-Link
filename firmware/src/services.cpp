@@ -86,7 +86,7 @@ void encodeConfig(JsonDocument& d,bool secrets,const Settings& c=detail::config)
   d["wu_enabled"]=c.wu_enabled;d["wu_id"]=c.wu_id;
   d["weathercloud_enabled"]=c.weathercloud_enabled;d["weathercloud_id"]=c.weathercloud_id;
   d["aprs_enabled"]=c.aprs_enabled;d["aprs_profile"]=c.aprs_profile;d["callsign"]=c.callsign;
-  d["update_repo"]=c.update_repo;d["update_enabled"]=c.update_enabled;d["update_auto"]=c.update_auto;
+  d["update_channel"]=c.update_channel;d["update_repo"]=c.update_repo;d["update_enabled"]=c.update_enabled;d["update_auto"]=c.update_auto;
   if(secrets){d["windy_password"]=c.windy_password;d["pws_key"]=c.pws_key;d["wifi_password"]=c.wifi_password;d["setup_key"]=c.setup_key;d["setup_wifi_key"]=c.setup_wifi_key;d["admin_custom"]=c.admin_custom;d["wu_key"]=c.wu_key;d["weathercloud_key"]=c.weathercloud_key;d["aprs_passcode"]=c.aprs_passcode;}
   else{d["windy_password_set"]=c.windy_password.length()>0;d["pws_key_set"]=c.pws_key.length()>0;d["wu_key_set"]=c.wu_key.length()>0;d["weathercloud_key_set"]=c.weathercloud_key.length()>0;d["aprs_passcode_set"]=c.aprs_passcode.length()>0;d["wifi_password_set"]=c.wifi_password.length()>0;d["csrf"]=csrf;}
 }
@@ -107,6 +107,7 @@ void readConfig(JsonDocument& d,Settings& c,bool keep_empty) {
   c.wu_enabled=d["wu_enabled"]|c.wu_enabled;c.wu_id=d["wu_id"]|c.wu_id;
   c.weathercloud_enabled=d["weathercloud_enabled"]|c.weathercloud_enabled;c.weathercloud_id=d["weathercloud_id"]|c.weathercloud_id;
   c.aprs_enabled=d["aprs_enabled"]|c.aprs_enabled;c.aprs_profile=d["aprs_profile"]|c.aprs_profile;c.callsign=d["callsign"]|c.callsign;c.callsign.toUpperCase();
+  c.update_channel=d["update_channel"]|c.update_channel;
   c.update_repo=d["update_repo"]|c.update_repo;c.update_repo.trim();c.update_enabled=d["update_enabled"]|c.update_enabled;c.update_auto=d["update_auto"]|c.update_auto;
   c.update_repo=update_policy::migratedProjectRepository(c.update_repo.c_str(),firmware_version::repository).c_str();
   auto secret=[&](const char* name,String& value){if(d[name].is<const char*>()){String next=d[name].as<String>();if(!keep_empty || next.length())value=next;}};
@@ -114,6 +115,7 @@ void readConfig(JsonDocument& d,Settings& c,bool keep_empty) {
 }
 bool cleanId(const String& value) {for(char ch:value)if(!isalnum(ch)&&ch!='-'&&ch!='_')return false;return true;}
 const char* validate(const Settings& c) {
+  if(!update_policy::channel(c.update_channel.c_str()))return "Choose Stable or Dev updates.";
   if(!std::isfinite(c.lux_reference)||c.lux_reference<0||c.lux_reference>200000)return "Invalid clear-sky calibration.";
   if(!weather_units::valid(c.units.c_str()))return "Choose metric or imperial units.";
   if(!display_themes::find(c.display_theme.c_str()))return "Choose a supported color theme.";
@@ -158,6 +160,7 @@ void configPost() {
   if(server.arg("plain").length()>4096){error("Settings request is too large.",413);return;}
   DynamicJsonDocument d(6144);
   if(deserializeJson(d,server.arg("plain")) || !d.is<JsonObject>()){error("Invalid settings JSON.");return;}
+  if(d.containsKey("update_channel")&&!d["update_channel"].is<const char*>()){error("Invalid update channel.");return;}
   if(d.containsKey("station_id") && (!d["station_id"].is<unsigned>() || d["station_id"].as<unsigned>()>1023)){error("Invalid Atlas sensor ID.");return;}
   if(d.containsKey("display_timeout_s")&&(!d["display_timeout_s"].is<unsigned>()||!display_preferences::validTimeout(d["display_timeout_s"].as<unsigned>()))){error("Invalid display timeout.");return;}
   for(const char* key:{"lux_cloud_enabled","lux_calibrate"})if(d.containsKey(key)&&!d[key].is<bool>()){error("Invalid light setting.");return;}
@@ -444,7 +447,7 @@ void begin(){
   });
   server.on("/api/discovery/cancel",HTTP_POST,[]{if(!discoveryMutation())return;discovery.cancel();server.send(200,"application/json","{\"cancelled\":true}");});
   server.on("/api/factory-reset",HTTP_POST,factoryResetPost);
-  server.on("/api/update",HTTP_GET,[]{if(!authorize())return;auto s=firmware_updates::state();StaticJsonDocument<1024>d;d["current_version"]=firmware_version::current;d["available_version"]=s.available_version;d["message"]=s.message;d["busy"]=s.busy;d["available"]=s.available;d["progress"]=s.progress;d["boot_pending"]=s.boot_pending;d["last_checked"]=s.last_checked;String body;serializeJson(d,body);server.send(200,"application/json",body);});
+  server.on("/api/update",HTTP_GET,[]{if(!authorize())return;auto s=firmware_updates::state();StaticJsonDocument<1024>d;d["current_version"]=firmware_version::current;d["channel"]=detail::config.update_channel;d["signature_required"]=true;d["available_version"]=s.available_version;d["message"]=s.message;d["busy"]=s.busy;d["available"]=s.available;d["progress"]=s.progress;d["boot_pending"]=s.boot_pending;d["last_checked"]=s.last_checked;String body;serializeJson(d,body);server.send(200,"application/json",body);});
   server.on("/api/update/check",HTTP_POST,[]{if(!authorize())return;if(server.header("X-CSRF-Token")!=csrf){error("Refresh this page before checking.",403);return;}if(!firmware_updates::requestCheck()){error("An update operation is already pending.",409);return;}server.send(202,"application/json","{\"queued\":true}");});
   server.on("/api/update/install",HTTP_POST,[]{if(!authorize())return;if(server.header("X-CSRF-Token")!=csrf){error("Refresh this page before installing.",403);return;}if(!firmware_updates::requestInstall()){error("Check for a compatible update first, or wait for the current operation.",409);return;}server.send(202,"application/json","{\"queued\":true}");});
   server.on("/api/scan",HTTP_GET,[]{

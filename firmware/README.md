@@ -1,5 +1,9 @@
 # PanelLan weather firmware
 
+Local source candidate: **0.9.0-rc.1**, not published or installed. See
+[SIGNED_OTA.md](SIGNED_OTA.md) and [waveform review](CONNECT_WAVEFORM_REVIEW.md).
+Stable/device remain 0.8.2 for overnight observation.
+
 Current stable release: **0.8.2**, fixing OTA startup settings validation while
 retaining the owner-verified Windy TLS fix. See [patch notes](RELEASE_0.8.2.md)
 and [Windy fix](WINDY_TLS_FIX.md); 0.8.0 introduced the features below.

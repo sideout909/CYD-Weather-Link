@@ -68,6 +68,10 @@ json_headers="$project_dir/firmware/.pio/libdeps/panellan_sc05_x/ArduinoJson/src
 if [[ -d "$json_headers" ]]; then
   g++ -std=c++17 -Wall -Wextra -Werror -Wno-misleading-indentation \
       -I"$project_dir/firmware/include" -I"$json_headers" \
+      "$project_dir/firmware/tests/update_release_list_test.cpp" -o "$test_binary"
+  "$test_binary"
+  g++ -std=c++17 -Wall -Wextra -Werror -Wno-misleading-indentation \
+      -I"$project_dir/firmware/include" -I"$json_headers" \
       "$project_dir/firmware/tests/station_discovery_test.cpp" -o "$test_binary"
   "$test_binary"
   g++ -std=c++17 -Wall -Wextra -Werror \
@@ -87,3 +91,10 @@ else
 fi
 tool_env="${XDG_DATA_HOME:-$HOME/.local/share}/cyd-weather-link/venv"
 "$tool_env/bin/python" -m unittest discover -s "$script_dir" -p 'test_firmware_console.py' -v
+
+# Optional full crypto integration using a host build of the pinned mbedTLS.
+if [[ -n "${WX_LINK_MBEDTLS_SOURCE:-}" && -n "${WX_LINK_MBEDTLS_BUILD:-}" ]]; then
+  python3 "$script_dir/test-signed-ota.py" --mbedtls-source "$WX_LINK_MBEDTLS_SOURCE" --mbedtls-build "$WX_LINK_MBEDTLS_BUILD"
+else
+  echo 'Signed OTA crypto integration: run tools/test-signed-ota.py with host mbedTLS paths; see firmware/SIGNED_OTA.md.'
+fi

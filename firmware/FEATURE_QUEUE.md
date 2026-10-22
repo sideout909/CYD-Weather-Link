@@ -14,10 +14,10 @@ Save actual checks and next steps here at each feature boundary.
    browser, forecast and trends agree. Raw storage/export protocol units stay
    unchanged. Test conversions, missing fields and existing default migration.
 3. **Baro → Barometer — software complete; physical check pending.** Main-screen label and web label; fit tile.
-4. **PWSWeather uploading — software complete; live acceptance pending.** Opt-in
+4. **PWSWeather uploading — implemented; ingestion owner-confirmed.** Opt-in
    station/key controls, protected persistence, status, five-minute cadence and
    bounded backoff. SC05_X firmware build, host and browser checks pass.
-   Live provider acceptance remains unverified. See `PWSWEATHER.md`.
+   Owner confirmed provider ingestion; no new automated field comparison claimed. See `PWSWEATHER.md`.
 5. **Windy uploading — implemented; live ingestion owner-confirmed.** v2 HTTPS,
    Bearer station password, safe status, five-minute cadence/backoff/retry_after.
    Host/browser checks pass; real device HTTP 200 and owner station-online check
@@ -65,15 +65,19 @@ provider narrative is kept verbatim. Existing settings default to imperial.
 SC05_X build, host suite and browser suite pass for reset/units.
 
 Barometer label fits the original tile font in the host check; build and host
-suite pass. PWSWeather implementation is present with live acceptance pending.
+suite pass. PWSWeather implementation and owner-confirmed ingestion are complete.
 Windy live ingestion is owner-confirmed.
 USB access was reauthorized for the 0.8.0 prerelease bench checks.
 
 
-## Next release / deferred roadmap
+## Local 0.9.0-rc.1 / deferred roadmap
 
-- Stable/Dev update-channel selector: Stable default, explicit Dev opt-in,
-  persisted selection and clear labeling; compatibility/hash/rollback checks retained.
-  Define channel-switch/downgrade policy. Note only; no channel code yet.
-- Signed OTA, multiple selected sensor sources, additional validated station families,
-  optional D710/local barometer. See [current TODO assignments](TODO_AUDIT.md).
+Stable/Dev channels, signed OTA verification/packaging, repository edit unlock and
+web header branding/GitHub link are implemented and software-tested locally.
+Not published or installed; stable/device remain 0.8.2. See [SIGNED_OTA.md](SIGNED_OTA.md)
+for remaining target-device tests, key backup and future rotation requirements.
+
+Multiple selected sensor sources, additional station families, D710/local barometer
+remain deferred. [Connect waveform review](CONNECT_WAVEFORM_REVIEW.md) records 16
+passing public waveforms/40 callbacks and adapter priorities; no new stations enabled.
+Current owner/test assignments: [TODO_AUDIT.md](TODO_AUDIT.md).

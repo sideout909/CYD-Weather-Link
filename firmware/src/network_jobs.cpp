@@ -366,9 +366,9 @@ bool portalSelftest(String& failure){
   }
   const String token=d["csrf"].as<String>();
   if(!token.length()){failure="Config CSRF token missing";return false;}
-  if(d["hostname"]!=config.hostname||d["units"]!=config.units||d["windy_enabled"]!=config.windy_enabled||d["pws_enabled"]!=config.pws_enabled){failure="Settings migration schema";return false;}
+  if(d["update_channel"]!=config.update_channel||d["hostname"]!=config.hostname||d["units"]!=config.units||d["windy_enabled"]!=config.windy_enabled||d["pws_enabled"]!=config.pws_enabled){failure="Settings migration schema";return false;}
   // Rejected validation probes cannot save or restart the device.
-  for(const char* invalid:{"{\"hostname\":\"bad.local\"}","{\"hostname\":42}","{\"windy_password\":\"bad\\r\\nheader\"}","{\"windy_enabled\":\"yes\"}","{\"pws_enabled\":\"yes\"}","{\"units\":\"unknown\"}","{\"lux_calibrate\":\"yes\"}"})
+  for(const char* invalid:{"{\"update_channel\":\"nightly\"}","{\"update_channel\":42}","{\"hostname\":\"bad.local\"}","{\"hostname\":42}","{\"windy_password\":\"bad\\r\\nheader\"}","{\"windy_enabled\":\"yes\"}","{\"pws_enabled\":\"yes\"}","{\"units\":\"unknown\"}","{\"lux_calibrate\":\"yes\"}"})
     if(!expect("Settings validation rejection","/api/config",400,config.setup_key,invalid,token))return false;
   // During OTA acceptance, a fully valid no-op request must still be locked.
   // This probe is never sent after confirmation, where it would save/restart.

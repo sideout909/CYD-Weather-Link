@@ -1,5 +1,9 @@
 # GitHub firmware updates
 
+Local 0.9.0-rc.1 adds Stable/Dev channels and mandatory publisher signatures.
+It is not published or installed; stable/device remain 0.8.2. See
+[SIGNED_OTA.md](SIGNED_OTA.md) for key custody, migration, packaging and test gates.
+
 The development firmware implements opt-in updates from a **public GitHub
 repository**, with manual Check/Install controls and optional daily automatic
 installation. Both automatic settings default off. From v0.4.2 the project
@@ -58,10 +62,10 @@ board/image/hash/rollback checks remain in force.
    requires both checkboxes. Automatic installation waits during NWS watches/
    warnings or missing/stale/unverified NWS status when a location is enabled.
 
-The repository is the update authority. Verified HTTPS plus the manifest's
-SHA-256 protect download integrity; there is no separate publisher signature
-in this version. This does not enable secure boot or program security eFuses.
-Use a controlled release source and validate a release before unattended use.
+Through installed 0.8.2, HTTPS plus the manifest hash provide integrity with
+the repository as authority. Local 0.9.0-rc.1 additionally requires a trusted
+publisher signature; changing repositories cannot change trust. No Secure Boot
+or security eFuses are enabled. See SIGNED_OTA.md before packaging/distribution.
 
 ## Release preparation
 
@@ -71,7 +75,8 @@ hardware backup. NVS credentials and local captures are not release assets.
 ```bash
 bash tools/pio.sh run -d firmware
 bash tools/test-firmware.sh
-python tools/package-firmware-release.py --repo OWNER/REPOSITORY
+python tools/package-firmware-release.py --repo OWNER/REPOSITORY \
+  --signing-key /secure/path/publisher.key
 ```
 
 From the repository root, the version lives in

@@ -19,7 +19,7 @@ def main():
                   timezone='EST5EDT,M3.2.0,M11.1.0', location_set=False, latitude=0, longitude=0,
                   elevation_m=0, display_theme='midnight',date_format='md',clock_24h=False,display_sleep_mode='never',display_timeout_s=300,
                   wu_enabled=False, weathercloud_enabled=False, aprs_enabled=False,
-                  aprs_profile='ham', callsign='', update_repo='sideout909/WX-Link', csrf='synthetic-csrf', wu_key_set=True)
+                  aprs_profile='ham', callsign='', update_channel='stable', update_repo='sideout909/WX-Link', csrf='synthetic-csrf', wu_key_set=True)
     status = dict(ip='192.0.2.10', local_url='http://wxlink.local', mdns_ready=True, wifi=False, radio_ready=False, source='none', forecast_state='Not configured',
                   alert_state='Not configured', packets=0, free_heap=200000,
                   rain_today_in=.12, rain_partial=True, rain_24h_in=.85, rain_24h_partial=False,
@@ -289,7 +289,17 @@ def main():
         page.evaluate('updateStatus()')
         page.wait_for_function("document.querySelector('#update-feedback').textContent==='Updated firmware passed startup checks'")
         assert update_requests == ['/api/update/check', '/api/update/check', '/api/update/install']
+        assert page.locator('#update_repo').evaluate('(e)=>e.readOnly')
+        assert not page.locator('#update-repo-unlock').is_checked()
+        assert page.locator('#update_channel').input_value()=='stable'
+        page.locator('#update-repo-unlock').check()
+        assert not page.locator('#update_repo').evaluate('(e)=>e.readOnly')
         page.locator('#update_repo').fill('owner/weather-link')
+        page.locator('#update-repo-unlock').uncheck()
+        assert page.locator('#update_repo').evaluate('(e)=>e.readOnly')
+        page.locator('#update_channel').select_option('dev')
+        assert page.locator('h1').inner_text()=='WX Link'
+        assert page.locator('#project-repo-link').get_attribute('href')=='https://github.com/sideout909/WX-Link'
         page.get_by_role('button', name='Sharing', exact=True).click()
         assert page.locator('#weathercloud_id').is_visible()
         assert page.locator('#settings').evaluate('(f)=>f.elements.wu_id!==undefined && f.elements.station_id!==undefined')
@@ -312,6 +322,8 @@ def main():
         assert page.locator('#pws_key').input_value()==''
         assert saves[0]['wu_key'] == '' and saves[0]['radio_enabled'] is True
         assert saves[0]['setup_key'] == '' and saves[0]['update_repo'] == 'owner/weather-link'
+        assert saves[0]['update_channel']=='dev'
+        config['update_channel']='dev'  # Simulate persisted config returned after restart.
         assert saves[0]['update_enabled'] is False and saves[0]['update_auto'] is False
         assert saves[0]['display_theme']=='violet'
         assert page.evaluate('document.documentElement.dataset.theme')=='violet'
@@ -366,6 +378,9 @@ def main():
         alert_entries.append(dict(id='synthetic-warning',event='Tornado Warning',headline='Synthetic warning <script>bad()</script>',description='Official description <b>text</b>',instruction='Test instruction',expires=now+7200,category=3))
         page.reload()
         page.wait_for_function("document.querySelector('#station-alert').textContent.includes('Tornado Warning')")
+        page.wait_for_function("document.querySelector('#update_channel').value==='dev'")
+        assert page.locator('#update_repo').evaluate('(e)=>e.readOnly')
+        assert not page.locator('#update-repo-unlock').is_checked()
         assert page.locator('#station-alert').get_attribute('class').find('alert-warning') >= 0
         assert page.evaluate('document.documentElement.dataset.theme')=='paper'
         assert page.locator('#station-alert').evaluate('(el)=>getComputedStyle(el).color')=='rgb(255, 240, 243)'
@@ -475,7 +490,7 @@ def main():
         assert len(reset_requests)==1
         assert not errors, errors
         browser.close()
-    print('Setup browser checks passed: Overview-only sun/moon, collapsed bottom wiring, metric/custom hostname, Windy/PWS settings and local LUX attribution, local hostname/IP and unavailable-name fallback, seven shared palettes, preview/save/reload, Paper alert contrast, three link indicators, startup status races, dashboard rounding, live/partial/missing fields, gapped history, complete day/hourly forecasts, alert text safety, stale/offline states, setup-first onboarding, tabs, settings ownership, secret masking, scan text, CSRF save, repeated saves, cross-tab validation, fractional elevation, mobile layout, no JavaScript errors.')
+    print('Setup browser checks passed: Stable/Dev save/reload, repository edit unlock/relock, WX Link header/GitHub link, Overview-only sun/moon, collapsed bottom wiring, metric/custom hostname, Windy/PWS settings and local LUX attribution, local hostname/IP and unavailable-name fallback, seven shared palettes, preview/save/reload, Paper alert contrast, three link indicators, startup status races, dashboard rounding, live/partial/missing fields, gapped history, complete day/hourly forecasts, alert text safety, stale/offline states, setup-first onboarding, tabs, settings ownership, secret masking, scan text, CSRF save, repeated saves, cross-tab validation, fractional elevation, mobile layout, no JavaScript errors.')
 
 
 if __name__ == '__main__': main()

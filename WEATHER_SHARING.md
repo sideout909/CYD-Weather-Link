@@ -4,7 +4,7 @@ Network research checked October 16, 2026; firmware status updated October 22 fo
 APRS-IS/CWOP, Weather Underground and Weathercloud adapters are implemented.
 The owner confirms APRS.fi, WU and Weathercloud ingestion; separate CWOP/MADIS
 acceptance remains open. Windy.com v2 and PWSWeather are implemented; Windy
-ingestion is owner-confirmed, while PWSWeather live acceptance remains open. The PC logger remains a local development capture.
+ingestion is owner-confirmed, while PWSWeather ingestion is now owner-confirmed. The PC logger remains a local development capture.
 Recommendations reflect documented support and fit for this project; no
 comparable current counts of amateur-radio users were established.
 
@@ -20,7 +20,7 @@ popularity ranking was established for all destinations.
 | 1. Weather Underground | [About Our Data](https://www.wunderground.com/about/data) claims 400,000+ personal weather stations. Its [PWS overview](https://www.wunderground.com/pws/overview) still says 250,000+. | Strong evidence of a large network, inconsistent totals. Keep first. |
 | 2. Weathercloud | [July 28, 2026 announcement](https://blog.weathercloud.net/announcements/2026/07/introducing-weathercloud-15-a-new-map-experience-with-progressive-zoom-smart-device-clusters-forecast-timelines-3d-cities-and-globe-view/) claims over 150,000 devices online. | Promote into the first group on published network-size evidence. Devices are not necessarily unique PWS owners. |
 | 3. Windy.com Stations | No comparable current count of contributing personal stations found in the [station documentation](https://stations.windy.com/docs). | Provisional priority based on the separate weather map and documented upload API; not a verified third-place popularity claim. |
-| 4. PWSWeather | No comparable current contributor count found on the [service site](https://www.pwsweather.com/). | Implemented opt-in; live ingestion pending. Relative popularity versus Windy is unresolved. |
+| 4. PWSWeather | No comparable current contributor count found on the [service site](https://www.pwsweather.com/). | Implemented opt-in; ingestion owner-confirmed. Relative popularity versus Windy is unresolved. |
 
 Focus the first PWS upload work on Weather Underground and Weathercloud, with
 Windy as the third destination. APRS/CWOP remains a core ham/public-service
@@ -39,7 +39,7 @@ under investigation rather than being counted as a confirmed upload network.
 | Weather Underground | Existing requested personal-weather-station destination. | Implemented HTTPS uploader; owner confirms ingestion. |
 | Weathercloud | Large published device network with maps, history, and a public developer upload API. | Implemented independently configurable uploader; owner confirms ingestion. |
 | Windy.com Stations | Separate station map and observation-sharing API; useful wider weather audience, without a ham-specific identity requirement. | Implemented opt-in v2 uploader; owner confirms ingestion. TLS fix retained in 0.8.2. |
-| PWSWeather | Separate PWS maps, history, and third-party integrations. | Implemented independent opt-in uploader; real-account ingestion remains unverified. |
+| PWSWeather | Separate PWS maps, history, and third-party integrations. | Implemented independent opt-in uploader; real-account ingestion owner-confirmed. |
 | WeatherWise.app | Ryan Hall partner app; advertises viewing live weather stations. | Track possible integration; no advertised owner-upload path or public ingestion API was found. |
 | Meshtastic environmental telemetry | Local mesh sensor sharing; usefulness depends on nearby users and mesh infrastructure. | Defer a bridge until a real local use case and compatible radio path are identified. |
 
@@ -226,7 +226,7 @@ comparison and extended failure recovery remain acceptance work.
 
 Windy.com v2 and PWSWeather were subsequently implemented as independent opt-in
 adapters in 0.8.0. Windy ingestion is now owner-confirmed with the TLS fix retained
-in 0.8.2; PWSWeather ingestion remains unverified. Current code never sends replay
+in 0.8.2; PWSWeather ingestion is owner-confirmed. Current code never sends replay
 observations. Earlier research priorities above describe the original order.
 
 ## Owner-verified Weathercloud ingestion — October 21, 2026
@@ -244,8 +244,7 @@ PWSWeather and Windy.com v2 adapters now join WU/Weathercloud/APRS-CWOP as
 independent opt-in destinations. Both new integrations use five-minute successful
 cadences and strict live field eligibility, with bounded retry backoff. They are
 software-tested and built. Windy subsequently received HTTP 200 on the device and
-the owner confirmed the station online; PWSWeather real-account acceptance remains
-open. Current stable 0.8.2 retains the Windy TLS fix and corrects OTA startup checks.
+the owner confirmed the station online; PWSWeather real-account ingestion is now owner-confirmed. Current stable 0.8.2 retains the Windy TLS fix and corrects OTA startup checks.
 See firmware/PWSWEATHER.md and firmware/WINDY.md for authentication, units,
 acceptance semantics and the current API contract. Display units never change
 protocol units. APRS software/login and weather comment now identify WX-Link.
