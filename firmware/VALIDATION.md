@@ -5,6 +5,27 @@ log: older version sections describe the state at the time, not current
 limitations. The latest results are below; [WORK.md](WORK.md) tracks remaining
 work and [CONTROLS_CHECKLIST.md](CONTROLS_CHECKLIST.md) tracks owner checks.
 
+## Public release package — v0.7.5
+
+The owner reports exercising the preceding firmware over the last 24 hours and
+confirmed the installed v0.7.4 dashboard cleanup. v0.7.5 adds the WX-Link update
+source/default migration; no USB installation was performed for this release.
+
+- SC05_X build: passed; RAM 71,836 bytes, flash 1,698,557 bytes.
+- `bash tools/test-firmware.sh`: passed model/adapter checks and nine console
+  tests, including repository migration/custom-source preservation coverage.
+- The setup browser checks passed after the repository-reference change.
+- Release packager accepted the ESP32-S3 application image, board/layout,
+  version and slot size. Manifest URL uses `sideout909/WX-Link` and v0.7.5.
+- Application size 1,698,928 bytes; SHA-256
+  `6e08a5842657c8f3d0e6ee4c33e47553efe5bb89a5b1c73bcaa89b2ee3ed595d`.
+- The ZIP includes the image/manifest/checksums and GPL/third-party notices;
+  CRC and image/manifest integrity checks passed. No device settings, NVS,
+  capture, bootloader or partition payload is included.
+
+This packages the verified source for release; hosted OTA interruption/rollback
+and the remaining hardware/service validation gates are still open.
+
 ## Completed-setup dashboard cleanup — v0.7.4
 
 - `tools/verify_setup_page.py`: passed synthetic browser checks, including the

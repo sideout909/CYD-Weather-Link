@@ -1,11 +1,21 @@
 # Current development state
 
 Updated October 22, 2026 · firmware **v0.7.4**, installed over USB on the
-owner's PanelLan ZX2D80CE02S-V10 / SC05_X (8 MB flash, 2 MB PSRAM). Source changes are being pushed to GitHub; no v0.7.4 GitHub release or OTA
-asset publication is included in this update.
+owner's PanelLan ZX2D80CE02S-V10 / SC05_X (8 MB flash, 2 MB PSRAM). v0.7.4 is the USB-installed build. The v0.7.5 release adds the canonical
+WX-Link update source and migration while retaining the validated UI.
 The PC RTL-SDR capture service remains stopped. Device recording continues
 independently of the PC. See [build and controls](README.md),
 [bench evidence](VALIDATION.md) and [owner checklist](CONTROLS_CHECKLIST.md).
+
+## v0.7.5 — public release preparation
+
+The owner verified the v0.7.4 dashboard cleanup and reports exercising the
+preceding firmware over the last 24 hours. v0.7.5 includes the renamed default
+update source and migrates a saved old project source while preserving custom
+forks. This version is newer than installed v0.7.4 so OTA can offer it. Build,
+host checks, package integrity and public download verification are release gates;
+hosted interruption/rollback validation and remaining hardware/service gates
+remain open. Release preparation does not flash the owner's device.
 
 ## v0.7.4 — completed-setup dashboard cleanup
 

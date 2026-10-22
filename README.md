@@ -18,7 +18,13 @@ local barometer are optional additions. Sound is excluded from this device. Near
 
 ## Current development status
 
-Firmware **v0.7.4** shows packet age beside the sensor state and uses
+The v0.7.5 release includes the current UI and setup improvements plus the
+renamed `sideout909/WX-Link` update source. Atlas on the documented SC05_X
+hardware is the operational integration; other station families remain in development.
+For older firmware, enter `sideout909/WX-Link` in Updates before checking for
+this release. See [update instructions](firmware/UPDATES.md).
+
+Firmware **v0.7.5** shows packet age beside the sensor state and uses
 “Receiving” while building a complete weather cycle. Night forecast conditions
 include a moon behind cloud, fog and precipitation artwork. The current
 UI also includes configurable date/12–24-hour time, screen dim/off timeouts,

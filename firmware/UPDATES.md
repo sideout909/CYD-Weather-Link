@@ -8,9 +8,10 @@ remain supported. No GitHub token is needed. The first OTA transfer/boot was
 followed by an unexpected owner-reported rollback to v0.4.0; final acceptance
 and unattended update validation remain open.
 
-Local source/USB builds can be newer than published releases. v0.7.3 is local
-development work, not a published OTA release; USB startup checks alone do
-not complete the corrected hosted OTA acceptance test.
+v0.7.5 packages the current firmware for the renamed WX-Link repository.
+The owner reports exercising the preceding firmware over the last 24 hours.
+USB startup checks and owner use do not complete interrupted-transfer or
+deliberate failed-boot hosted OTA acceptance tests.
 
 ## Owner setup
 
@@ -122,9 +123,12 @@ probe is not a replacement for the corrected hosted OTA acceptance test.
 
 ## Repository rename — October 22, 2026
 
-The canonical project source is now `sideout909/WX-Link`. The next firmware
-build defaults to that source and migrates a saved `sideout909/CYD-Weather-Link`
+The canonical project source is now `sideout909/WX-Link`. v0.7.5
+defaults to that source and migrates a saved `sideout909/CYD-Weather-Link`
 source to it on load/save. Custom fork sources and update opt-in flags are
 preserved. The installed v0.7.4 predates this migration; its Updates field can
-be changed manually, or it will migrate when the next firmware is installed.
-No firmware was installed or release assets published as part of this rename.
+be changed manually, or it will migrate when v0.7.5 is installed. Before checking for v0.7.5 on older firmware, set
+Updates → Public GitHub owner/repository to `sideout909/WX-Link` and save.
+The release manifest names the canonical repository, and older firmware verifies
+that its download URL matches the configured repository. The rename alone did
+not install firmware; v0.7.5 is the subsequent release.
