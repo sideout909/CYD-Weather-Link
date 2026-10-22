@@ -58,7 +58,7 @@ Watch/warning colors and stale-data indicators retain their meanings.
 
 ## Live display
 
-![Live WX Link display showing Atlas readings, a local lux sky estimate, connection status, trends and NWS pressure](assets/screenshots/live-home-screen.png)
+![Live WX Link display showing Atlas readings, a local lux sky estimate, connection status, trends and NWS pressure](assets/screenshots/live-home-screen-v080.png)
 
 Actual display capture from the owner's PanelLan board running v0.8.0-rc.1 on
 October 22, 2026, with live Atlas reception. The LUX-labeled sun uses the calibrated
