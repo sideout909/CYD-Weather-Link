@@ -2,23 +2,27 @@
 
 ## Project Structure & Module Organization
 
-This repository contains hardware and firmware planning documents, display concepts/assets, a PC-side RTL-SDR reference-capture tool, and initial PanelLan ESP32-S3 firmware. The core firmware includes Atlas/CC1101 input, display/history, protected setup, persistence, NWS clients and initial exporters; live RF, network/service ingestion and soak validation remain open. Windy is follow-up work; D710 serial output, sound and barometer are optional additions.
+This repository contains hardware and firmware planning documents, display concepts/assets, a PC-side RTL-SDR reference-capture tool, and PanelLan ESP32-S3 development firmware. The core firmware includes Atlas/CC1101 input, display/history, protected setup, persistence, NWS clients and opt-in exporters. Live Atlas RF and owner-observed APRS.fi/WU/Weathercloud ingestion are confirmed; SDR comparison, separate CWOP ingestion, hosted OTA and extended soak validation remain open. Windy is follow-up work; D710 serial output and barometer are optional additions. Sound was removed from this hardware version on October 21; earlier audio plans are archived for a possible larger display.
 
 - `DESIGN.md` defines the all-in-one weather appliance, data handling, interfaces, and acceptance criteria.
 - `PARTS.md` proposes an ESP32-S3 hardware baseline and purchasing specifications.
-- `HOME_SCREEN.md` specifies the main display; `SCREENS.md` defines swipe navigation, rolling 24-hour trends, and the proposed local NWS forecast page.
+- `HOME_SCREEN.md` specifies the main display; `SCREENS.md` defines swipe navigation, rolling 24-hour trends, and the implemented local NWS forecast page.
 - `WEATHER_SHARING.md` records current sharing-network research, exporter priorities, and APRS/CWOP routing/registration validation requirements.
-- `DECODER_SUPPORT.md` documents pinned-library field/unit/integrity review and proposed confirmed-owner discovery; `tools/inventory-decoders.py` regenerates the complete and reviewed 433 MHz inventories in `reference/decoder-inventory/`. Library presence is not enabled firmware compatibility.
+- `DECODER_SUPPORT.md` documents pinned-library field/unit/integrity review and implemented Atlas discovery with explicit owner confirmation; `tools/inventory-decoders.py` regenerates the complete and reviewed 433 MHz inventories in `reference/decoder-inventory/`. Library presence is not enabled firmware compatibility.
 - `firmware/include/station_discovery.h` and `discovery_packet.h` implement bounded native-only Atlas discovery and Iris/Notos detection previews; `assets/web/discovery.js` provides the protected setup flow. `tools/verify_discovery_setup.py` validates the actual embedded page with synthetic candidates. Never send unconfirmed/discovery-only samples to history or exporters.
 - `firmware/src/` contains the Arduino application; `firmware/include/` contains the weather model, packet/report adapters, service contracts and embedded setup page.
 - `firmware/include/rolling_rain.h` tracks bounded rain-counter intervals for hour/24-hour coverage; checkpoint schema 3 persists them alongside minute history.
 - `firmware/include/history_archive.h` and `firmware/src/archive_storage.cpp` implement the fixed seven-day/five-minute archive; `firmware/RECORDING.md` documents bounded storage and protected CSV/USB export. Replay must never enter the archive.
 - `firmware/include/daily_rain.h` supplies local-day rain with an immediate midnight display reset, independent of when the next radio packet arrives.
+- `assets/themes/palettes.json` defines seven shared display/web palettes, including Night with a lower backlight; `tools/pack-display-themes.py` generates portable `display_themes.h`, embedded CSS and `theme_icons.h` from original SVGs. Runtime builds need no image tools. Watch/warning overrides retain their meaning and Paper uses legible stale colors.
 - `tools/pack-weather-icons.py` packs existing original assets; `tools/verify_setup_page.py` optionally checks the embedded page in headless Brave/Playwright.
 - `tools/pack-home-fonts.py` packs the v2 study's DejaVu glyphs into `firmware/include/home_fonts.h`; source font licensing lives in `assets/fonts/`.
 - `assets/web/` contains local Leaflet 1.9.4 and the browser ZIP/map/elevation and phone dashboard modules; `tools/pack-setup-assets.py` creates deterministic gzip firmware assets. Optional `tools/verify_location_setup.py` mocks every map tile/provider request.
+- `firmware/src/services.cpp` advertises `wxlink.local` via mDNS with HTTP on port 80; device/browser show a numeric IP fallback. Responder startup retries without blocking core weather operation. The default name assumes one unit per LAN.
 - `firmware/include/setup_credentials.h` separates the visible generated AP key from custom admin credentials; legacy migration must preserve private admin login.
 - `firmware/include/web_history.h` bounds the protected browser minute-history pages; `firmware/WEB_DASHBOARD.md` documents the phone overview, cached forecast/alerts and setup-first behavior.
+- `firmware/include/display_preferences.h` defines persisted clock/date choices, display inactivity policy, UV levels and compact status layout; touch wakes the display without pausing reception or network services.
+- `firmware/include/lunar_phase.h` projects current provider lunar data to forecast-period midpoints for small moon icons; missing data stays unknown. Night tint preserves phase/crater geometry.
 - `firmware/include/sensor_health.h` distinguishes missing hardware, stale station cycles and silent transmitters; do not infer a freeze from stable weather values alone.
 - `firmware/src/firmware_updates.cpp` handles opt-in GitHub OTA; `tools/package-firmware-release.py` creates ignored `dist/` artifacts without publishing. Keep image/manifest/rollback validation requirements in `firmware/UPDATES.md`.
 - `firmware/WIRING.md` maps the owner's CC1101 photo to exact expansion pins and power constraints.

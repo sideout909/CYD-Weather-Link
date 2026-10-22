@@ -1,16 +1,20 @@
 # Home screen concept
 
-Status: interface specification and fictional study previews, with core firmware implemented October 20, 2026. The [firmware scope](firmware/README.md) covers Home v2, full-screen watch/warning themes, alert client/details, gusts, history and setup. Optional audio, calibrated sky estimates, some measurement details and hardware/service acceptance remain open; see [validation](firmware/VALIDATION.md).
+Status: interface requirements and fictional study previews, updated through
+local v0.7.3 on October 21, 2026. [Firmware scope](firmware/README.md) and
+[validation](firmware/VALIDATION.md) distinguish installed behavior, owner checks
+and remaining soak/service acceptance. Later owner changes below supersede
+fictional study labels. Sound is removed from this hardware version.
 
-This is page 1 of the proposed three-page swipe interface: **Home**, **Trends**
+This is page 1 of the implemented three-page swipe interface: **Home**, **Trends**
 (rolling 24 hours), and **Forecast**. Navigation, shared layout, history, and
 forecast behavior are specified in [SCREENS.md](SCREENS.md).
 
 ![Normal, watch, and warning home screen states](concepts/home-screen-v2.png)
 
-The [original preview](concepts/home-screen.png) also illustrates loss of network service. The revised concept adds full-screen watch/warning themes and optional audible alerts.
+The [original preview](concepts/home-screen.png) also illustrates loss of network service. The revised historical concept adds watch/warning themes; its earlier audio proposal is now removed.
 
-The baseline is a **320×240 landscape touchscreen**, matching the proposed display in `PARTS.md`. The preview uses that exact logical resolution, enlarged for review. Validate fonts and touch accuracy on the selected panel before implementation.
+The baseline is a **320×240 landscape touchscreen**, matching the owned PanelLan in [PARTS.md](PARTS.md). The preview uses that logical resolution, enlarged for review. Rendering/touch are bench observed; the illustration is not a live screenshot.
 
 ## Visual hierarchy
 
@@ -18,12 +22,12 @@ Use a dark navy background in normal operation, warm white numbers, cyan measure
 
 | Area | Content and interaction |
 | --- | --- |
-| Header, y=0–43 | Compact `WEATHER LINK` title, configured callsign/SSID when present, local clock, Atlas health, RF/Wi-Fi states, APRS/CWOP connection text and a trailing speaker/mute icon. Subtle page dots indicate position. No large page-switching banner or permanent header arrows; swipes navigate. |
+| Header, y=0–43 | Compact `WX LINK` title, larger centered callsign/SSID, configurable local date/time, Atlas health and received-packet age, and right-aligned RF/WiFi/APRS states with no sound icon. Subtle page dots indicate position. No large page-switching banner or permanent header arrows; swipes navigate. |
 | Main readings, y=44–135 | Large outdoor temperature, a 60-minute trend, and a small NWS forecast graphic with local lux; current wind speed, compass arrow showing where wind comes **from**, and `Gust 5m` showing the highest received wind reading in the trailing five minutes. Tap either half for field ages, light/UV or wind/gust details. Swipe an outdoor/wind detail to open its trend. |
-| Measurements, y=136–183 | Humidity, local-day rain, and sea-level pressure with units. Tap a tile for details: humidity age/source, rain today/hour/24-hour totals and coverage, or pressure availability. Pressure shows `Not fitted` without a barometer. |
+| Measurements, y=136–183 | Humidity, local-day rain, and BARO with units/source. Tap a tile for details: humidity age/source, rain today/hour/24-hour totals and coverage, or pressure availability. Without a local barometer, fresh nearby NWS pressure can appear with NWS attribution; missing/expired data is unavailable. |
 | Alert strip, y=184–239 | Highest-priority NWS event and alert count, or explicit check status. Tap anywhere in the strip for the alert list and full text. |
 
-Use approximately 44-pixel or larger touch targets. Keep home reachable with a large Back button on detail pages. UV/light, lightning if fitted, battery, and extended history belong on secondary pages. If no barometer is installed, replace pressure with a supported measurement or show `Not fitted`.
+Use approximately 44-pixel or larger touch targets. Keep home reachable with a large Back button on detail pages. Detailed UV/light, lightning if fitted, battery and extended history belong on secondary pages; compact UV index/level accompanies klux on Home. NWS pressure is display-only; do not upload/archive it as local telemetry.
 
 Horizontal swipes in the content area move between the three primary pages.
 The alert strip remains a dedicated tap target on every page, and orange/red
@@ -90,7 +94,7 @@ Run this as a bounded, low-priority network task alongside existing uploaders. S
 
 Apply updates/cancellations using IDs and references, deduplicate versions, and exclude test/exercise messages from normal operation. Rank by CAP severity and urgency, with immediate tornado/severe-thunderstorm/flash-flood warnings at the top; retain unknown event types and let the list expose every returned alert. Watches, advisories, and unknown severity receive distinct text labels. Never infer an alert from local sensor values.
 
-An alert detail page shows the official event, affected area, issue/update time, onset/end when supplied, issuing office, and scrollable NWS description and instructions. Use local timezone labels. Preserve the source text, wrap long headlines, and provide an alert-list button with count. Acknowledging an alert records that it was seen; it does not clear it. Optional sound hardware and behavior are defined below.
+An alert detail page shows the official event, affected area, issue/update time, onset/end when supplied, issuing office, and scrollable NWS description and instructions. Use local timezone labels. Preserve the source text, wrap long headlines, and provide an alert-list button with count. Acknowledging an alert records that it was seen; it does not clear it. This hardware version uses visual alerts only.
 
 ## Full-screen alert themes
 
@@ -106,21 +110,11 @@ These are project UI colors, not the official NWS map palette. Classify known NW
 
 Apply the theme throughout home and detail pages. Change it on validated updates, without flashing. On a failed/stale check, retain the last known orange/red theme with a prominent `NWS UNVERIFIED` label and check age; do not quietly return to navy or imply confirmed ongoing activity. A successful complete snapshot can clear or downgrade the theme. Clearing/changing the configured location invalidates its cache and shows `Set alert location`/`Checking`. Silencing or acknowledging an alert never changes the background.
 
-## Optional audible alerts
+## Sound removed from current hardware
 
-Add a speaker and suitable amplifier, or use a verified existing board audio circuit. The proposed ESP32-S3 baseline can use an I²S amplifier such as **MAX98357A** plus a matched small speaker; reserve bit-clock, word-select, and data GPIO, and optionally an amplifier-enable pin. Verify module input levels, supply, speaker impedance/rating, and the whole pin budget before wiring. A speaker must not be driven directly by an ESP32 GPIO. A driven piezo buzzer is an alternative if simple beeps and fewer audio features are preferred. See [PARTS.md](PARTS.md).
-
-Proposed behavior after the user enables and tests audio:
-
-- A newly received actual watch plays one short, original two-note chime.
-- A newly received actual warning plays a distinct original three-pulse tone; immediate severe/extreme warnings may repeat every 60 seconds until silenced, cancelled, or no longer confirmed fresh.
-- Advisories/statements remain silent by default; an optional setting enables their chime. Unknown classifications remain visible and do not inherit a guessed tone.
-- The alert detail page opens when sound starts and provides a large **Silence this alert** button. Stop playback immediately; retain the alert, count, and background. A separate **Mute all** setting persists; a speaker/mute icon beside Wi-Fi shows audio state. Unconfigured audio uses the mute icon.
-- Provide volume, enable/disable, a deliberately invoked **Test sound** button, and an optional quiet-hours setting. Quiet hours suppress sound unless an explicit warning override is enabled; never assume they override mute. Make the selected behavior visible in settings.
-- Deduplicate by alert identity/update lineage. Routine polling, reconnects, and unchanged updates do not replay tones. A watch-to-warning escalation or materially increased hazard may re-alert, including after the previous version was silenced; document those triggers and persist bounded acknowledgement state to avoid restart loops. A newly discovered fresh alert after reboot can still announce once.
-- Stop repeats on stale/unavailable NWS data, message expiry, cancellation, mute, or a location change. Cached alerts and invalid-time startup cannot trigger fresh-alert tones. Resume only after fresh validated data, without replaying an unchanged acknowledged event.
-
-Generate tones locally with bounded nonblocking playback; no cloud speech or SD audio files are required. Use original chimes, not a recording or imitation of the EAS/NOAA warning attention signals. Volume and audibility require an enclosure bench test. Audio remains optional and must not stall RF capture, history updates, rendering, UART output, or networking.
+The owner removed sound alerts on October 21. No sound/mute indicator or driver
+is included; [earlier plans](reference/FUTURE_AUDIO.md) apply only to a possible
+future larger-display version. Visual watch/warning overrides remain.
 
 ## Alert strip states
 
@@ -136,7 +130,7 @@ When a new immediate severe/extreme alert arrives, wake a dimmed display and ope
 
 Review the preview at native size and on the real panel. Exercise long event names, multiple alerts, update/cancel, null end times, expired cached messages, empty results, pagination, malformed/oversized payloads, throttling, invalid time, reconnect, and a location change (which invalidates the old cache). Inject stale individual fields while RF remains active. Verify all text fits with Fahrenheit/Celsius and selected pressure units, and that alert fetching never stalls RF reception, history updates, or UART output.
 
-Check normal→watch→warning→watch→clear theme transitions, simultaneous watch/warning priority, advisories, unknown types, and retained unverified themes offline. Verify text contrast on the actual display. Test sound enable/test/volume, immediate silence, mute across reboot, quiet hours/override, duplicate updates, escalation after acknowledgement, cancellation, stale/expired cache, and playback under full receiver/network load. Verify amplifier power draw, brownout behavior, and interference with 433 MHz reception.
+Check normal/watch/warning transitions, simultaneous alert priority, advisories, unknown types and retained unverified themes offline. Verify contrast across palettes; orange stale readings and watch/warning colors retain their meaning.
 
 ## Owner updates — October 20, 2026
 
@@ -178,11 +172,11 @@ requests or actual hardware/data state:
 | --- | --- | --- |
 | `RAIN TODAY` | `RAIN TODAY`, optionally `*` / `!` | Latest owner request restores local-midnight daily rain, with coverage/freshness. |
 | `Gust 14 · 10 min` | `Gust … · 5 min`, optionally `*` | Five-minute received-sample maximum and incomplete coverage. |
-| `Sky est. mixed` | `NWS forecast` when available | Owner selected NWS conditions; local lux remains independent. |
-| `Sound on` | Speaker/mute icon beside Wi-Fi | Center slot displays the callsign; audio remains muted without configured hardware. |
+| `Sky est. mixed` | `NWS` above the icon when available | Owner selected NWS conditions; local lux remains independent. |
+| `Sound on` | Removed | Owner removed sound; center slot displays callsign. |
 | `· SD` | Omitted | Owner removed required SD logging. |
-| Fictional `30.06 inHg` | `--` / `Not fitted` | No barometer installed. |
-| Fictional fresh Atlas values | `Atlas · waiting`, `--` | The CC1101 is not yet connected. |
+| Fictional `30.06 inHg` | Nearby NWS pressure or unavailable | No local barometer; external data is labeled and display-only. |
+| Fictional fresh Atlas values | Live Atlas readings or explicit stale/unavailable state | Live CC1101 reception is verified. |
 
 The forecast icon itself follows actual current NWS conditions and downloaded
 day/night/phase information; it need not match the study's fictional partly
@@ -192,10 +186,9 @@ and generation instructions are recorded in the firmware README.
 
 ## Ham identity and Atlas transmitter health
 
-Latest owner header request orders the status indicators RF, WiFi, APRS/CWOP,
-then the sound/mute icon, with no outline around APRS/CWOP. The center slot
+Latest owner header request orders right-aligned RF, WiFi and APRS/CWOP statuses, with no outline around APRS/CWOP. The center slot
 shows the configured callsign/SSID in
-11-pixel bold text (increased from the 8-pixel status font).
+14-pixel bold text where space permits, falling back to the smaller header font for long identity/date formats.
 Explicit USB replay still replaces that slot with REPLAY. RF + / RF X reports
 receiver initialization; WiFi + / WiFi X reports association. APRS X / CWOP X
 means disconnected or disabled, and APRS + / CWOP + means an acknowledged network
@@ -204,7 +197,7 @@ and successful remote weather ingestion remain separate facts.
 
 Tap the second header row for Link status: Atlas state, last bound-station
 packet, missing types, APRS/CWOP session and last sent report. No receiver,
-Waiting, Collecting, Current, Data stale and Disconnected are distinct states.
+Waiting, Receiving, Current, Data stale and Disconnected are distinct states.
 Show **Data stale** after ten minutes without any accepted weather-value change,
 or after the ten-minute collection grace period if required types/measurements
 are missing or ten minutes old. Any changed accepted weather field resets the
@@ -226,7 +219,7 @@ accounting also retains the two-minute completeness gate.
 ## October 21 source labels and pressure fallback
 
 Owner request: remove the "NWS forecast" text beneath the local temperature;
-that line now contains lux only (and its stale marker when applicable). Keep
+that line now contains local klux and UV index/full level, with stale/missing markers when applicable. Keep
 weather-icon attribution distinct from the local measured temperature.
 Rename the pressure tile BARO. The current Atlas has no barometer, so display
 fresh nearby NWS station pressure in inHg with NWS beneath the number. Prefer
@@ -246,11 +239,71 @@ is at least ten minutes old. Remove the tiny STALE tag beside the number.
 Missing temperatures remain muted dashes. Fresh data returns the number to
 white. On Home, orange replaces the small Data stale status text; Disconnected
 remains explicit. Other pages and measurement details retain the health text.
-# TODO: weather-icon source label placement
+## Weather-icon source label placement — implemented v0.6.0
 
 Owner request, October 21, 2026: move the **NWS** source label above the current
 sunny/cloudy/night weather icon. Its current placement can make the nearby
 temperature history graph appear to come from NWS. Keep the label visually
 attached to the icon; the graph continues to represent local station readings.
-This is backlog work, not an implemented display change.
+This change is implemented; the local graph remains distinct from NWS icon attribution.
 
+
+## Display preferences and shared themes — current implementation
+
+Local v0.7.2 includes the later owner changes to the v2 reference: WX LINK,
+larger centered callsign, configurable date prefix and 12/24-hour clock,
+right-aligned RF/WiFi/APRS statuses, no sound icon and seconds since the last
+decoded bound-station packet. Repeats prove reception independently of field
+freshness. Receiving replaces the partial-cycle Collecting label.
+
+NWS attribution sits above the weather icon. Local klux includes UV index and
+full level (including Moderate); stale/missing UV is unavailable. BARO may use
+fresh nearby NWS pressure, with source/type/age in details; it is display-only,
+excluded from Atlas uploads/archive. Detailed trends preserve data gaps; only
+the small Home sparkline bridges observed points across missed minutes.
+
+Trends and Forecast return Home after 60 seconds without touch; setup, alerts
+and measurement details are excluded. Keep-on/Dim/Off backlight preferences do
+not sleep the MCU or pause RF, history, NWS or uploads. First-touch wake consumes
+the gesture before normal controls resume. Touch/hold/release reset inactivity.
+
+Station & Wi-Fi → Display & clock offers Midnight (original), Matrix, Amber,
+Ice Blue, Violet, Paper and Night (low light). Browser changes preview locally;
+Save and restart persists one palette for screen and webpage. Old settings
+retain Midnight; invalid/nonstring themes are rejected. Shared JSON generates
+RGB565 colors, embedded CSS and recolored original SVG weather artwork without
+changing geometry. Watch/warning themes retain distinct colors; Paper uses a
+darker readable stale orange. Sound is excluded from this hardware version;
+[earlier audio plans](reference/FUTURE_AUDIO.md) are archived for larger displays.
+
+Night uses near-black surfaces, subdued amber text/artwork/moon, and softer
+olive NWS all-clear/connected indicators. Backlight is 24/255 normally, 2/255
+when idle-dimmed and zero for Off; other themes remain 160/16. Wake returns to
+the selected level. After display initialization, boot leaves the backlight
+off until settings and the first themed frame are ready. Actual dark-room
+appearance/wake checks remain owner validation.
+
+Home uses current provider moon phase. Forecast icons estimate the phase at
+each period midpoint from provider illumination/direction, anchored at noon of
+the current local reference date and advanced with a mean synodic cycle.
+This is a small-icon estimate, not an ephemeris. Invalid/missing current-day
+lunar data remains unknown; hemisphere orientation, crater texture and cloud/
+fog/precipitation overlays are preserved. No extra provider requests are made.
+
+## Friendly settings address — v0.7.2
+
+Advertise wxlink.local with mDNS and HTTP on TCP port 80. First-run and More
+settings views show http://wxlink.local prominently, with current numeric AP/
+LAN IP fallback. The browser header links both. Existing Basic authentication,
+CSRF and private custom admin credentials are unchanged; no secrets are advertised.
+Failed mDNS startup retries every 30 seconds and does not block core weather
+operation. Existing setup DNS and 192.168.4.1 remain available. Default name
+assumes one unit per local network; clients without local multicast support
+can use the IP. No component, GPIO or storage-layout change is required.
+
+## Original local palette studies
+
+The [interactive concepts](concepts/themes/index.html), [comparison sheet](concepts/themes/comparison.png)
+and [generation notes](concepts/themes/README.md) retain the original five
+color-only studies. Their palettes were implemented in v0.7.0; the historical
+SVGs retain their original sample header, including the since-removed speaker.

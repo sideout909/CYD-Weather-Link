@@ -32,14 +32,14 @@ This is historical SDR evidence, not a measurement of today's CC1101 link.
 The current antenna, power, interference, receiver settings, decoding and
 transmitter operation still need live diagnosis.
 
-## Read-only USB monitoring, v0.4.3 candidate
+## Read-only USB monitoring — available since v0.4.3
 
 ```bash
 bash tools/firmware-console.sh checkpoint-save
 bash tools/monitor-rf.sh captures/rf-baseline.jsonl --seconds 600
 ```
 
-Requires the diagnostics firmware. Do not run another serial command while the
+Included in the current firmware. Do not run another serial command while the
 monitor owns the port. Capture one baseline without moving the antenna or
 changing settings; document any unavoidable move/power-source change. The
 collector creates a new JSONL file exclusively, flushing each record. It does

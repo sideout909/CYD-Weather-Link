@@ -1,7 +1,9 @@
+#include <string>
 #include "sensor_health.h"
 #include <cassert>
 #include <iostream>
 int main(){
+  assert(std::string(sensor_health::label(sensor_health::State::Collecting))=="Receiving");
   using S=sensor_health::State;
   constexpr uint64_t start=1000000;
   weather::Store store;sensor_health::Monitor monitor;monitor.reset(start);

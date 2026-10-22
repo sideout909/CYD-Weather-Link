@@ -1,7 +1,9 @@
 # Weather-sharing targets
 
-Research checked October 16, 2026. These are proposed integrations, not
-implemented uploaders. The PC logger remains a local development capture.
+Network research checked October 16, 2026; firmware status updated October 21.
+APRS-IS/CWOP, Weather Underground and Weathercloud adapters are implemented.
+The owner confirms APRS.fi, WU and Weathercloud ingestion; separate CWOP/MADIS
+acceptance remains open. Windy and PWSWeather remain planned integrations. The PC logger remains a local development capture.
 Recommendations reflect documented support and fit for this project; no
 comparable current counts of amateur-radio users were established.
 
@@ -23,7 +25,7 @@ Focus the first PWS upload work on Weather Underground and Weathercloud, with
 Windy as the third destination. APRS/CWOP remains a core ham/public-service
 requirement independently of this PWS ordering. Plan individually selectable
 adapters for all four active PWS destinations; users can configure any supported
-subset. This is a roadmap, not implemented capability. Met Office WOW is removed
+subset. This ordering is a roadmap; the first two PWS adapters are implemented. Met Office WOW is removed
 as a new target because its retirement has been announced; WeatherWise remains
 under investigation rather than being counted as a confirmed upload network.
 
@@ -33,8 +35,8 @@ under investigation rather than being counted as a confirmed upload network.
 | --- | --- | --- |
 | APRS RF and APRS-IS | Existing ham weather distribution and map/radio interoperability. | Keep direct APRS-IS and optional D710 weather serial output as planned. |
 | CWOP / NOAA MADIS | Weather-observation contribution explicitly open to ham operators and other citizens; quality feedback and access for weather services. | Make supported CWOP participation an intended target, reusing APRS encoding and verifying routing/registration before adding any duplicate transmission. |
-| Weather Underground | Existing requested personal-weather-station destination. | Keep the planned HTTPS uploader. |
-| Weathercloud | Large published device network with maps, history, and a public developer upload API. | Add an independently configurable uploader in the first PWS group. |
+| Weather Underground | Existing requested personal-weather-station destination. | Implemented HTTPS uploader; owner confirms ingestion. |
+| Weathercloud | Large published device network with maps, history, and a public developer upload API. | Implemented independently configurable uploader; owner confirms ingestion. |
 | Windy.com Stations | Separate station map and observation-sharing API; useful wider weather audience, without a ham-specific identity requirement. | Add an optional, independently configurable uploader using its current API. |
 | PWSWeather | Separate PWS maps, history, and third-party integrations. | Plan a later selectable uploader after the first group. |
 | WeatherWise.app | Ryan Hall partner app; advertises viewing live weather stations. | Track possible integration; no advertised owner-upload path or public ingestion API was found. |
@@ -208,8 +210,8 @@ Retain raw readings and unsupported fields locally for later analysis.
 Before activating any destination, record its current public requirements,
 configure the owner's station identity/location, verify a sample encoded
 observation without exposing credentials, and confirm actual remote ingestion.
-Multi-destination sharing and station registration are implementation/setup
-work remaining after this planning research.
+Destination registration and provider-side field/routing checks remain
+installation-specific acceptance work.
 
 ## Firmware implementation status — October 20, 2026
 
@@ -217,10 +219,18 @@ The initial [firmware](firmware/README.md) now includes opt-in Weather
 Underground, Weathercloud and APRS-IS/CWOP transports, separate identities and
 health states, fresh-live-only gating and retry/backoff. Software encoders
 omit unavailable pressure, irradiance, sustained APRS wind and uncovered rain
-windows. Defaults are off. These are implemented clients, not verified remote
-station registration, ingestion or map visibility. Service-specific acceptance
-remains required after live reception and owner configuration.
+windows. Defaults are off. Subsequent owner checks confirm APRS.fi map/weather placement and WU/
+Weathercloud ingestion. Separate CWOP registration/collection, field-by-field
+comparison and extended failure recovery remain acceptance work.
 
 Windy remains the third PWS adapter to add; PWSWeather and other routes remain
 follow-up work. The setup portal does not advertise these pending adapters as
 working destinations. Current code never sends replay observations.
+
+## Owner-verified Weathercloud ingestion — October 21, 2026
+
+The owner reports the configured device is connected to Weathercloud and the
+service is receiving its data. Record Weathercloud alongside APRS.fi and WU
+as owner-verified ingestion. This is an owner observation, not a new automated
+comparison of every uploaded field or a validation of separate CWOP routing.
+No account identifiers or upload keys belong in this record.

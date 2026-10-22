@@ -4,7 +4,7 @@
   const $ = id => document.getElementById(id);
   const svgNS = 'http://www.w3.org/2000/svg';
   let config = {}, latest = {}, rows = [], metric = 1, forecastType = 'daily';
-  let daily = [], hourly = [], forecastMeta = {}, alertMeta = {}, alertEntries = [], reachable = true;
+  let daily = [], hourly = [], forecastMeta = {}, alertMeta = {}, alertEntries = [], reachable = true, statusKnown = false;
   let historyAttempt = 0, forecastAttempt = 0, alertAttempt = 0;
   let historyBusy = false, forecastBusy = false, alertBusy = false;
   const metricNames = ['', 'Temperature (°F)', 'Wind peaks (mph)', 'Light (lx)', 'Humidity (%)'];
@@ -13,7 +13,16 @@
   const finite = value => typeof value === 'number' && Number.isFinite(value);
   const rounded = (value, digits = 1) => finite(value) ? value.toFixed(digits) : '—';
   const text = (id, value) => { $(id).textContent = value; };
-  const time = seconds => seconds ? new Date(seconds * 1000).toLocaleString([], {timeZone:zone(),month:'short',day:'numeric',hour:'numeric',minute:'2-digit'}) : 'Not yet checked';
+  const clockOptions=()=>config.clock_24h?{hourCycle:'h23'}:{hour12:true};
+  const time = seconds => seconds ? new Date(seconds * 1000).toLocaleString([], {timeZone:zone(),month:'short',day:'numeric',hour:'numeric',minute:'2-digit',...clockOptions()}) : 'Not yet checked';
+  function headerTime(date) {
+    const fields=new Intl.DateTimeFormat('en-US',{timeZone:zone(),year:'numeric',month:'2-digit',day:'2-digit'}).formatToParts(date);
+    const part=name=>fields.find(p=>p.type===name).value;
+    const day=part('day'),month=part('month');
+    const prefix=config.date_format==='iso'?part('year')+'-'+month+'-'+day:config.date_format==='dm'?day+'/'+month:config.date_format==='text'?new Intl.DateTimeFormat('en-US',{timeZone:zone(),month:'short',day:'numeric'}).format(date):month+'/'+day;
+    return prefix+' '+date.toLocaleTimeString('en-US',{timeZone:zone(),hour:'numeric',minute:'2-digit',...clockOptions()});
+  }
+  function uvLevel(value) {const index=Math.round(value);return index<3?'Low':index<6?'Moderate':index<8?'High':index<11?'Very High':'Extreme';}
   function element(tag, textValue, className) {
     const node = document.createElement(tag);
     if (textValue !== undefined) node.textContent = textValue;
@@ -29,9 +38,18 @@
     const controller = new AbortController(), timer = setTimeout(() => controller.abort(), 12000);
     try { return await api(path, {signal:controller.signal}); } finally { clearTimeout(timer); }
   }
+  function applyTheme(id) {
+    const choices=$('display_theme');
+    const theme=Array.from(choices.options).some(option=>option.value===id)?id:'midnight';
+    document.documentElement.dataset.theme=theme;
+    drawHistory();renderForecast();updateSky();
+  }
+  const iconUrl=name=>'/assets/weather.png?theme='+encodeURIComponent(document.documentElement.dataset.theme||'midnight')+'&name='+name;
   function configure(value) {
-    config = value;
-    $('onboarding').hidden = !!value.ssid && !!value.location_set && value.station_confirmed!==false;
+    config = value;applyTheme(value.display_theme||'midnight');
+    const setupComplete = !!value.ssid && !!value.location_set && value.station_confirmed!==false;
+    $('onboarding').hidden = setupComplete;
+    $('get-connected').hidden = setupComplete;
     text('onboarding-title', value.ssid ? 'Add your station location' : 'Set up your weather station');
     text('onboarding-message', value.ssid ? 'Station readings work locally. Add your location in Station & Wi-Fi to enable the local forecast, alerts, sun and moon.' : 'Start with Station & Wi-Fi: join your home network, confirm the Atlas sensor and choose your location. Sharing services are optional.');
     if (!value.ssid || value.station_confirmed===false) tab('station');
@@ -40,14 +58,23 @@
   }
   function status(value) {
     if(value.clock_valid&&!latest.clock_valid)historyAttempt=0;
-    latest = value;reachable = true;
+    const moonChanged=value.moon_reference!==latest.moon_reference||value.moon_illumination!==latest.moon_illumination||value.moon_phase!==latest.moon_phase;
+    latest = value;reachable = true;statusKnown = true;
+    if(moonChanged)renderForecast();
     if(value.forecast_fetched!==undefined&&(value.forecast_fetched!==forecastMeta.daily?.fetched||value.hourly_fetched!==forecastMeta.hourly?.fetched||value.forecast_state!==forecastMeta.daily?.state||value.hourly_state!==forecastMeta.hourly?.state))forecastAttempt=0;
     if(value.alert_last_check!==undefined&&(value.alert_last_check!==alertMeta.checked||value.alert_state!==alertMeta.state))alertAttempt=0;
+    const address=$('local-address');address.replaceChildren();
+    const named=document.createElement('a');named.href='http://wxlink.local/';named.textContent='http://wxlink.local';address.append(named);
+    const ip=value.ip;
+    if(typeof ip==='string'&&/^(?:[0-9]{1,3}\.){3}[0-9]{1,3}$/.test(ip)){
+      const fallback=document.createElement('a');fallback.href='http://'+ip+'/';fallback.textContent=ip;address.append(' · IP: ',fallback);
+    }
+    if(value.mdns_ready===false)address.append(' · Local name unavailable; use IP');
     const d = value.display || value, stale = d.stale_fields || 0;
     text('station-callsign', value.callsign || config.callsign || '');
-    text('station-time',value.clock_valid?new Date().toLocaleTimeString([], {timeZone:zone(),hour:'numeric',minute:'2-digit'}):'Waiting for station clock');
+    text('station-time',value.clock_valid?headerTime(new Date()):'Waiting for station clock');
     $('station-links').replaceChildren();
-    const links = [['RF',!!value.radio_ready],['Wi-Fi',!!value.wifi],[value.aprs_profile === 'cwop' ? 'CWOP' : 'APRS',!!value.aprs_connected],['Sound',!!value.sound_enabled]];
+    const links = [['RF',!!value.radio_ready],['Wi-Fi',!!value.wifi],[value.aprs_profile === 'cwop' ? 'CWOP' : 'APRS',!!value.aprs_connected]];
     for (const [label, connected] of links) $('station-links').append(element('span', label + (connected ? ' ✓' : ' ×'), connected ? 'ok' : 'muted'));
     text('temperature', finite(d.temperature_F) ? rounded(d.temperature_F) + ' °F' : '—');
     $('temperature').classList.toggle('stale-reading', finite(d.temperature_F) && (!!(stale & 1) || ['Data stale','Disconnected','No signal'].includes(value.sensor_status)));
@@ -58,7 +85,7 @@
     text('humidity', finite(d.humidity) ? Math.round(d.humidity) + ' %' : '—');
     text('rain', finite(value.rain_today_in) ? rounded(value.rain_today_in, 2) + ' in' + ((d.rain_partial ?? value.rain_partial) ? ' *' : '') : '—');
     text('lux', finite(d.lux) ? (d.lux >= 1000 ? rounded(d.lux / 1000) + ' klx' : Math.round(d.lux) + ' lx') : '— lx');
-    text('uv', finite(d.uv) ? 'UV ' + rounded(d.uv) : 'UV —');
+    text('uv', finite(d.uv)&&!(stale&32) ? 'UV ' + rounded(d.uv,0)+' '+uvLevel(d.uv) : 'UV —');
     for (const [id, bit] of [['humidity',2],['wind',4],['direction',8],['lux',16],['uv',32]]) $(id).classList.toggle('aged-reading', !!(stale & bit));
     text('pressure', value.nws_pressure_valid && finite(value.nws_pressure_pa) ? rounded(value.nws_pressure_pa / 3386.389, 2) + ' inHg' : '—');
     text('pressure-source', value.nws_pressure_valid ? 'NWS · ' + value.nws_pressure_station : 'NWS · unavailable');
@@ -88,19 +115,19 @@
     text('trend-status',metricNames[metric] + ' · ' + rounded(low) + ' to ' + rounded(high) + ' · ' + data.length + ' observed minutes');
     const x = i => 62 + i * 874 / 1439, y = value => 218 - (value - low) * 185 / range;
     for (const value of [low, high]) {
-      chart.append(svg('line',{x1:62,y1:y(value),x2:936,y2:y(value),stroke:'#2b3c50'}));
-      const label = svg('text',{x:54,y:y(value)+5,'text-anchor':'end',fill:'#a5b6c8','font-size':14});label.textContent=rounded(value);chart.append(label);
+      chart.append(svg('line',{x1:62,y1:y(value),x2:936,y2:y(value),stroke:'var(--line)'}));
+      const label = svg('text',{x:54,y:y(value)+5,'text-anchor':'end',fill:'var(--muted)','font-size':14});label.textContent=rounded(value);chart.append(label);
     }
     let path = '', connected = false;
     rows.forEach((row,i) => {
       if (!finite(row[metric])) { connected=false;return; }
       path += (connected ? 'L' : 'M') + x(i).toFixed(2) + ',' + y(row[metric]).toFixed(2);
-      if (!connected && (!rows[i+1] || !finite(rows[i+1][metric]))) chart.append(svg('circle',{cx:x(i),cy:y(row[metric]),r:2,fill:'#65d8ed'}));
+      if (!connected && (!rows[i+1] || !finite(rows[i+1][metric]))) chart.append(svg('circle',{cx:x(i),cy:y(row[metric]),r:2,fill:'var(--cyan)'}));
       connected=true;
     });
-    chart.append(svg('path',{d:path,fill:'none',stroke:'#65d8ed','stroke-width':2,'data-series':'observed'}));
+    chart.append(svg('path',{d:path,fill:'none',stroke:'var(--cyan)','stroke-width':2,'data-series':'observed'}));
     for (const i of [0,720,1439]) {
-      const label=svg('text',{x:x(i),y:251,'text-anchor':i===0?'start':i===1439?'end':'middle',fill:'#a5b6c8','font-size':14});label.textContent=time(rows[i][0]*60);chart.append(label);
+      const label=svg('text',{x:x(i),y:251,'text-anchor':i===0?'start':i===1439?'end':'middle',fill:'var(--muted)','font-size':14});label.textContent=time(rows[i][0]*60);chart.append(label);
     }
     drawHome();
   }
@@ -110,7 +137,7 @@
     if (values.length<2)return;
     const low=Math.min(...values),high=Math.max(...values),range=high>low?high-low:1;
     let path='';data.forEach((row,i)=>{if(finite(row[1]))path+=(path?'L':'M')+(i*596/59).toFixed(2)+','+(52-(row[1]-low)*40/range).toFixed(2);});
-    chart.append(svg('path',{d:path,fill:'none',stroke:'#65d8ed','stroke-width':2}));
+    chart.append(svg('path',{d:path,fill:'none',stroke:'var(--cyan)','stroke-width':2}));
   }
   async function history() {
     if(historyBusy)return;historyBusy=true;historyAttempt=Date.now();text('trend-status','Refreshing received history…');
@@ -155,7 +182,7 @@
     if(!list.length){text('forecast-status',meta?meta.state:'No forecast available. Set your station location.');return;}
     const now=Date.now()/1000;
     for(const period of list.filter(p=>p.end>now)){
-      const card=element('article',undefined,'forecast-period');card.append(element('h3',period.name));
+      const card=element('article',undefined,'forecast-period');const heading=element('div',undefined,'forecast-heading');heading.append(element('h3',period.name));heading.append(forecastArt(period));card.append(heading);
       card.append(element('div',finite(period.temperature_F)?rounded(period.temperature_F)+' °F':'Temperature unavailable','forecast-temp'));
       card.append(element('p',period.short));card.append(element('p','Wind '+(period.wind||'unavailable'),'muted'));
       if(finite(period.rain_probability)&&period.rain_probability>=0)card.append(element('p','Rain chance '+Math.round(period.rain_probability)+'%','muted'));
@@ -168,7 +195,7 @@
     if(!meta)return;
     const state=forecastType==='daily'?latest.forecast_state:latest.hourly_state;
     const fresh=reachable&&latest.wifi&&latest.clock_valid&&meta.fresh&&Date.now()/1000-meta.fetched<7200&&(state===undefined||state==='Current');
-    text('forecast-status',(fresh?'Updated ':'Cached / unverified · ')+time(meta.issued||meta.fetched)+' · '+(state||meta.state));
+    text('forecast-status',(!statusKnown&&reachable?'Checking device connection · ':fresh?'Updated ':'Cached / unverified · ')+time(meta.issued||meta.fetched)+' · '+(state||meta.state));
   }
   async function alerts() {
     if(alertBusy)return;alertBusy=true;alertAttempt=Date.now();
@@ -188,28 +215,52 @@
     if(!Object.keys(alertMeta).length)return;
     const now=Date.now()/1000,expired=alertEntries.some(entry=>entry.expires&&entry.expires<=now);
     const fresh=reachable&&latest.wifi&&latest.clock_valid&&alertMeta.fresh&&now>=alertMeta.checked&&now-alertMeta.checked<180&&!expired;
-    const summary=fresh?(alertEntries.length?alertEntries.length+' active alert'+(alertEntries.length===1?'':'s'):'No active alerts'):'Alert status unverified · '+(!latest.wifi?'Wi-Fi unavailable':!latest.clock_valid?'Waiting for station clock':alertMeta.state);
+    const summary=fresh?(alertEntries.length?alertEntries.length+' active alert'+(alertEntries.length===1?'':'s'):'No active alerts'):'Alert status unverified · '+(!reachable?'Device unavailable':!statusKnown?'Checking device connection':!latest.wifi?'Wi-Fi unavailable':!latest.clock_valid?'Waiting for station clock':alertMeta.state);
     text('alerts',summary+(alertMeta.truncated?' · more alerts may exist':'')+' · checked '+time(alertMeta.checked));
     text('station-alert','NWS · '+(alertEntries.length?(fresh?'':'UNVERIFIED · ')+(alertEntries[0].event||'Last known alert'):summary));
-    for(const target of [$('alerts-card'),$('station-alert')]){target.classList.toggle('alert-warning',alertMeta.theme>=3);target.classList.toggle('alert-watch',alertMeta.theme===2||!fresh);}
+    for(const target of [$('alerts-card'),$('station-alert')]){target.classList.toggle('alert-warning',alertMeta.theme>=3);target.classList.toggle('alert-watch',alertMeta.theme===2||(!fresh&&(statusKnown||!reachable)));}
   }
   function classify(value) {
     const t=(value||'').toLowerCase();
-    if(/thunder/.test(t))return 'thunderstorm';if(/snow|sleet|freezing|wintry|ice/.test(t))return 'snow';if(/rain|shower|drizzle/.test(t))return 'rain';if(/fog|haze|smoke/.test(t))return 'fog';if(/wind|breezy/.test(t))return 'windy';if(/partly|mostly sunny/.test(t))return 'partly-cloudy';if(/cloud|overcast/.test(t))return 'cloudy';if(/sunny|clear/.test(t))return 'sunny';return 'unknown';
+    if(/thunder/.test(t))return 'thunderstorm';if(/snow|sleet|freezing|wintry|ice/.test(t))return 'snow';if(/rain|shower|drizzle/.test(t))return 'rain';if(/fog|haze|smoke/.test(t))return 'fog';if(/partly|mostly sunny/.test(t))return 'partly-cloudy';if(/cloud|overcast/.test(t))return 'cloudy';if(/wind|breezy/.test(t))return 'windy';if(/sunny|clear/.test(t))return 'sunny';return 'unknown';
   }
   function moon(illumination,waning,southern,cloudy) {
     const canvas=document.createElement('canvas');canvas.width=64;canvas.height=64;const ctx=canvas.getContext('2d');
-    const left=waning!==southern;
+    const left=waning!==southern,lowLight=document.documentElement.dataset.theme==='night';
+    const shadeColor=shade=>lowLight?'rgb('+[173,135,83].map(value=>Math.round(value*shade/242)).join(',')+')':'rgb('+shade+','+shade+','+shade+')';
     for(let y=-25;y<=25;y++){const half=Math.sqrt(625-y*y);for(let x=-Math.floor(half);x<=Math.floor(half);x++){
       const lit=illumination>=0&&(left?x<=-(1-2*illumination/100)*half:x>=(1-2*illumination/100)*half);
       let shade=lit?230:47;
       if(lit)for(const c of [[-.36,-.28,.25,.20],[.28,.10,.21,.28],[-.12,.49,.17,.14],[.43,-.48,.13,.13],[-.58,.17,.12,.15]]){const d=((x/25-c[0])/c[2])**2+((y/25-c[1])/c[3])**2;if(d<.65)shade=181;else if(d<1)shade=204;}
-      ctx.fillStyle='rgb('+shade+','+shade+','+shade+')';ctx.fillRect(x+32,y+30,1,1);
+      ctx.fillStyle=shadeColor(shade);ctx.fillRect(x+32,y+30,1,1);
     }}
-    ctx.strokeStyle='#8f8f8f';ctx.beginPath();ctx.arc(32,30,25,0,2*Math.PI);ctx.stroke();
-    if(illumination<0){ctx.fillStyle='#a5b6c8';ctx.font='24px sans-serif';ctx.fillText('?',25,38);}
-    if(cloudy){ctx.fillStyle='#a5b6c8';ctx.beginPath();ctx.ellipse(42,47,20,11,0,0,2*Math.PI);ctx.fill();}
+    ctx.strokeStyle=shadeColor(143);ctx.beginPath();ctx.arc(32,30,25,0,2*Math.PI);ctx.stroke();
+    if(illumination<0){ctx.fillStyle=lowLight?'#98794e':'#a5b6c8';ctx.font='24px sans-serif';ctx.fillText('?',25,38);}
+    if(cloudy){ctx.fillStyle=lowLight?'#98794e':'#a5b6c8';ctx.beginPath();ctx.ellipse(42,47,20,11,0,0,2*Math.PI);ctx.fill();}
     return canvas.toDataURL();
+  }
+  function forecastMoon(period) {
+    if(!finite(latest.moon_illumination)||latest.moon_illumination<0||latest.moon_illumination>100||!finite(latest.moon_reference)||latest.moon_reference<=0||!finite(period.start)||!finite(period.end)||period.end<=period.start)return {illumination:-1,waning:false};
+    const parts=new Intl.DateTimeFormat('en-US',{timeZone:zone(),year:'numeric',month:'2-digit',day:'2-digit'}).formatToParts(new Date());
+    const part=name=>parts.find(p=>p.type===name).value;
+    if(latest.sun_day!==Number(part('year')+part('month')+part('day')))return {illumination:-1,waning:false};
+    const elapsed=(period.start+period.end)/2-latest.moon_reference;
+    if(elapsed < -86400||elapsed>8*86400)return {illumination:-1,waning:false};
+    let angle=Math.acos(1-2*latest.moon_illumination/100);
+    if(/Waning|Last Quarter/.test(latest.moon_phase||''))angle=2*Math.PI-angle;
+    angle=((angle+2*Math.PI*elapsed/(29.530588*86400))%(2*Math.PI)+2*Math.PI)%(2*Math.PI);
+    return {illumination:50*(1-Math.cos(angle)),waning:angle>Math.PI};
+  }
+  function forecastArt(period) {
+    const kind=classify(period.short),night=period.daytime_known&&!period.daytime,sky=['sunny','partly-cloudy','cloudy'].includes(kind);
+    const art=element('span',undefined,'forecast-art'),image=document.createElement('img');
+    image.alt='NWS forecast: '+period.short+(night?' · night':'');
+    const phase=forecastMoon(period);
+    image.src=night&&kind!=='unknown'?moon(phase.illumination,phase.waning,config.latitude<0,false):iconUrl(kind);
+    if(night&&!sky&&kind!=='unknown')image.className='small-moon';
+    art.append(image);
+    if(night&&kind!=='sunny'&&kind!=='unknown'){const cloud=document.createElement('img');cloud.src=iconUrl(sky?'cloudy':kind);cloud.alt='';cloud.className='cloud-overlay';art.append(cloud);}
+    return art;
   }
   function updateSky() {
     const now=Date.now()/1000,meta=forecastMeta.hourly,p=hourly.find(p=>p.start<=now&&p.end>now);
@@ -224,7 +275,10 @@
     else if(solarCurrent&&latest.sunrise&&latest.sunset)day=now>=latest.sunrise&&now<latest.sunset;
     else if(!p.daytime_known)return;
     const kind=classify(p.short),image=$('sky-image');
-    const src=!day&&['sunny','partly-cloudy'].includes(kind)?moon(solarCurrent?latest.moon_illumination:-1,/Waning|Last Quarter/.test(latest.moon_phase||''),config.latitude<0,kind==='partly-cloudy'):'/assets/weather.png?name='+kind;
+    const sky=['sunny','partly-cloudy','cloudy'].includes(kind);
+    const src=!day&&kind!=='unknown'?moon(solarCurrent?latest.moon_illumination:-1,/Waning|Last Quarter/.test(latest.moon_phase||''),config.latitude<0,false):iconUrl(kind==='cloudy'?'sunny':kind);
+    image.classList.toggle('small-moon',!day&&!sky&&kind!=='unknown');
+    const cloud=$('sky-cloud');cloud.hidden=!(kind==='cloudy'||(!day&&kind!=='sunny'&&kind!=='unknown'));if(!cloud.hidden)cloud.src=iconUrl(sky?'cloudy':kind);
     if(image.getAttribute('src')!==src)image.src=src;
     image.alt='NWS forecast: '+p.short+(!day?' · night':'');$('sky').hidden=false;
   }
@@ -237,7 +291,10 @@
   $('history-refresh').onclick=()=>history();
   document.querySelectorAll('[data-tab]').forEach(button=>button.addEventListener('click',()=>refresh()));
   document.addEventListener('visibilitychange',refresh);
-  window.WXDashboard={configure,status,offline};
+  $('display_theme').addEventListener('change',event=>applyTheme(event.target.value));
+  window.WXDashboard={configure,status,offline,applyTheme};
   if(window.wxConfig)configure(window.wxConfig);
+  if(window.wxStatus)status(window.wxStatus);
+  if(window.wxStatusUnavailable)offline();
   refresh();
 })();

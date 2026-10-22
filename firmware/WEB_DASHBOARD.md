@@ -1,14 +1,24 @@
 # Phone and browser dashboard
 
-Version 0.5.0 expands the protected local setup page into a phone dashboard.
-Join the station’s home Wi-Fi and open the local URL shown on the display.
+Introduced in v0.5.0 and updated through v0.7.4, the firmware expands the protected local setup page into a phone dashboard.
+Join the station’s home Wi-Fi and open http://wxlink.local, or use the
+numeric IP shown alongside it on the display.
 Use the existing admin login. The setup access point also serves the page.
+
+## Local address — v0.7.2
+
+The header links to http://wxlink.local and the current IP. If responder startup
+is unavailable, the page explicitly offers the IP fallback. mDNS works only on
+compatible local networks; no external DNS service or public domain is needed.
+The setup Wi-Fi retains its existing DNS/captive-portal path and numeric
+192.168.4.1 fallback. Authentication is the same at either address; browsers
+may request login again when switching hosts.
 
 ## Overview order
 
-1. **At your station:** callsign; RF, Wi-Fi, APRS/CWOP and sound indicators;
+1. **At your station:** callsign; RF, Wi-Fi and APRS/CWOP indicators;
    outdoor temperature; wind and bearing; five-minute gust; humidity;
-   rain today; light and UV; NWS pressure; the NWS-based sky graphic; and
+   rain today; light and UV index/full level; NWS pressure; the NWS-based sky graphic; and
    a prominent local-alert strip. The small one-hour temperature line bridges
    missed minutes, matching Home. Retained stale temperatures turn orange.
 2. **Trends:** select temperature, received wind peaks, light or humidity
@@ -25,6 +35,14 @@ Use the existing admin login. The setup access point also serves the page.
 
 Temperature and gusts show one decimal place, rain two, and humidity/light
 use appropriate whole-number units. Pressure uses two decimal places in inHg.
+Display & clock settings in Station & Wi-Fi control the date format and
+12/24-hour clock on both browser and panel. Backlight dim/off preferences
+affect the panel only. Receiving indicates incoming packets while the current
+weather cycle is incomplete. Forecast cards use original project icons; main cloudy
+conditions overlay clouds on the sun or phase-aware moon. Night fog and
+precipitation also retain a visible moon behind the condition artwork. NWS is labeled
+above the Home-equivalent sky graphic.
+
 Sky graphics and pressure are attributed to NWS, separate from Atlas readings.
 No forecast or pressure is invented when provider data is absent or expired.
 
@@ -32,6 +50,30 @@ A device without a saved home Wi-Fi network opens Station & Wi-Fi with a
 prominent setup prompt. A saved network restores Overview as the landing page;
 a missing location keeps a visible setup prompt for forecasts/alerts. Sharing
 is optional and does not block the local dashboard.
+
+## Shared theme — v0.7.0
+
+Display & clock includes Midnight, Matrix, Amber, Ice Blue, Violet, Paper and Night (low light).
+Changing it previews this browser without changing the device. Save and restart
+persists the same palette for the panel, forms, chart lines/labels, status and
+original weather artwork. Reload restores the saved palette. New/legacy configs
+use Midnight by default. Native form controls follow dark/light color scheme.
+Warning/watch cards retain contrasting dark red/orange and light text even on
+Paper; stale temperatures retain a legible orange. Sound is removed from the
+web status row and device. Night uses subdued amber/olive colors, including the NWS all-clear strip and
+moon. The panel also uses a lower backlight; webpage colors cannot adjust
+phone/computer hardware brightness. Forecast moon shapes now track an estimate
+for the forecast period from current lunar data; missing lunar data is unknown.
+No additional provider calls are introduced.
+
+## Initial connection status — v0.6.3
+
+On refresh, connection state starts unknown. If cached NWS responses arrive
+before the device status, show Checking device connection without a false
+Wi-Fi warning. A status response received before the deferred dashboard script
+is retained and applied immediately when it loads. Actual Wi-Fi loss and
+failed device requests still mark NWS data unverified; this fix does not
+change NWS polling or hide known alerts.
 
 ## Data and refresh behavior
 
@@ -85,3 +127,18 @@ of minimum loop-stack headroom. Unauthenticated requests to history, forecast
 and alerts each returned HTTP 401. Browser layout/onboarding/forecast/alert
 checks and firmware host checks passed; live warning appearance and extended
 phone/browser soak remain follow-up validation.
+
+
+### Owner controls follow-up, October 21
+
+The owner reports the v0.6.0 display/control changes passed their checks.
+Automated setup checks cover clock/display preference saves, UV labels,
+forecast assets and cloudy day/night overlays. This does not replace prolonged
+phone/browser soak or tests of every live warning/failed-provider condition.
+
+## Completed setup — v0.7.4
+
+The Overview “Get connected” card follows the existing onboarding completion
+rule: saved home Wi-Fi, a configured location and a confirmed station. It hides
+after completion; new/incomplete setups retain guidance and top tabs remain
+available. Visibility follows configuration rather than temporary Wi-Fi outages.

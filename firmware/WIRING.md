@@ -4,7 +4,7 @@ Profile: `ZX2D80CE02S-V10` / `BOARD_SC05_X`, 433 MHz CC1101 board with
 2 × 4 header and SMA antenna connector. This map uses the owner's
 [`cc1101_pinout.webp`](../cc1101_pinout.webp), added October 20, 2026.
 Firmware pin assignments are compiled into `platformio.ini` and
-`include/radio_receiver.h`. Physical reception has not yet been bench verified.
+`include/radio_receiver.h`. Live Atlas reception is bench verified on this pin map; see [validation](VALIDATION.md).
 
 ## Connections
 
@@ -63,8 +63,8 @@ labels the 3.3 V pin “For reference use, not for power input” and does not
 specify an available output current. On October 20 the owner selected this
 as a reasonable direct-power bench option: **debug pin 2 → CC1101 pin 2 VCC,
 debug pin 7 → CC1101 pin 1 GND**. The signal pins remain on the expansion
-connector as listed above. This is a proposed wiring option, not yet a
-measured current-capacity or loaded-voltage result.
+connector as listed above. Live Atlas reception is observed with this selected wiring. That does not
+establish available current capacity or a measured loaded-voltage result.
 
 TI's Table 4 lists typical 433 MHz chip receive currents around 15–17 mA for
 current-optimized configurations; sensitivity-optimized settings can draw
@@ -84,10 +84,13 @@ Measure the chosen supply output before attaching the radio.
 ## First live test
 
 1. Power down, connect the eight signals/power pins above, and attach antenna.
-2. Power up. `RF+` means SPI initialization succeeded; it does not prove RF
-   reception. `RF-` leaves the display and setup page usable.
-3. Tap the display title to find the setup network, access key, and URL.
-   Confirm Atlas sensor ID `679`, channel `A`, and receiver enabled.
+2. Power up. `RF +` means SPI initialization succeeded; it does not prove RF
+   reception. `RF X` leaves the display and setup page usable.
+3. Tap the display title or Wi-Fi indicator for the settings URL. Before
+   setup, the network/key are shown; afterward use recovery/details if needed.
+   In Station & Wi-Fi, run Find my station (up to five minutes), confirm your
+   Atlas and save. Advanced manual ID/channel entry is also available; do not
+   copy the owner's station ID into another installation.
 4. Watch packet count and per-field ages. Atlas types 37/38/39 update different
    fields; repeated RF copies are deduplicated. Five-minute gust coverage
    needs five continuous minutes before it is complete.

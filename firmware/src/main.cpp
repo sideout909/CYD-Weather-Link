@@ -12,7 +12,9 @@
 #include "forecast_icon.h"
 #include "moon_icon.h"
 #include "nws_pressure.h"
-#include "weather_icons.h"
+#include "theme_icons.h"
+#include "display_themes.h"
+#include "lunar_phase.h"
 #include "home_fonts.h"
 #include "daily_rain.h"
 #include "checkpoint.h"
@@ -22,6 +24,7 @@
 #include "sensor_health.h"
 #include "firmware_updates.h"
 #include "firmware_version.h"
+#include "display_preferences.h"
 
 // JSON commands, HTTP handlers and display formatting share the main task.
 // Keep explicit stack headroom; the Arduino default is only 8 KiB.
@@ -30,13 +33,20 @@ SET_LOOP_TASK_STACK_SIZE(24 * 1024);
 namespace {
 constexpr const char* kVersion = firmware_version::current;
 constexpr uint16_t rgb565(unsigned r,unsigned g,unsigned b){return ((r&248)<<8)|((g&252)<<3)|(b>>3);}
-constexpr uint16_t kWhite=rgb565(240,245,251),kAmber=0xfd20;
+uint16_t kWhite=rgb565(240,245,251),kAmber=0xfd20;
+const char* active_theme="midnight";
 uint16_t kBackground,kCard,kMuted,kCyan,kDivider,kGreen,kAlertCard,kAlertBorder;
 int8_t theme_preview=-1;
 void palette(unsigned theme){
+  kWhite=rgb565(240,245,251);kAmber=0xfd20;active_theme="midnight";
   if(theme==3){kBackground=rgb565(152,31,50);kCard=rgb565(125,25,43);kMuted=rgb565(255,225,229);kCyan=rgb565(184,241,255);kDivider=rgb565(195,111,123);kGreen=rgb565(196,255,214);kAlertCard=rgb565(98,18,35);kAlertBorder=rgb565(209,131,144);}
   else if(theme==2){kBackground=rgb565(148,64,0);kCard=rgb565(121,52,0);kMuted=rgb565(255,229,207);kCyan=rgb565(184,241,255);kDivider=rgb565(188,121,80);kGreen=rgb565(196,255,214);kAlertCard=rgb565(98,42,0);kAlertBorder=rgb565(207,139,83);}
-  else{kBackground=rgb565(8,15,27);kCard=rgb565(17,30,45);kMuted=rgb565(162,180,201);kCyan=rgb565(97,216,237);kDivider=rgb565(35,50,70);kGreen=rgb565(131,226,177);kAlertCard=rgb565(16,45,41);kAlertBorder=rgb565(36,74,64);}
+  else{
+    const auto& colors=display_themes::get(services::settings().display_theme.c_str());
+    active_theme=colors.id;kBackground=colors.background;kCard=colors.card;kWhite=colors.text;
+    kMuted=colors.muted;kCyan=colors.accent;kDivider=colors.divider;kGreen=colors.connected;
+    kAlertCard=colors.alert_card;kAlertBorder=colors.alert_border;kAmber=colors.stale;
+  }
 }
 PanelLan display(BOARD_SC05_X);
 LGFX_Sprite canvas(&display);
@@ -49,6 +59,9 @@ uint8_t page = 0, metric = 0, forecast_index=0, alert_index=0;
 int8_t measurement_detail=-1;
 bool forecast_hourly=false;
 bool setup_open=false,alerts_open=false,clock_anchored=false,checkpoint_restored=false;
+bool setup_recovery=false;
+display_preferences::Idle display_idle;
+uint8_t display_brightness=160;
 int detail_scroll=0;
 uint64_t clock_epoch=0,clock_uptime=0,last_publish=0,last_checkpoint=0;
 weather::DailyRain daily_rain;
@@ -124,9 +137,15 @@ String replayClock() {
   if (!replay && !clock_anchored) return "--:--";
   time_t seconds = time_t(dataNow()/1000);
   struct tm local{};localtime_r(&seconds,&local);
-  char clock[16];strftime(clock,sizeof(clock),"%I:%M %p",&local);
-  return String(clock[0]=='0' ? clock+1 : clock);
+  char clock[40];display_preferences::headerText(clock,sizeof(clock),local,services::settings().date_format.c_str(),services::settings().clock_24h);
+  return String(clock);
 }
+display_preferences::StatusLayout statusLayout(){
+  const String link=String(services::settings().aprs_profile=="cwop"?"CWOP":"APRS")+" +";
+  return display_preferences::statusLayout(homeWidth("RF +",home_fonts::status),homeWidth("WiFi +",home_fonts::status),homeWidth(link,home_fonts::status));
+}
+uint8_t normalBrightness(){return display_themes::get(services::settings().display_theme.c_str()).brightness;}
+void interact(){display_idle.interact(uptimeMs());const uint8_t normal=normalBrightness();if(display_brightness!=normal){display_brightness=normal;display.setBrightness(normal);dirty=true;}}
 void sparkline() {
   // Restored history is usable before a new live packet arrives.
   const uint64_t end=dataNow()/60000,begin=end>=59?end-59:0;
@@ -147,9 +166,45 @@ void sparkline() {
     previous_x=x;previous_y=y;previous=true;
   }
 }
+void weatherGraphic(forecast_icon::Kind kind,bool daytime,int x,int y,int size,bool current_moon=false,time_t lunar_time=0){
+  const float scale=float(size)/48;
+  auto png=[&](const char* name,int xx,int yy,float factor){const auto* icon=theme_icons::find(active_theme,name);if(icon)canvas.drawPng(icon->bytes,icon->size,xx,yy,0,0,0,0,factor,factor);};
+  const bool sky=kind==forecast_icon::Kind::Clear||kind==forecast_icon::Kind::PartlyCloudy||kind==forecast_icon::Kind::Cloudy;
+  if(kind!=forecast_icon::Kind::Unknown&&!daytime){
+    const bool known=network.sun_day==localDay(dataNow());
+    float illumination=known?network.moon_illumination:-1;
+    bool waning=network.moon_phase.startsWith("Waning")||network.moon_phase=="Last Quarter";
+    if(!current_moon){
+      const time_t reference=lunar_phase::referenceNoon(network.sun_day);
+      const auto phase=reference&&lunar_time?lunar_phase::advance(illumination,waning,double(lunar_time)-double(reference)):lunar_phase::Phase{};
+      illumination=phase.illumination;waning=phase.waning;
+    }
+    const int cx=x+(sky?size/2:size*31/100),cy=y+(sky?size/2:size*29/100),r=size*(sky?31:23)/100;
+    if(illumination<0){canvas.drawCircle(cx,cy,r,kMuted);text("?",cx-3,cy-4,kMuted,&fonts::Font0);}
+    else moon_icon::draw(canvas,cx,cy,r,illumination,waning,services::settings().latitude<0,!std::strcmp(active_theme,"night"));
+    if(sky){
+      if(kind!=forecast_icon::Kind::Clear)png("cloudy",x+size/5,y+size/4,scale*.8f);
+    }else weatherGraphic(kind,true,x+size/6,y+size/5,size*83/100);
+    return;
+  }
+  using K=forecast_icon::Kind;
+  switch(kind){
+    case K::Clear:png("sunny",x,y,scale);break;
+    case K::PartlyCloudy:png("partly-cloudy",x,y,scale);break;
+    case K::Cloudy:
+      png("sunny",x,y,scale*.8f);
+      png("cloudy",x,y+size/8,scale);break;
+    case K::Rain:png("rain",x,y,scale);break;
+    case K::Thunder:png("thunderstorm",x,y,scale);break;
+    case K::Snow:png("snow",x,y,scale);break;
+    case K::Fog:png("fog",x,y,scale);break;
+    case K::Wind:png("windy",x,y,scale);break;
+    default:png("unknown",x,y,scale);break;
+  }
+}
 bool forecastGraphic(){
   time_t now=time(nullptr);
-  if(!network.wifi||!services::clockValid()||!network.hourly_fetched||now-network.hourly_fetched>=7200||network.hourly_error!="Current")return false;
+  if(!network.wifi||!services::clockValid()||!network.hourly_fetched||now<network.hourly_fetched||now-network.hourly_fetched>=7200||network.hourly_error!="Current")return false;
   const services::ForecastPeriod* period=nullptr;
   for(unsigned i=0;i<network.hourly_count;++i){const auto& p=network.hourly[i];if(p.start<=now&&p.end>now){period=&p;break;}}
   if(!period)return false;
@@ -159,28 +214,9 @@ bool forecastGraphic(){
   else if(solar_current&&network.sun_status=="polar_night")daytime=false;
   else if(solar_current&&network.sunrise&&network.sunset)daytime=now>=network.sunrise&&now<network.sunset;
   else if(!period->daytime_known)return false;
-  const auto kind=forecast_icon::classify(period->short_text.c_str());
-  const uint8_t* png=weather_icons::unknown;size_t size=sizeof(weather_icons::unknown);
-  auto moon=[&]{
-    constexpr int cx=149,cy=77,r=11;
-    float illumination=solar_current?network.moon_illumination:-1;
-    const bool waning=network.moon_phase.startsWith("Waning")||network.moon_phase=="Last Quarter";
-    if(illumination<0){canvas.drawCircle(cx,cy,r,kMuted);text("?",146,72,kMuted,&fonts::Font0);return;}
-    moon_icon::draw(canvas,cx,cy,r,illumination,waning,services::settings().latitude<0);
-  };
-  using K=forecast_icon::Kind;
-  switch(kind){
-    case K::Clear:if(!daytime){moon();homeText("NWS",140,105,kMuted,home_fonts::small);return true;}png=weather_icons::sunny;size=sizeof(weather_icons::sunny);break;
-    case K::PartlyCloudy:if(!daytime){moon();canvas.drawPng(weather_icons::cloudy,sizeof(weather_icons::cloudy),139,78,0,0,0,0,.5f,.5f);homeText("NWS",140,112,kMuted,home_fonts::small);return true;}png=weather_icons::partly_cloudy;size=sizeof(weather_icons::partly_cloudy);break;
-    case K::Cloudy:png=weather_icons::cloudy;size=sizeof(weather_icons::cloudy);break;
-    case K::Rain:png=weather_icons::rain;size=sizeof(weather_icons::rain);break;
-    case K::Thunder:png=weather_icons::thunderstorm;size=sizeof(weather_icons::thunderstorm);break;
-    case K::Snow:png=weather_icons::snow;size=sizeof(weather_icons::snow);break;
-    case K::Fog:png=weather_icons::fog;size=sizeof(weather_icons::fog);break;
-    case K::Wind:png=weather_icons::windy;size=sizeof(weather_icons::windy);break;
-    default:break;
-  }
-  canvas.drawPng(png,size,132,61,0,0,0,0,.75f,.75f);homeText("NWS",140,108,kMuted,home_fonts::small);return true;
+  homeText("NWS",140,62,kMuted,home_fonts::small);
+  weatherGraphic(forecast_icon::classify(period->short_text.c_str()),daytime,132,66,36,true);
+  return true;
 }
 void renderHome() {
   using namespace home_fonts;
@@ -194,8 +230,11 @@ void renderHome() {
   homeText(degrees,8,104,temperature_stale?kAmber:store->temperature.valid?kWhite:kMuted,compact_temperature?temperature_compact:temperature,-2);
   forecastGraphic();
   sparkline();
-  const String light=store->lux.valid ? String(store->lux.value/1000.0f,1)+" klx" : "-- klx";
-  homeText(homeFit(store->lux.valid&&!store->lux.fresh(now,sensor_health::kDataStaleMs)?"STALE · "+light:light,164,body),11,132,kMuted,body);
+  const bool light_fresh=store->lux.fresh(now,sensor_health::kDataStaleMs),uv_fresh=store->uv.fresh(now,sensor_health::kDataStaleMs);
+  const String light=store->lux.valid ? String(store->lux.value/1000.0f,1)+" klx"+(light_fresh?"":" !") : "-- klx";
+  const String uv=uv_fresh?"UV "+String(store->uv.value,0)+" "+display_preferences::uvLevel(store->uv.value):"UV --";
+  const auto& light_font=homeWidth(light+" · "+uv,body)<=164?body:unit;
+  homeText(homeFit(light+" · "+uv,164,light_font),11,132,kMuted,light_font);
   canvas.drawFastVLine(180,55,77,kDivider);
   homeText("WIND",193,60,kMuted,label,1);
   constexpr int cx=209,cy=89,r=20;
@@ -313,14 +352,8 @@ void renderMeasurement(){
     detailRow("Missing types",missing.length()?missing:"None",110);
     detailRow(services::settings().aprs_profile=="cwop"?"CWOP link":"APRS link",network.aprs_connected&&network.wifi?(network.aprs_verified?"Connected · verified":"Connected · CWOP"):!network.wifi&&services::settings().aprs_enabled?String("Wi-Fi unavailable"):network.aprs_state,132);
     detailRow("Last report",network.aprs_success&&services::clockValid()?String(uint32_t(std::max(time_t(0),time(nullptr)-network.aprs_success)))+"s ago":"None sent",154);
-    homeText(state==sensor_health::State::DataStale?"No changes / incomplete data for 10 min.":state==sensor_health::State::NoSignal?"No packets for 5 min. Check Atlas power / range.":"Speaker: muted. APRS send is not an ingestion ACK.",12,176,kMuted,home_fonts::status);
+    homeText(state==sensor_health::State::DataStale?"No changes / incomplete data for 10 min.":state==sensor_health::State::NoSignal?"No packets for 5 min. Check Atlas power / range.":"APRS send is not an ingestion ACK.",12,176,kMuted,home_fonts::status);
   }
-}
-void speakerIcon(int x,int y,bool enabled){
-  const uint16_t color=enabled?kGreen:kMuted;
-  canvas.fillRect(x,y+4,3,5,color);canvas.fillTriangle(x+2,y+4,x+6,y+1,x+6,y+11,color);
-  if(enabled){canvas.drawLine(x+9,y+3,x+11,y+6,color);canvas.drawLine(x+11,y+6,x+9,y+9,color);}
-  else{canvas.drawLine(x+8,y+3,x+13,y+9,color);canvas.drawLine(x+13,y+3,x+8,y+9,color);}
 }
 void renderTrends() {
   const char* titles[] = {"Temperature (F)","Wind peaks (mph)","Light (lux)","Humidity (%)"};
@@ -372,23 +405,40 @@ void renderForecast() {
   if(!count){text("Local forecast",16,68,kWhite,&fonts::Font4);wrapped(forecast_error,16,100,288,50);text("Tap title for Wi-Fi / location setup",16,157,kMuted,&fonts::Font0);return;}
   if(forecast_index>=count)forecast_index=0;
   const auto& f=forecast_hourly?network.hourly[forecast_index]:network.forecast[forecast_index];
-  String period_name=f.name;if(forecast_hourly){struct tm local{};localtime_r(&f.start,&local);char label[32];strftime(label,sizeof(label),"%a %I:%M %p",&local);period_name=label;}
-  text(period_name.substring(0,23),12,62,kWhite);text(String(forecast_index+1)+"/"+String(count),276,62,kMuted,&fonts::Font0);
-  text(f.temperature_valid?String(f.temperature)+" F":"-- F",12,82,kWhite,&fonts::Font4);
+  String period_name=f.name;if(forecast_hourly){struct tm local{};localtime_r(&f.start,&local);char day[8],clock[16];strftime(day,sizeof(day),"%a",&local);display_preferences::clockText(clock,sizeof(clock),local,services::settings().clock_24h);period_name=String(day)+" "+clock;}
+  text(period_name.substring(0,22),12,64,kWhite);text(String(forecast_index+1)+"/"+String(count),282,47,kMuted,&fonts::Font0);
+  text(f.temperature_valid?String(f.temperature)+" F":"-- F",12,87,kWhite,&fonts::Font4);
   text(f.rain_probability>=0?"Rain "+String(f.rain_probability)+"%":"Rain --",116,89,kMuted,&fonts::Font0);
-  text(forecast_error=="Current" && network.wifi && services::clockValid() && time(nullptr)-(forecast_hourly?network.hourly_fetched:network.forecast_fetched)<7200?"NWS":"NWS / STALE",234,89,kAmber,&fonts::Font0);
-  wrapped(f.short_text+". "+f.wind+". "+f.detail,12,109,296,58,detail_scroll);
+  const bool fresh=forecast_error=="Current"&&network.wifi&&services::clockValid()&&time(nullptr)>=(forecast_hourly?network.hourly_fetched:network.forecast_fetched)&&time(nullptr)-(forecast_hourly?network.hourly_fetched:network.forecast_fetched)<7200;
+  text(fresh?"NWS":"NWS / STALE",116,102,fresh?kMuted:kAmber,&fonts::Font0);
+  weatherGraphic(forecast_icon::classify(f.short_text.c_str()),!f.daytime_known||f.is_daytime,260,64,48,false,f.end>f.start?f.start+(f.end-f.start)/2:time_t(0));
+  wrapped(f.short_text+". "+f.wind+". "+f.detail,12,120,296,47,detail_scroll);
   time_t issued=forecast_hourly?network.hourly_issued:network.forecast_issued;time_t checked=forecast_hourly?network.hourly_fetched:network.forecast_fetched;
   struct tm issue_local{};localtime_r(&issued,&issue_local);char issue_text[12];strftime(issue_text,sizeof(issue_text),"%a %H:%M",&issue_local);
   text(String("Issued ")+(issued?issue_text:"--")+" / checked "+String(max(0L,long(time(nullptr)-checked))/60)+"m ago",12,174,kMuted,&fonts::Font0);
 }
 void renderSetup(){
+  const auto& settings=services::settings();
+  if(display_preferences::setupComplete(settings.ssid.length(),settings.station_confirmed)&&!setup_recovery){
+    canvas.fillScreen(kBackground);text("MORE SETTINGS",12,9,kCyan,&fonts::Font4);
+    text("Tap header to close",175,35,kMuted,&fonts::Font0);
+    text(network.wifi?"On your home Wi-Fi, open:":"Use the setup network, then open:",12,54,kMuted);
+    text(services::portalUrl(),12,78,kWhite,&fonts::Font4);
+    text("IP: http://"+services::portalAddress(),12,108,kMuted,&fonts::Font0);
+    text("Username: admin",12,130,kCyan);
+    text(settings.admin_custom?"Password: your custom password":"Password:",12,153,kMuted);
+    if(!settings.admin_custom)text(services::setupWifiKey(),12,174,kWhite);
+    canvas.drawRoundRect(12,193,296,34,5,kDivider);text("Wi-Fi recovery / connection details",20,201,kCyan);
+    return;
+  }
   canvas.fillScreen(kBackground);text("SETUP",12,9,kCyan,&fonts::Font4);
   text("Tap header to close",175,16,kMuted,&fonts::Font0);
   text("Join Wi-Fi:",12,47,kMuted);text(services::setupSsid(),12,68,kWhite,&fonts::Font4);
   text("Setup Wi-Fi key:",12,102,kMuted);text(services::setupWifiKey(),12,124,kWhite,&fonts::Font4);
-  text("Open http://192.168.4.1",12,164,kCyan);text(services::settings().admin_custom?"Admin: custom password set":"Admin: use the Wi-Fi key",12,187,kMuted);
-  text("LAN: http://"+services::portalAddress(),12,209,kMuted,&fonts::Font0);
+  text("Open "+services::portalUrl(),12,164,kCyan);
+  text("Setup IP: http://192.168.4.1",12,185,kMuted,&fonts::Font0);
+  text(services::settings().admin_custom?"Admin: custom password set":"Admin: use the Wi-Fi key",12,202,kMuted,&fonts::Font0);
+  text(network.wifi?"Home IP: http://"+services::portalAddress():"If the name fails, use the setup IP.",12,219,kMuted,&fonts::Font0);
 }
 void renderAlerts(){
   canvas.fillScreen(kBackground);text(network.alerts_valid && services::clockValid() && time(nullptr)-network.alert_fetched<180?"NWS ALERTS":"NWS / UNVERIFIED",12,9,kCyan);text("tap header to close",190,13,kMuted,&fonts::Font0);
@@ -414,22 +464,32 @@ void draw() {
   canvas.fillScreen(kBackground);
   using namespace home_fonts;
   if(measurement_detail>=0)renderMeasurement();else{
-  const char* names[]={"WEATHER LINK","TRENDS","FORECAST"};
-  homeText(theme_preview>=0?"THEME PREVIEW":names[page],10,15,kWhite,header,1);
+  const char* names[]={"WX LINK","TRENDS","FORECAST"};
+  homeText(theme_preview>=0?"PREVIEW":names[page],10,16,kWhite,header);
   const String identity=replay?"REPLAY":services::settings().callsign;
-  homeText(identity,195-homeWidth(identity,home_fonts::header)/2,15,replay?kAmber:kCyan,home_fonts::header);
-  const String clock=replayClock();homeText(clock,310-homeWidth(clock,home_fonts::clock),15,kMuted,home_fonts::clock);
+  const String clock=replayClock();const int clock_x=310-homeWidth(clock,home_fonts::unit);
+  const int identity_width=std::max(0,std::min(160-(10+homeWidth(names[page],header)+7),clock_x-7-160)*2);
+  const auto& identity_font=homeWidth(identity,callsign)<=identity_width?callsign:header;
+  const String fitted_identity=identity_width>=12?homeFit(identity,identity_width,identity_font):String("");
+  homeText(fitted_identity,160-homeWidth(fitted_identity,identity_font)/2,17,replay?kAmber:kCyan,identity_font);
+  homeText(clock,clock_x,16,kMuted,home_fonts::unit);
   const auto sensor=sensorState();
   canvas.fillCircle(13,33,3,replay?kAmber:sensor==sensor_health::State::Current?kGreen:sensor==sensor_health::State::DataStale||sensor==sensor_health::State::NoSignal?kAmber:kMuted);
-  const String source=replay?"Atlas · recorded":page==0&&sensor==sensor_health::State::DataStale?String("Atlas"):String("Atlas · ")+sensor_health::label(sensor);
-  homeText(homeFit(source,136,body),22,37,kMuted,body);
-  homeText(radio_receiver::ready()?"RF +":"RF X",167,37,radio_receiver::ready()?kGreen:kMuted,home_fonts::status);
-  homeText(network.wifi?"WiFi +":"WiFi X",199,37,network.wifi?kGreen:kMuted,home_fonts::status);
+  String source=replay?"Atlas · recorded":page==0&&sensor==sensor_health::State::DataStale?String("Atlas"):String("Atlas · ")+sensor_health::label(sensor);
+  if(!replay&&sensor_monitor.received&&dataNow()>=sensor_monitor.last_rx){
+    char age[32];std::snprintf(age,sizeof(age)," · %llus",static_cast<unsigned long long>((dataNow()-sensor_monitor.last_rx)/1000));
+    source+=age;
+  }
+  const auto links=statusLayout();
+  const int source_width=links.rf-30;
+  const auto& source_font=homeWidth(source,body)<=source_width?body:home_fonts::unit;
+  homeText(homeFit(source,source_width,source_font),22,37,kMuted,source_font);
+  homeText(radio_receiver::ready()?"RF +":"RF X",links.rf,37,radio_receiver::ready()?kGreen:kMuted,home_fonts::status);
+  homeText(network.wifi?"WiFi +":"WiFi X",links.wifi,37,network.wifi?kGreen:kMuted,home_fonts::status);
   const bool linked=network.aprs_connected&&network.wifi;
   const uint16_t link_color=linked?kGreen:services::settings().aprs_enabled?kAmber:kMuted;
   const String link_label=String(services::settings().aprs_profile=="cwop"?"CWOP":"APRS")+(linked?" +":" X");
-  homeText(link_label,246,37,link_color,home_fonts::status);
-  speakerIcon(297,26,false); // Sound status last; audio hardware is not fitted.
+  homeText(link_label,links.aprs,37,link_color,home_fonts::status);
   canvas.drawFastHLine(10,44,300,kDivider);
   if (page==0) renderHome(); else if (page==1) renderTrends(); else renderForecast();
   }
@@ -480,11 +540,12 @@ void status(const char* event = "status") {
   StaticJsonDocument<3072> out;
   out["event"]=event;out["request_id"]=request_id;out["version"]=kVersion;out["board"]="panellan_sc05_x";
   out["display_initialized"]=display_ok;out["width"]=display.width();out["height"]=display.height();
+  out["display_theme"]=services::settings().display_theme;out["display_brightness"]=display_brightness;out["display_idle_s"]=(uptimeMs()-display_idle.last_interaction)/1000;
   out["flash_bytes"]=ESP.getFlashChipSize();out["psram_bytes"]=ESP.getPsramSize();
   out["free_heap"]=ESP.getFreeHeap();out["loop_stack_free"]=uxTaskGetStackHighWaterMark(nullptr);out["free_psram"]=ESP.getFreePsram();
   out["uptime_ms"]=uptimeMs();out["source"]=replay?"usb_replay":store->accepted?"radio":"none";
   out["radio_ready"]=radio_receiver::ready();out["radio_dropped"]=radio_receiver::dropped();
-  out["wifi"]=network.wifi;out["clock_valid"]=services::clockValid();out["setup_ip"]=services::portalAddress();
+  out["wifi"]=network.wifi;out["clock_valid"]=services::clockValid();out["setup_ip"]=services::portalAddress();out["local_url"]=services::portalUrl();out["mdns_ready"]=services::localNameReady();
   out["checkpoint_restored"]=checkpoint_restored;out["setup_open"]=setup_open;
   const auto history_state=store->historySummary(dataNow());
   out["history_buckets"]=history_state.buckets;
@@ -563,9 +624,9 @@ void command(const char* input) {
   }
   else if (!strcmp(op,"reset")) {resetData();status("reset");}
   else if (!strcmp(op,"page")) {
-    if (doc["page"].is<unsigned>() && doc["page"].as<unsigned>()<3) {page=doc["page"];measurement_detail=-1;dirty=true;status("page");}
+    if (doc["page"].is<unsigned>() && doc["page"].as<unsigned>()<3) {interact();page=doc["page"];measurement_detail=-1;dirty=true;status("page");}
   } else if(!strcmp(op,"detail")) {
-    if(doc["detail"].is<unsigned>() && doc["detail"].as<unsigned>()<6){measurement_detail=doc["detail"];dirty=true;status("detail");}
+    if(doc["detail"].is<unsigned>() && doc["detail"].as<unsigned>()<6){interact();measurement_detail=doc["detail"];dirty=true;status("detail");}
   } else if (!strcmp(op,"sample")) {
     if(!replay && store->accepted)resetData();
     if(have_sample_reply && request_id && request_id==last_sample_request_id){
@@ -624,15 +685,24 @@ void receive() {
 }
 void touch() {
   static bool down=false;static int16_t start_x=0,start_y=0,last_x=0,last_y=0;
+  static bool waking=false;
   static uint64_t pressed_at=0;
   int16_t x=0,y=0;
   const bool pressed=display_ok && display.getTouch(&x,&y);
   if (pressed) {
-    if(!down){start_x=x;start_y=y;pressed_at=uptimeMs();++touch_events;}
+    if(!down){waking=display_brightness<normalBrightness();start_x=x;start_y=y;pressed_at=uptimeMs();++touch_events;}
+    interact();
     down=true;last_x=x;last_y=y;
   } else if(down) {
     down=false;const int dx=last_x-start_x,dy=last_y-start_y;
-    if(setup_open){if(abs(dx)<15&&abs(dy)<15&&start_y<44){setup_open=false;dirty=true;}return;}
+    interact();
+    if(waking){waking=false;return;}
+    if(setup_open){
+      if(abs(dx)<15&&abs(dy)<15){
+        if(start_y<44){setup_open=false;dirty=true;}
+        else if(start_y>=193&&start_y<228&&display_preferences::setupComplete(services::settings().ssid.length(),services::settings().station_confirmed)&&!setup_recovery){setup_recovery=true;dirty=true;}
+      }return;
+    }
     if((alerts_open || page==2) && abs(dy)>20 && abs(dy)>abs(dx)){detail_scroll=max(0,min(6000,detail_scroll-dy));dirty=true;return;}
     if(alerts_open){if(start_y<40){alerts_open=false;detail_scroll=0;}else if(start_y>205){++alert_index;detail_scroll=0;}dirty=true;return;}
     if(measurement_detail>=0){
@@ -646,7 +716,8 @@ void touch() {
     } else if(abs(dx)<15 && abs(dy)<15 && uptimeMs()-pressed_at<1000) {
       // Include the padded Wi-Fi status area in the setup target. Previously
       // tapping the Wi-Fi label opened Link status instead of its setup page.
-      if(start_y<26||(start_y<44&&start_x>=184&&start_x<244)){setup_open=true;dirty=true;}
+      const auto links=statusLayout();
+      if(start_y<26||(start_y<44&&start_x>=links.wifi_left&&start_x<links.wifi_right)){setup_recovery=false;setup_open=true;dirty=true;}
       else if(start_y<44){measurement_detail=5;dirty=true;}
       else if(start_y>=188){alerts_open=true;detail_scroll=0;dirty=true;}
       else if(page==2){if(start_y<62){forecast_hourly=!forecast_hourly;forecast_index=0;}else ++forecast_index;detail_scroll=0;dirty=true;}
@@ -720,7 +791,7 @@ void setup() {
   if(!rain_history){Serial.println("{\"event\":\"fatal\",\"reason\":\"rain_history_allocation_failed\"}");return;}
   store=new weather::Store(history,679,'A',rain_history);
   services::bindHistory(store,dataNow);
-  display_ok=display.init();display.setRotation(1);display.setBrightness(160);
+  display_ok=display.init();display.setRotation(1);display.setBrightness(0);display_brightness=0;
   canvas.setPsram(true);canvas.setColorDepth(16);
   display_ok=display_ok && canvas.createSprite(320,240)!=nullptr;
   canvas.setTextDatum(textdatum_t::top_left);
@@ -728,6 +799,8 @@ void setup() {
   services::begin();checkpoint::begin();archive_storage::begin(services::settings().station_id,services::settings().channel);
   store->~Store();new(store)weather::Store(history,services::settings().station_id,services::settings().channel,rain_history);
   if(services::settings().radio_enabled)radio_receiver::begin();
+  display_idle.interact(uptimeMs());
+  if(display_ok){draw();display_brightness=normalBrightness();display.setBrightness(display_brightness);}
   status("boot");
 }
 void loop() {
@@ -741,6 +814,12 @@ void loop() {
   }
   liveReceive();
   const uint64_t now=uptimeMs();
+  if(display_idle.returnHome(now,(page==1||page==2)&&measurement_detail<0&&!setup_open&&!alerts_open,false)){
+    page=0;detail_scroll=0;dirty=true;
+  }
+  const auto& preferences=services::settings();
+  const uint8_t brightness=display_idle.brightness(now,preferences.display_sleep_mode.c_str(),preferences.display_timeout_s,normalBrightness());
+  if(display_ok&&brightness!=display_brightness){display_brightness=brightness;display.setBrightness(brightness);}
   if(services::clockValid() && !clock_anchored){clock_epoch=uint64_t(time(nullptr))*1000;clock_uptime=now;clock_anchored=true;if(!replay){resetData();checkpoint_restored=checkpoint::restore(history,*store,daily_rain,liveNow(),services::settings().station_id,services::settings().channel);}}
   if(now-last_publish>=1000){if(!replay&&clock_anchored)archive_storage::loop(liveNow(),sensor_monitor.complete(liveNow(),*store)&&sensorState()==sensor_health::State::Current);publishWeather();last_publish=now;}
   if(!replay && clock_anchored && store->accepted && now-last_checkpoint>=300000){checkpoint::save(history,*store,daily_rain,liveNow(),services::settings().station_id,services::settings().channel);last_checkpoint=now;}

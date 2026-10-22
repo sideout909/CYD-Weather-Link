@@ -1,6 +1,6 @@
 # PanelLan weather firmware
 
-October 21, 2026 · development source version 0.4.0 · owned PanelLan
+October 22, 2026 · development version 0.7.4 · owned PanelLan
 `ZX2D80CE02S-V10` / `SC05_X`. This profile is specific to its parallel ST7789
 LCD and FT5x06 touch, 8 MB flash and 2 MB PSRAM. Do not flash a generic CYD or
 SC01 Plus with this profile. See [validation](VALIDATION.md) for the distinction
@@ -10,14 +10,14 @@ between implemented software, bench results, and remaining hardware checks.
 
 - Home v2 layout: compact header, temperature/sparkline, compass, received wind,
   five-minute maximum, humidity/rain/pressure tiles and persistent NWS strip.
-  Three swipe pages, no page-switching banner. Pressure is unavailable until
-  a barometer is fitted. The main icon uses a current NWS hourly forecast,
+  Three swipe pages, no page-switching banner. BARO uses a fresh nearby NWS
+  pressure observation when available; the Atlas has no barometer. The main icon uses a current NWS hourly forecast,
   labels that source, and hides offline/stale; local lux stays independent.
   DejaVu typography, native-size geometry and palette follow the v2 study;
   [intentional wording differences](../HOME_SCREEN.md#home-v2-visual-comparison--october-20-2026)
   track later owner requests and hardware availability.
   Measurement detail taps expose field ages, local light/UV, wind peak age
-  and coverage, rain intervals and unavailable-pressure state.
+  and coverage, rain intervals and pressure source/type/age.
 - CC1101 receive-only 433.92 MHz input using pinned RadioLib/rtl_433_ESP,
   Acurite decoder selection and an Atlas-only application filter. Decoder task
   copies into a bounded queue; weather/UI updates happen on the main task.
@@ -29,7 +29,7 @@ between implemented software, bench results, and remaining hardware checks.
   native and SI units. The display's Gust 5m is a maximum received sample,
   not a claim of a measured standard three-second gust or sustained wind.
 - 1,440 minute buckets in PSRAM, temperature/humidity/lux means and wind peaks,
-  gap-preserving charts and bounded internal-flash checkpoints every five
+  gap-preserving detailed charts and bounded internal-flash checkpoints every five
   minutes. CRC/schema/station/time checks gate restoring weather checkpoints.
 - [Seven-day recording](RECORDING.md): fixed five-minute summaries, 126 KiB
   logical ring, CRC/coverage flags, protected browser and paged USB CSV export.
@@ -59,7 +59,7 @@ between implemented software, bench results, and remaining hardware checks.
   fresh-live-only gating and backoff. No pressure or solar irradiance is
   invented. APRS sustained wind and unsupported rain windows are omitted.
   A TCP send is shown as sent, **not proof of remote ingestion**.
-- Callsign header slot, speaker/mute icon and APRS/CWOP session badge. The
+- Callsign header slot and right-aligned RF/WiFi/APRS/CWOP status group. The
   Internet session stays open with reconnect/backoff and TCP keepalive;
   ham login must be verified. A separate Atlas monitor flags missing cycles,
   ten-minute missing/unchanged data warnings and a five-minute packet silence
@@ -71,16 +71,22 @@ between implemented software, bench results, and remaining hardware checks.
   slot writes, pre-restart weather checkpoint and deferred startup confirmation
   for rollback. Real hosted download/rollback acceptance remains open.
 
-Live CC1101 reception, real service ingestion, reception during TLS traffic,
-flash recovery after power loss and a multiday soak remain bench gates.
+Live CC1101 reception and owner-observed APRS.fi, Weather Underground and
+Weathercloud ingestion are confirmed. SDR comparison, separate CWOP ingestion,
+extended reception during TLS traffic, abrupt-power-loss testing and a multiday
+soak remain acceptance gates.
 Windy (third PWS adapter) remains follow-up work. D710 electrical/serial
-integration, barometer and sound are optional additions. SD is optional, and the PC RTL-SDR
+integration and barometer are optional additions. Sound is removed from this hardware version. SD is optional, and the PC RTL-SDR
 capture service remains stopped.
 
 ## Setup and controls
 
-Tap the display title to show the protected `WXLink-…` network, access key and
-URL. Join on a phone, open `http://192.168.4.1`, and authenticate as `admin`
+Open http://wxlink.local from the setup Wi-Fi or same home LAN. Tap the
+display title or Wi-Fi indicator to see this address and its numeric IP fallback. Before
+setup, this shows the protected `WXLink-…` network, generated access key and URL.
+After home Wi-Fi and station confirmation are saved, it shows the current URL
+and admin guidance; use the recovery/details button for setup-network details. Join on a phone, open `http://wxlink.local` (fallback `http://192.168.4.1`),
+and authenticate as `admin`
 with the initial displayed Wi-Fi key, or your chosen admin password after
 changing it. Save your home Wi-Fi, location, timezone and sensor
 binding. The display's setup view also shows the current LAN address.
@@ -110,12 +116,12 @@ visible in measurement details; returning from alert text restores the detail.
 For USB bench review, `bash tools/firmware-console.sh detail rain` opens a
 detail without touch; choices are `outdoor`, `wind`, `humidity`, `rain` and
 `pressure`. `page home` closes it. This does not inject weather data.
-`detail link` opens connection details; on the panel, tap the second header
-row. RF + is receiver readiness, Wi-Fi + is association, and APRS + / CWOP +
+`detail link` opens connection details; on the panel, tap the RF or APRS/CWOP part of the second header
+row (the Wi-Fi target opens settings). RF + is receiver readiness, Wi-Fi + is association, and APRS + / CWOP +
 is an acknowledged session. X means disconnected or disabled; Link status
 provides the reason. Each label has a space before its indicator. Field ages and
-station health remain independent of those links. No sound hardware is fitted,
-so the speaker status is muted.
+station health remain independent of those links. There is no sound indicator
+or sound function on this hardware version.
 
 ZIP/map/elevation is inside Station & Wi-Fi. ZIP search only centers the map;
 tap/drop or drag a pin, review its USGS ground estimate, then Use this location
@@ -236,6 +242,59 @@ a newline. The host converts this to PNG without another imaging dependency.
 Framebuffer capture proves what was rendered; physical panel appearance and
 touch alignment still need observation on the actual board.
 
+## Display, clock and packet-age preferences — v0.7.1
+
+Station & Wi-Fi includes a shared color theme for the display and webpage, date format, a 24-hour clock toggle, and display
+inactivity behavior. Keep the screen on is the default. Dim uses 10% of normal
+brightness (Night uses 24/255 normally and 2/255 dimmed); Off switches off the backlight. Touch wakes without activating a
+control. Reception, recording, NWS and all uploaders continue. Trends/Forecast
+return to Home after 60 seconds without touch.
+
+The header centers a larger callsign, shows date before time, and groups status
+indicators toward the right. NWS is above its icon; UV value and full level are
+beside klux. Forecast pages use original project icons, with moon overlays for
+known night conditions including clouds, fog and precipitation. Receiving means
+packets are arriving but a complete current cycle is not yet available.
+The source row also shows seconds since the last decoded bound-station packet,
+including valid repeats (for example `Atlas · Current · 12s`). This is reception
+age, separate from per-field freshness; no age appears before first reception.
+
+After setup, the display directs users to the settings URL/admin login; custom
+passwords stay hidden. Wi-Fi recovery details remain available deliberately.
+
+## Friendly local address — v0.7.3
+
+The built-in mDNS responder advertises wxlink.local and HTTP on TCP port 80,
+using existing AP/STA interfaces. First-run and More settings views show
+http://wxlink.local plus numeric IP fallback. The browser header repeats both;
+status/USB reports include local_url and mdns_ready. Failed responder startup
+retries every 30 seconds without making radio/internet a boot requirement.
+Normal ESP-IDF interface events handle address/reconnect changes. The internal startup probe uses SDK loopback so AP/STA route changes do not
+prevent testing the actual protected HTTP server. No secrets
+are advertised, and the page/API authentication and CSRF checks are unchanged.
+Local multicast/name-resolution support is required; the IP always works when
+reachable. The default hostname assumes one device per LAN; configurable
+names for multiple units are separate follow-up work.
+
+## Shared color palettes
+
+Color theme offers Midnight (original), Matrix, Amber, Ice Blue, Violet and
+Paper, plus Night (low light). Selection previews the browser only; Save and restart persists it for
+both screen and browser. Old settings keep Midnight. Normal geometry/controls
+are unchanged; RF, WiFi and APRS/CWOP shift right into the former sound space.
+Sound is removed, with earlier plans archived for future larger-display hardware.
+The display's orange/red alert overrides and browser warning cards remain
+contrasting across all palettes. Paper uses a darker orange for stale values. Night uses subdued amber/olive
+colors and lower backlight, including softened NWS all-clear text and tinted
+moon artwork. It wakes at its low brightness without a normal-brightness flash.
+Forecast moons now estimate each period's phase from current provider data;
+missing lunar data uses an unknown marker, not a fixed crescent.
+
+`assets/themes/palettes.json` is shared by generated `display_themes.h`, CSS
+and `theme_icons.h`. Run `python tools/pack-display-themes.py` after palette or
+original SVG changes, then `python tools/pack-setup-assets.py` after browser edits.
+Generation needs `rsvg-convert`; ordinary builds use checked-in generated data.
+
 ## Validation record
 
 Version 0.5.1 adds automatic Atlas discovery in Station & Wi-Fi. Scanning can
@@ -244,7 +303,7 @@ then saves settings. Existing bindings keep receiving while scanning. Iris and
 Notos appear as detection previews with integration pending. New devices stay
 unbound until confirmed; existing settings migrate automatically. See
 [decoder/discovery details](../DECODER_SUPPORT.md) and the
-[short owner checklist](CONTROLS_CHECKLIST.md#quick-check-for-v051-automatic-discovery).
+[short owner checklist](CONTROLS_CHECKLIST.md#discovery-checks-from-v051).
 
 See [VALIDATION.md](VALIDATION.md) for measured build and bench results.
 The host tests cover sparse fields/ages, zeros, station binding, exception and

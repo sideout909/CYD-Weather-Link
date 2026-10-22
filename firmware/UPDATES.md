@@ -8,6 +8,10 @@ remain supported. No GitHub token is needed. The first OTA transfer/boot was
 followed by an unexpected owner-reported rollback to v0.4.0; final acceptance
 and unattended update validation remain open.
 
+Local source/USB builds can be newer than published releases. v0.7.3 is local
+development work, not a published OTA release; USB startup checks alone do
+not complete the corrected hosted OTA acceptance test.
+
 ## Owner setup
 
 1. On the setup page, open Updates. The project source is prefilled in newer
@@ -37,7 +41,8 @@ bash tools/test-firmware.sh
 python tools/package-firmware-release.py --repo OWNER/REPOSITORY
 ```
 
-The version lives in `include/firmware_version.h`. Bump its three-number
+From the repository root, the version lives in
+`firmware/include/firmware_version.h`. Bump its three-number
 version before building a new release. Packaging rejects the wrong image
 format/chip, oversized images and a stale image without the current version.
 It creates ignored `dist/` assets:
@@ -108,3 +113,9 @@ radio, NWS and sharing after restart. Exercise interruption, wrong hash,
 wrong board/layout, older version, and a failed first boot/rollback. Measure
 heap and receiver behavior while OTA and NWS TLS requests overlap. Keep
 automatic installation off until these acceptance checks pass.
+
+
+v0.7.3 startup self-tests use SDK loopback (127.0.0.1) to reach the actual HTTP
+server independently of AP/STA route changes during mDNS initialization. All
+authentication/CSRF/schema tests and boot deadlines remain. A passing USB bench
+probe is not a replacement for the corrected hosted OTA acceptance test.

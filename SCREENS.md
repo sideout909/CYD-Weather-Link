@@ -1,11 +1,12 @@
 # Swipe navigation, trends, and forecast
 
-Status: interface requirements with a core implementation as of October 20,
-2026. [Firmware scope](firmware/README.md) includes three-page navigation,
+Status: implemented interface and follow-up requirements, October 21, 2026
+(local firmware v0.7.1). [Firmware scope](firmware/README.md) includes three-page navigation,
 recorded/live data paths, minute history/checkpoints, day/night and hourly
 NWS clients and alert details/themes. Consult [validation](firmware/VALIDATION.md)
-for actual bench results; live RF, configured network operation and full soak
-acceptance remain open. The PC reference logger stays stopped. SD is optional.
+for actual bench results. Live Atlas RF, NWS and owner-observed APRS.fi/WU/
+Weathercloud ingestion are confirmed; extended outage/load and soak acceptance
+remain open. The PC reference logger stays stopped. SD is optional.
 
 Owner update, October 20: horizontal navigation wraps at both ends. A forward
 swipe from Forecast returns to Home; a backward swipe from Home opens Forecast.
@@ -16,13 +17,30 @@ alert text and returns to the measurement detail afterward. Outdoor/wind/
 humidity details support a horizontal swipe into their selected trend.
 Rain details retain rolling hour/24-hour totals beside local-midnight Today.
 The Home tile and portal overview use **RAIN TODAY** at the owner's latest
-request. Pressure details report unavailable hardware without inventing data.
+request. Pressure details identify nearby NWS source/type/age; missing or expired data
+remains unavailable. NWS pressure does not become local station telemetry.
+
+## Inactivity and display power — v0.6.0
+
+Trends and Forecast return to Home after 60 seconds without touch. Touch or
+scrolling restarts that timer; RF/network updates do not. Setup, measurement
+and alert details are excluded. A separate persistent display setting keeps
+the screen on, dims it or turns its backlight off after a selected interval.
+The first touch wakes without navigating. All receiver/storage/network work
+continues while dimmed or dark.
+
+Forecast periods now show the project's condition icons. Night symbols use an
+phase estimate for the forecast-period midpoint behind cloud, fog, precipitation
+or wind artwork; the main Home moon
+uses current phase data. The NWS label sits above the Home icon, away from the
+local temperature graph. Settings access after initial setup shows the current
+URL/admin guidance, with custom passwords hidden and deliberate Wi-Fi recovery.
 
 ## Three primary pages
 
 | Page | Purpose | Main content |
 | --- | --- | --- |
-| Home · 1/3 | Conditions at the station now | Existing [home screen](HOME_SCREEN.md), including current wind and `Gust 5m`, temperature, humidity, rain, pressure when fitted, and lux. |
+| Home · 1/3 | Conditions at the station now | Existing [home screen](HOME_SCREEN.md), including current wind and `Gust 5m`, temperature, humidity, rain, attributed NWS pressure when available, and klux/UV. |
 | Trends · 2/3 | What happened over the last 24 hours | One selected measurement chart at a time, time axis, units, range summary, and visible gaps. |
 | Forecast · 3/3 | What is expected at the configured location | NWS day/night outlook, upcoming hourly conditions, rain probability, wind, and forecast issue/check times. |
 
@@ -38,7 +56,8 @@ previous page; wrap at both ends of the list. Preserve the compact v2 study
 status header and indicate page position with subtle dots. The owner rejected
 the initial prominent page banner on October 20; do not restore permanent
 header navigation arrows. Keep the
-chosen page until navigation or an existing alert-detail trigger changes it.
+chosen page until navigation or the 60-second idle return changes it. Alert
+details and setup retain their separate dismissal behavior.
 
 Recognize horizontal gestures in the content area, with movement thresholds
 validated on the actual touch controller. Lock a gesture to its dominant axis:
@@ -47,16 +66,16 @@ a drag is recognized, cancel the tap target beneath it. The alert strip is
 a dedicated tap target and does not initiate page swipes.
 
 Detail pages keep a large Back control and return to their originating page,
-selected metric, and scroll position. New warnings and enabled alert sounds
-retain the existing alert-detail behavior in [HOME_SCREEN.md](HOME_SCREEN.md).
-Dismissal returns to the previous page without clearing the alert.
+selected metric, and scroll position. Alert details retain the behavior in [HOME_SCREEN.md](HOME_SCREEN.md).
+Dismissal returns to the previous page without clearing the alert. Sound is
+removed from this hardware version.
 
 ## Shared layout
 
 Retain the 320×240 landscape baseline, with header y=0–43, content y=44–183,
 and persistent alert strip y=184–239 on every primary page. Prominent header page arrows
 were removed after the October 20 review; use the study's compact status
-header and page dots instead. A future connection-details target must not
+header and page dots instead. The RF/APRS connection-details targets and Wi-Fi setup target must not
 interfere with horizontal navigation. Fit title, page position,
 clock, and compact connection indicators after checking the actual panel.
 
@@ -67,10 +86,14 @@ history updates, serial output, uploads, or alert processing.
 
 ## Trends: rolling 24 hours
 
+Current firmware offers temperature, wind peak, light and humidity; tap the
+chart to cycle metrics. Rain/pressure charts, min/max envelopes and additional
+chart controls below are follow-up requirements, not implemented controls.
+
 Default to the trailing 24 hours, ending at now, with temperature selected.
 Provide a metric selector with large previous/next controls, leaving the rest
 of the content area for one readable chart. Offer temperature, humidity,
-wind, rainfall, pressure when fitted, and lux. Tap a chart for details.
+wind, rainfall, attributed NWS pressure when available, and klux/UV. Tap a chart for details.
 Additional durations can follow later; the first implementation needs 24 hours.
 
 - Store UTC and label local time and units. Twenty-four hours means the
@@ -105,7 +128,12 @@ than loading a day of raw packets into memory.
 
 ## Forecast: local NWS outlook
 
-NWS is the proposed default because this project already plans NWS alerts.
+On the display, one daily/hourly period is shown at a time: tap the mode
+label to switch products, tap the body for the next period and drag vertically
+to scroll its description. The browser lists the retained periods in cards.
+The Home graphic requires current hourly data less than two hours old.
+
+NWS is the implemented forecast provider and also supplies alerts.
 The [official API documentation](https://www.weather.gov/documentation/services-web-api)
 provides coordinate lookup and linked day/night and hourly products. Reuse
 station coordinates entered during setup; show `Set location` until supplied.
@@ -131,7 +159,7 @@ next 24 hours. Label `NWS forecast`, location, issue time, and last successful
 check. Predictions keep their own source labels and do not replace observed
 station readings or inferred sky conditions on Home. Missing values show `—`.
 
-Fetch in the background at startup, after reconnect, and on a proposed
+Fetch in the background at startup, after reconnect, and on a normal
 30-minute schedule with jitter, honoring cache/retry headers. Swiping pages
 does not trigger repeated requests. Refresh products independently and retain
 their separate issue/check times. Bound text, parsing, and retained periods:
@@ -140,7 +168,7 @@ Validate the API's current schema and units, including null/changed formats.
 
 Persist a compact last-good forecast in a bounded internal-flash cache,
 keeping network data out of the decoded-packet stream. Offline, retain valid
-periods with `Offline · cached` and check age. Proposed staleness is 90 minutes
+periods with `Offline · cached` and check age. The original design proposed staleness at 90 minutes
 since successful validation of that product; failed requests cannot refresh
 it. Provider issue time is distinct and can precede a successful check by hours.
 Remove expired periods as time passes. Show unavailable with no usable cache;

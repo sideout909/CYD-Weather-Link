@@ -13,3 +13,6 @@ Module connector numbering is not the TI chip's package pin numbering.
 
 See [the enclosure reference](ENCLOSURE.md) for the exact-board CAD search
 and the display's mechanical drawing on printed page 9 of its datasheet.
+
+[Archived audio concept](FUTURE_AUDIO.md) applies only to a possible future
+larger-display version; sound is excluded from the current PanelLan device.

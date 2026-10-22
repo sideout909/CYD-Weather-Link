@@ -6,7 +6,7 @@ constexpr uint64_t kDataStaleMs = 600000;
 constexpr uint64_t kDisconnectedMs = 300000;
 enum class State { Off,NoRadio,Waiting,Collecting,Current,DataStale,NoSignal };
 inline const char* label(State state){
-  switch(state){case State::Off:return "Receiver off";case State::NoRadio:return "No receiver";case State::Waiting:return "Waiting";case State::Collecting:return "Collecting";case State::Current:return "Current";case State::DataStale:return "Data stale";case State::NoSignal:return "Disconnected";}
+  switch(state){case State::Off:return "Receiver off";case State::NoRadio:return "No receiver";case State::Waiting:return "Waiting";case State::Collecting:return "Receiving";case State::Current:return "Current";case State::DataStale:return "Data stale";case State::NoSignal:return "Disconnected";}
   return "Unknown";
 }
 struct Monitor {

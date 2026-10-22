@@ -16,7 +16,7 @@ args = parser.parse_args()
 characters = ''.join(chr(c) for c in range(32, 127)) + '°·‹›—'
 variants = [('small', 7, False), ('status', 8, False), ('unit', 9, False),
             ('body', 10, False), ('label', 10, True), ('tile_label', 9, True),
-            ('header', 11, True), ('clock', 11, False), ('alert', 13, True),
+            ('header', 11, True), ('callsign', 14, True), ('clock', 11, False), ('alert', 13, True),
             ('event', 12, False), ('event_bold', 12, True), ('reading', 20, False),
             ('wind', 28, True), ('temperature_compact', 39, True), ('temperature', 49, True)]
 with (ROOT / 'firmware/include/home_fonts.h').open('w') as out:

@@ -12,7 +12,7 @@ QSPI PSRAM, ST7789 display on an 8-bit 8080 parallel bus, and FT5x06 touch.
 The [matching manufacturer datasheet](https://img03.71360.com/w3/77q677/20250701/255a7c29ee6c23af4b5a41406aa43ffc.pdf)
 lists a 2.8-inch, 240×320 panel and `WT32-S3-WROVER-N8R2` module, indicating
 2 MB PSRAM. The October 20 chip probe independently confirmed ESP32-S3 revision 0.1,
-8 MB flash, and 2 MB embedded PSRAM on the owner's unit. Landscape rotation would provide the planned 320×240 view.
+8 MB flash, and 2 MB embedded PSRAM on the owner's unit. The firmware uses a 320×240 landscape view.
 
 The datasheet lists six expansion signals, GPIO 10, 11, 12, 13, 14, and 21,
 on an eight-pin MX1.25 connector alongside 5 V and ground; GPIO logic is 3.3 V.
@@ -30,7 +30,9 @@ without sending data.
 Chip identification and a private full-flash backup are complete. Initial
 firmware and measured display/touch validation are documented in
 [firmware/README.md](firmware/README.md) and
-[firmware/VALIDATION.md](firmware/VALIDATION.md). Peripheral wiring remains unverified. This integrated board is an owned prototype candidate,
+[firmware/VALIDATION.md](firmware/VALIDATION.md). The selected CC1101 wiring now
+receives live Atlas packets; available debug-header supply current remains
+unmeasured. This integrated board is the owned prototype,
 separate from the new-purchase baseline below; no new board/display purchase
 is implied. Feasibility with all required peripherals remains to be validated.
 
@@ -68,15 +70,15 @@ Estimated electronics total without optional SD: $21–41; budget about $30–40
 
 Use N16R8 for 16 MB flash and 8 MB PSRAM if its premium is small. Extra flash helps accommodate two firmware images for updates; PSRAM provides buffer headroom but does not replace internal RAM needed for some real-time and DMA operations.
 
-The proposed swipe pages, rolling 24-hour history, and local internet forecast
+The implemented swipe pages, rolling 24-hour history, and local internet forecast
 in [SCREENS.md](SCREENS.md) use the existing touchscreen, Wi-Fi, and
 bounded RAM/PSRAM and internal flash. SD is optional; the card allowance was
 removed after the October 20 requirement change. These pages add no component
 or price allowance to this baseline. Verify
 drag/swipe behavior with the exact touch controller; budget chart/history and
-forecast/TLS buffers alongside the display, radio, and history tasks. The preferred
-PSRAM profile remains proposed until measured on the actual board; these
-features do not establish compatibility with every CYD variant.
+forecast/TLS buffers alongside the display, radio, and history tasks. The owned
+board has measured 2 MB PSRAM; the separate N16R8/N8R8 purchase proposal is not
+the installed hardware profile. These features do not establish compatibility with every CYD variant.
 
 Prefer a separate display module plus development board for the first reproducible hardware profile. This exposes usable GPIO and allows us to allocate buses explicitly. Reserve one SPI controller for CC1101 and another for display/touch where supported by the selected drivers. I2C pressure and a dedicated weather-output UART remain separate. Confirm all pin assignments against the actual board and flash/PSRAM connections.
 
@@ -94,13 +96,13 @@ as a possible later bridge, but compatible radio hardware and an interface are
 not selected or included in this baseline. Preserve the single-controller
 architecture and CC1101/display/serial pin budget while evaluating any future addition.
 
-## Optional sound alerts
+## Sound excluded from this hardware version
 
-Sound is an optional addition to the baseline total above. First identify the exact display board and check whether it already has a usable amplifier/speaker connection; do not assume all CYDs do.
-
-For the separate ESP32-S3 profile, use a **MAX98357A I²S amplifier breakout** and a matched small speaker (for example, an 8 Ω speaker with a power rating suitable for the chosen supply and volume). The [manufacturer](https://www.analog.com/en/products/max98357a.html) specifies 2.5–5.5 V operation and no MCLK requirement. Reserve three GPIO for BCLK/LRCLK/DIN, plus an optional enable control; verify supply, logic compatibility, speaker load, decoupling, and pin assignments against the exact breakout. Connect the speaker across the amplifier's speaker outputs as documented, not to GPIO or ground. Budget power-supply headroom and enclosure space; verify audibility and radio interference in the assembled appliance.
-
-A piezo buzzer with a suitable driver is an alternative for basic beeps. Choose one audio path after the pin budget is verified. No verified purchase price or revised total is available yet. Alert chimes, volume, mute, test, and acknowledgement behavior are specified in [HOME_SCREEN.md](HOME_SCREEN.md).
+The owner removed sound alerts on October 21, 2026. Do not reserve GPIO, power,
+enclosure space or purchase allowance for an amplifier/speaker on the current
+PanelLan profile. The earlier [audio study](reference/FUTURE_AUDIO.md) is archived
+for possible larger-display hardware. Display-only themes add no hardware and
+preserve the existing pin allocation and storage layout.
 
 ## References checked
 
@@ -109,7 +111,7 @@ A piezo buzzer with a suitable driver is an alternative for basic beeps. Choose 
 - [Documented ILI9341 SPI touchscreen/SD module](https://www.lcdwiki.com/2.8inch_IPS_SPI_Module_ILI9341): example MSP2834 has capacitive touch and shared LCD/SD SPI lines; match exact variant to the eventual firmware profile.
 - [Ebyte E07-M1101D-SMA](https://www.ebyte.com/product/57.html): example 433 MHz CC1101 SPI radio family.
 - [rtl_433_ESP](https://github.com/NorthernMan54/rtl_433_ESP): initial receiver library candidate; validate the selected ESP32-S3 build and Atlas packets.
-- [MAX98357A manufacturer documentation](https://www.analog.com/en/products/max98357a.html): candidate digital-input speaker amplifier; audio remains optional and unbenchmarked.
+- [MAX98357A manufacturer documentation](https://www.analog.com/en/products/max98357a.html): archived reference for future hardware; excluded from the current device.
 
 ## Implemented CC1101 pin allocation
 
@@ -121,8 +123,9 @@ The debug connector's pin 2 provides 3.3 V, with pin 7 ground; available
 output current remains unspecified. The owner selected it as a direct-power
 bench option, pending voltage checks with the receiver, display and Wi-Fi
 running. A small 3.3 V regulator from the board's 5 V rail remains an
-alternative. See the wiring guide for the distinction between this proposal
-and bench-verified operation. This pin allocation implements the single-controller design without
+alternative. Live Atlas reception is observed on this pin map; available
+supply capacity remains unmeasured. See the wiring guide for those limits.
+This pin allocation implements the single-controller design without
 an SD requirement. It uses every external GPIO; adding a barometer or D710
 requires a separate verified interface allocation, not an assumed free pin.
 

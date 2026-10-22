@@ -1,5 +1,236 @@
 # Core firmware validation
 
+Current installed build: **v0.7.4**, October 22, 2026. This is a bench
+log: older version sections describe the state at the time, not current
+limitations. The latest results are below; [WORK.md](WORK.md) tracks remaining
+work and [CONTROLS_CHECKLIST.md](CONTROLS_CHECKLIST.md) tracks owner checks.
+
+## Completed-setup dashboard cleanup — v0.7.4
+
+- `tools/verify_setup_page.py`: passed synthetic browser checks, including the
+  Get connected card remaining available for incomplete setup, hiding after
+  completion, and retained Station & Wi-Fi top navigation.
+- `bash tools/test-firmware.sh`: passed host checks and nine console tests.
+- SC05_X build and USB upload: passed; reported RAM 71,836 bytes and flash
+  1,698,221 bytes. Checkpoint/archive save succeeded immediately before upload.
+- Initial device status: v0.7.4; display, Wi-Fi, radio and mDNS ready; checkpoint
+  restored; archive ready with 293 records and zero archive write failures;
+  portal authentication/CSRF/startup checks passed on attempt one.
+- No replay was injected and no credentials were exported. This USB installation
+  does not establish hosted OTA acceptance. No GitHub release assets published.
+
+## Loopback startup check — local v0.7.3
+
+The mDNS hostname resolved to the correct LAN IP after v0.7.2 installation;
+unauthenticated HTTP through the name returned 401 and the owner independently
+confirmed access. The device's separate startup probe nevertheless failed its
+first AP-address connection on all three attempts (HTTP -1). This was a local
+self-connection failure, not evidence of a broken external web service; the
+precise AP/STA routing interaction is unconfirmed.
+
+v0.7.3 changes only the probe target to 127.0.0.1, supported by the pinned SDK's
+CONFIG_LWIP_NETIF_LOOPBACK. It still connects to the actual HTTP server and
+performs all authentication, CSRF, schema and invalid-input checks. Retry limits,
+30-second confirmation, 90-second rollback and watchdog remain intact. No mDNS
+or Wi-Fi/internet success is made a boot prerequisite. Actual loopback success
+and continued name access are verified after installation below.
+
+Final v0.7.3 build: 1,698,173 application bytes (50.8%) and 71,836 static RAM
+bytes (21.9%). Acknowledged checkpoint/archive flush preceded USB installation.
+At 5.5 seconds uptime, protected portal checks Passed on attempt one; mDNS is
+ready, the checkpoint restored 1,124 minute buckets and 241 archive records,
+and live RF resumed. Avahi resolves wxlink.local to the board's LAN address;
+curl through the hostname returns HTTP 401 without credentials as expected.
+The owner independently confirmed the friendly address works. Setup view text
+shows the hostname and numeric fallback; physical setup framebuffer capture
+remains blocked to avoid exporting generated Wi-Fi keys. No replay or publishing.
+
+
+## Friendly local address — local v0.7.2
+
+Enabled the existing ESP32 mDNS responder as wxlink.local, with an HTTP/TCP
+port-80 service and generic CYD Weather Link instance name. Initial failure
+retries every 30 seconds; existing AP DNS and numeric addresses remain available.
+The platform handles interface/address events. More settings and first-run
+views show http://wxlink.local prominently, with numeric IP fallback. The
+browser header also links both, and status/USB expose readiness without secrets.
+No credential, CSRF, radio or upload gate was changed. Default name assumes
+one unit per local network; blocked multicast/incompatible clients use the IP.
+
+Host and browser checks passed, including both address links and name-startup
+failure feedback. Protected startup checks verify the new status schema without
+requiring successful mDNS resolution for boot. Build: 1,698,209 app bytes (50.8%
+of OTA slot), 71,836 static RAM bytes (21.9%). Before installation, a targeted
+lookup did not resolve wxlink.local on the owner's LAN. Physical setup view
+rendering stays protected from framebuffer export because it can contain the
+generated Wi-Fi access key.
+
+## Night theme and forecast lunar cycle — local v0.7.1
+
+Added seventh palette Night (low light): black/near-black surfaces, subdued
+amber text/artwork, softened olive NWS all-clear/connected status and an
+amber-tinted cratered moon. Text contrast remains checked at RGB565 precision.
+Night backlight is 24/255 normally, 2/255 after configured idle Dim, and zero
+for Off. Waking returns to 24 rather than 160; other themes retain 160/16.
+The backlight stays off after display initialization until saved settings and
+the first themed frame are ready. Watch/warning color semantics are unchanged.
+
+Forecast moons now use provider phase/illumination anchored at noon of its
+local reference date, advanced to each period midpoint with a mean 29.530588-day
+synodic cycle. This is a small-icon estimate, not a precise ephemeris. The mean
+period is documented by [NASA](https://eclipse.gsfc.nasa.gov/phase/phasecat.html).
+Missing current-day lunar data shows an unknown moon. The browser applies
+late-arriving phase data immediately; phase/craters/clouds remain compatible
+with Night tint and hemisphere orientation. No extra provider calls are made.
+
+Host checks passed for all weather models, seven-palette contrast, reduced
+text/green/moon luminance, Night normal/dim/off/wake policy and lunar new/full/
+quarter transitions, invalid data and forecast horizon. Browser checks passed
+for all themes, softer NWS all-clear green, phase arrival updates, different
+future-night phases and waxing/waning changes. Build passed: 1,670,997 app
+bytes (50.0% of OTA slot), 69,908 static RAM bytes (21.3%). Actual dark-room
+brightness and physical wake/restart behavior remain owner checks.
+
+USB installation followed an acknowledged checkpoint/archive flush. The board
+reports v0.7.1, passing protected portal checks, restored checkpoint, 1,113
+minute buckets and 239 archive records. Wi-Fi and live RF resumed; current
+lunar data reports Waxing Gibbous / 77.6%. Actual Forecast capture
+`display-v071-forecast-live.png` shows a gibbous moon behind Tonight's fog art,
+replacing the former crescent. Home was restored afterward. Existing saved
+palette was preserved; physical Night brightness/selection remains an owner
+check. Local Markdown links and whitespace checks pass.
+
+## Shared palettes and sound removal — local v0.7.0
+
+Added persisted display_theme for original Midnight and the five reviewed
+Matrix/Amber/Ice Blue/Violet/Paper concepts. Shared JSON generates RGB565
+palette constants, browser CSS and original SVG-derived weather icon variants.
+The browser previews selections locally; Save and restart applies the saved
+palette to both surfaces. Existing configs default to Midnight. Invalid theme
+IDs/types are rejected. Watch/warning overrides remain separate, and Paper
+uses a darker legible stale orange. Sound is removed from display, browser
+status and status JSON; RF/WiFi/APRS shift right with the matching Wi-Fi target.
+
+Host checks passed, including six-palette lookup/fallback, text contrast on
+background/cards, stale/accent contrast and the right-aligned status geometry.
+The protected browser suite verifies every palette/asset URL, preview without
+reading/field loss, saved theme submission/reload, three status indicators and
+Paper warning-card contrast. Setup/discovery/ZIP-map browser suites passed.
+Pinned build: 1,650,017 application bytes (49.4% of the OTA slot), 69,908 static
+RAM bytes (21.3%). Private Matrix/Paper browser captures were generated; Paper
+form layout was visually reviewed. These are browser/source checks; owner
+selection and physical color matching remain controls-checklist items.
+
+USB installation was preceded by an acknowledged checkpoint/archive flush.
+The installed board reports v0.7.0, migrated Midnight theme, connected Wi-Fi,
+passing protected portal checks, restored checkpoint, 1,107 history buckets and
+237 archive records. Radio is ready with zero reported drops and live packets
+resumed in Receiving state. Actual framebuffer display-v070-home.png confirms
+speaker removal and RF/WiFi/APRS alignment at the right edge. No replay was used.
+
+Earlier sound design is archived in reference/FUTURE_AUDIO.md rather than
+retained as an optional requirement on this board. GPIO and storage layout,
+weather processing and exporter eligibility are unchanged. No GitHub publishing.
+
+## Dashboard refresh connection status — local v0.6.3
+
+Owner reported a transient Wi-Fi/NWS warning on refresh despite a connected
+station. Cached alert responses could render before initial status; undefined
+Wi-Fi was treated as false. The deferred dashboard could also miss an earlier
+inline status response, waiting for the next five-second poll.
+
+The page now retains early status and distinguishes unknown connection state
+from confirmed disconnection. Pending status displays Checking device connection
+without an artificial amber warning. Known cached warning events remain
+prominent. Real failed requests/disconnections still mark data unverified.
+Browser regressions hold first status until cached NWS arrives, then verify
+real disconnection; a second page holds the deferred script until connected
+status arrives and verifies immediate recovery without another status poll.
+The complete setup/dashboard browser suite passed. Build passed with 1,604,033
+application bytes and 69,892 static RAM bytes. No weather, RF or exporter logic
+changed. Changes remain local. Before USB installation, checkpoint save and
+archive flush were acknowledged. The installed board reports v0.6.3, connected
+Wi-Fi, successful portal checks, restored checkpoint, 1,095 history buckets,
+234 archive records and ready radio with zero reported drops. Actual phone
+refresh confirmation remains an owner check.
+
+## Receiving and night conditions — local v0.6.2
+
+Renamed the displayed Collecting state to Receiving. The internal partial-cycle
+state and all health/upload/archive rules are unchanged. The night's actual
+forecast included patchy fog, so its previous neutral fog icon did not include
+a moon. Recognized night fog/precipitation/wind conditions now retain a moon
+behind their condition art on the panel and browser. Cloudy night overlays
+remain; unknown conditions are not presented as clear nights. Forecast moons
+are illustrative, while Home retains current phase when available.
+
+Host checks and protected setup/browser regressions passed, including the
+Receiving label and night fog layering on Home-equivalent and forecast cards.
+Pinned build: 1,603,857 application bytes (48.0%), 69,892 static RAM bytes
+(21.3%). No credentials, receiver tuning or exporter policy were changed.
+Checkpoint save and archive flush were acknowledged before USB installation.
+The installed board reports v0.6.2, restored checkpoint, 1,092 history buckets,
+234 archive records and passing portal checks. Live packets resumed with the
+new Receiving state and zero reported drops. Actual Forecast framebuffer
+capture display-v062-forecast-night.png shows Tonight's patchy-fog moon above
+the fog/cloud artwork; Home was restored afterward. Local links/headings across
+all 25 tracked Markdown documents and git diff whitespace checks passed.
+
+## Packet-age header — local v0.6.1
+
+Added whole seconds since the last decoded bound-station packet beside the
+source state. This includes repeats/flagged bound packets as reception evidence
+without refreshing absent/invalid measurements. Other stations and replay do
+not update this live counter. The status line uses available space before the
+RF indicator and a smaller font for long state/age text.
+
+Pinned build passed: 1,603,533 application bytes, 69,892 static RAM bytes.
+Checkpoint save and archive flush were acknowledged before USB installation.
+The board restored 1,088 history buckets and 233 archive records; portal checks
+passed and live bound-station packet reception resumed with no reported drops.
+A private framebuffer capture, display-v061-packet-age.png, shows
+`Atlas · Collecting · 9s` without overlapping RF/WiFi/APRS/sound. This is a small
+display-only change; observation freshness, archive and uploader gates are
+unchanged. No replay was injected and no GitHub release/source was published.
+
+## Display preferences and condition graphics — local v0.6.0
+
+Implemented configurable date format, 12/24-hour clock, keep-on/dim/off display
+inactivity, and a 60-second return from Trends/Forecast to Home. Display power
+changes only the backlight; reception, history and networking continue. A wake
+gesture is consumed before normal controls resume. Added the compact header,
+post-setup settings guidance, original forecast icons/cloud overlays, NWS label
+above the Home icon, and station UV value with the full level name (Moderate).
+Custom admin credentials remain hidden on the display.
+
+The complete host suite passed, including display preference/idle/UV/layout
+checks and existing weather/archive/upload checks. Headless setup, station
+discovery and ZIP/map/elevation browser checks passed. The pinned build uses
+1,603,385 application bytes (48.0% of its OTA slot) and 69,892 static RAM bytes
+(21.3%). These source changes remain local; no GitHub release was published.
+
+Before USB installation, checkpoint save and archive flush were acknowledged.
+After installation the board restored its checkpoint and 222 archive records,
+and the protected HTTP startup self-test passed on its first attempt. The radio
+subsequently reported Current with no dropped packets. Private framebuffer
+captures display-v060-home.png and display-v060-forecast.png confirm the compact
+header, source label and forecast artwork on the actual display. Initial Home
+capture was during collection; it does not validate live daytime UV artwork.
+
+A 65-second read-only RF observation received 21 packet records; after the
+Forecast idle interval, status reported Home (page 0), Current reception,
+1,046 history buckets and zero capture, decoder or application queue drops.
+Default keep-on brightness remained 160. The private diagnostic file is
+rf-followup/display-v060-idle.jsonl.
+
+The owner subsequently reported the v0.6.0 display/control changes passed
+their hands-on checks, including the priority items in CONTROLS_CHECKLIST.md.
+This is owner-reported acceptance rather than instrumented timing/voltage data.
+Weathercloud ingestion is owner-confirmed, rather than a
+new automated provider-side check. Corrected hosted OTA acceptance remains open.
+
+## Earlier bench records
+
 ## Setup touch target — v0.5.3, October 21, 2026
 
 The owner reported hitting station status while trying to open Wi-Fi setup.
@@ -65,7 +296,7 @@ owner's original message. Build: 1,589,997 application bytes, 69,844 static RAM.
   RF baseline remains 433.92 MHz / 9 dB adaptive capture margin.
 - Owner phone scan/select/save and touch checklist remain open; synthetic
   browser tests and host-fed native RF are not an actual phone confirmation.
-  See [priority checks](CONTROLS_CHECKLIST.md#quick-check-for-v051-automatic-discovery).
+  See [priority checks](CONTROLS_CHECKLIST.md#discovery-checks-from-v051).
   Corrected hosted OTA validation and additional-station hardware tests remain
   open. This update was USB-installed, not published as a new OTA release.
 
@@ -239,7 +470,10 @@ Artifacts under `captures/firmware-validation/`: `rain-today-midnight.json`,
 `pre-clock-{home,trends}.png`, `rain-today-final-home.png`,
 `rain-today-final-runtime.json`, and `rain-today-final-diagnostics.json`.
 
-## Remaining acceptance gates
+## Acceptance gates recorded before live CC1101 connection
+
+Historical checklist: initial reception and APRS.fi/WU/Weathercloud ingestion
+were subsequently observed. Use [WORK.md](WORK.md) for the current open gates.
 
 - Connect the pictured CC1101 with regulated 3.3 V power using [WIRING.md](WIRING.md).
   Confirm SPI, compare live Atlas packet counts/values with the SDR reference,

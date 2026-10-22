@@ -11,9 +11,9 @@ inline Kind classify(std::string text){
   if(has("snow")||has("sleet")||has("freezing")||has("wintry")||has("ice"))return Kind::Snow;
   if(has("rain")||has("shower")||has("drizzle"))return Kind::Rain;
   if(has("fog")||has("haze")||has("smoke"))return Kind::Fog;
-  if(has("wind")||has("breezy"))return Kind::Wind;
   if(has("partly")||has("mostly sunny"))return Kind::PartlyCloudy;
   if(has("cloud")||has("overcast"))return Kind::Cloudy;
+  if(has("wind")||has("breezy"))return Kind::Wind;
   if(has("sunny")||has("clear"))return Kind::Clear;
   return Kind::Unknown;
 }

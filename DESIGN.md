@@ -1,13 +1,13 @@
-# CYD Weather Link — initial design
+# CYD Weather Link — architecture and requirements
 
-Status: October 20, 2026. Development firmware source version 0.3.0 targets the owned
-PanelLan `ZX2D80CE02S-V10`; see [scope and commands](firmware/README.md) and
-[measured validation](firmware/VALIDATION.md). Display/touch and recorded Atlas
-processing are bench tested. Receiver/queue, setup/configuration, network
-clients, flash checkpoints and initial exporters are implemented; live CC1101
-reception, configured network/service ingestion and multiday operation still
-require validation. Windy remains follow-up work; D710 serial output, sound
-and barometer are optional additions. The PC RTL-SDR capture service stays stopped.
+Status: October 21, 2026. Local firmware v0.7.3 targets the owned PanelLan
+ZX2D80CE02S-V10 / SC05_X; see [firmware scope](firmware/README.md) and
+[bench validation](firmware/VALIDATION.md). Live Atlas/CC1101, display/touch,
+protected setup, NWS and history restoration are observed. The owner confirms
+APRS.fi, WU and Weathercloud ingestion and the new friendly local address.
+SDR comparison, separate CWOP acceptance, corrected hosted OTA and multiday
+soak remain open. D710 and local barometer are optional; sound is removed.
+The PC RTL-SDR capture service remains stopped.
 
 ## Goal
 
@@ -15,7 +15,7 @@ Reuse the existing AcuRite Atlas outdoor sensor with a replacement local display
 
 ## Selected architecture: all-in-one CYD
 
-The user prefers one self-contained touchscreen appliance, with no Pi, separate receiver processor, or MQTT gateway in the operating path. The Pi is available but is not part of the selected architecture. On October 20, 2026 the owner identified the connected display/controller as PanelLan `ZX2D80CE02S-V10`, matching the vendor's `SC05_X` profile. It is an owned ESP32-S3 prototype candidate; the chip probe confirms 8 MB flash and 2 MB PSRAM. Display/touch and simultaneous-peripheral validation are recorded separately in [firmware/VALIDATION.md](firmware/VALIDATION.md); expansion wiring remains unverified. Documented specifications and their sources are in [PARTS.md](PARTS.md#owned-displaycontroller-candidate-panellan-zx2d80ce02s-v10).
+The user prefers one self-contained touchscreen appliance, with no Pi, separate receiver processor, or MQTT gateway in the operating path. The Pi is available but is not part of the selected architecture. On October 20, 2026 the owner identified the connected display/controller as PanelLan `ZX2D80CE02S-V10`, matching the vendor's `SC05_X` profile. It is an owned ESP32-S3 prototype candidate; the chip probe confirms 8 MB flash and 2 MB PSRAM. Display/touch and simultaneous-peripheral validation are recorded separately in [firmware/VALIDATION.md](firmware/VALIDATION.md); the selected CC1101 wiring receives Atlas packets, while debug-header supply headroom remains unmeasured. Documented specifications and their sources are in [PARTS.md](PARTS.md#owned-displaycontroller-candidate-panellan-zx2d80ce02s-v10).
 
 ```text
 Atlas outdoor sensor
@@ -26,13 +26,13 @@ CC1101 receiver + antenna -- SPI/interrupts --> CYD ESP32
                                               |-> weather calculations/state
                                               |-> Weather Underground over Wi-Fi
                                               |-> direct APRS-IS / CWOP over Wi-Fi
-                                              |-> selectable Weathercloud/Windy/PWSWeather over Wi-Fi
+                                              |-> Weathercloud over Wi-Fi
+                                              |-> planned Windy/PWSWeather adapters
                                               |<- local NWS alerts/forecast over Wi-Fi
                                               `-> optional UART -> serial level interface
                                                           -> D710 GPS/weather port
 
 Optional pressure sensor -- I2C -------------> CYD
-Optional amplifier + speaker <---- I2S ------ CYD
 ```
 
 One enclosure and one controller, with the CC1101, optional pressure sensor, and optional serial interface as peripheral hardware. The existing SDR remains a development reference only. There is no cloud dependency for local weather reception/display or the serial weather output.
@@ -44,7 +44,7 @@ One enclosure and one controller, with the CC1101, optional pressure sensor, and
 - Add a BMP280/BME280 pressure sensor to replace the original console barometer if pressure is wanted.
 - Optional D710 output: add a serial electrical interface matched to the exact port; a MAX3232-class interface is a candidate if RS-232 levels are required. No USB host or Pi adapter is assumed in the final appliance.
 - Check GPIO availability for receiver SPI and interrupt lines, pressure I2C, and weather-output UART alongside the display, touch, backlight, boot straps, and programming port.
-- If sound is fitted, budget I²S/audio GPIO and amplifier power alongside all required peripherals; inspect any existing board audio circuit before adding hardware. Keep receiver access intact; any optional serial output must share the verified GPIO budget.
+- Sound is excluded from this hardware version; future audio needs a separate hardware/pin review.
 - SD packet logging is optional following the owner's October 20, 2026 requirement change. Normal reception, display, history, and outputs must work without a card. Allocate GPIO to required peripherals first; any later SD option needs its own verified bus/pin budget.
 - If the particular CYD lacks enough usable pins or memory, select a more suitable ESP32 display board for the same all-in-one design. Do not silently reintroduce a gateway.
 - Verify receiver range, antenna placement, power supply capacity, and interference from the display/Wi-Fi in the assembled enclosure.
@@ -69,7 +69,7 @@ Use a single embedded application, initially targeting PlatformIO/Arduino with r
 7. Optional addition: emit a verified Peet Bros.-compatible serial stream for the D710 independently of internet connectivity. This is not a core acceptance requirement.
 8. Save configuration and essential persistent weather state with controlled flash-write frequency. Raw decoded-packet logging is optional and disabled by default; no SD card is required.
 9. Retrieve active local NWS alerts for configured station coordinates without blocking reception. Track alert-fetch health separately from local measurements and output connections.
-10. Apply orange full-screen watch and red warning themes; optionally play locally generated alert tones through verified audio hardware, with volume, test, mute, and per-alert silence controls.
+10. Apply orange full-screen watch and red warning themes; this version uses visual alerts only.
 11. Retrieve a local NWS day/night and hourly forecast for configured station coordinates in a bounded background task. Cache the last good forecast, expose its source/age, and track forecast health independently of alerts and local measurements.
 12. Support configured CWOP participation and selectable Weathercloud, Windy.com, and later PWSWeather observation uploaders, reusing the observation model while keeping destination identity, scheduling, credentials, and health separate. Focus initial PWS upload work on Weather Underground, Weathercloud, and Windy. Validate APRS/CWOP routing to avoid duplicate uploads.
 
@@ -233,13 +233,13 @@ Full UI, memory bounds, and failure behavior are in [SCREENS.md](SCREENS.md).
 
 Add a configurable HTTPS client for `https://api.weather.gov/alerts/active?point={latitude},{longitude}&status=actual`, with an identifying User-Agent and GeoJSON response. Use station coordinates, not IP geolocation. Normal polling is every 30 seconds, following the owner's October 20 update, with caching, bounded parsing, timeouts, and retry/backoff. See [HOME_SCREEN.md](HOME_SCREEN.md) for update/cancellation, priority, freshness, pagination, and cache rules. All fetching remains on the device; no gateway is required.
 
-Validate memory and reception with NWS TLS/JSON processing, all configured uploaders, history checkpointing, and the display active. Local weather reception, display, and serial output remain operational when the alert service is unreachable. Prototype validation is still required before considering this feature implemented.
+Validate memory and reception with NWS TLS/JSON processing, all configured uploaders, history checkpointing, and the display active. Local weather reception, display, and serial output remain operational when the alert service is unreachable. Initial NWS operation is observed; extended outage/transition validation remains open.
 
-## Optional audible alerts
+## Sound removed from this hardware
 
-Use verified board audio or an I²S amplifier such as MAX98357A plus a matched speaker; see [PARTS.md](PARTS.md). Do not connect a speaker directly to ESP32 GPIO. GPIO mapping, amplifier supply, speaker load, enclosure audibility, power headroom, and RF interference remain hardware validation gates.
-
-After audio is enabled and tested, new watches play a short original chime; warnings use a distinct tone. Immediate severe/extreme warnings may repeat until silenced while fresh. Provide volume, Test sound, persistent Mute all, optional quiet hours with explicit warning override, and a large Silence this alert control. Display sound status. Deduplicate update lineages; re-alert on a genuine escalation, not unchanged polls/reconnects. Cached/stale alerts cannot start or continue repeats. Generate tones nonblockingly, independent of SD/network audio. Full behavior is specified in [HOME_SCREEN.md](HOME_SCREEN.md); this is planned, not implemented firmware.
+The owner removed sound from this device; [audio plans](reference/FUTURE_AUDIO.md)
+are archived for a possible larger-display version. Do not reserve audio GPIO
+or add sound/mute controls to the current PanelLan acceptance scope.
 
 ## External reporting
 
@@ -280,16 +280,23 @@ Local operation during an internet outage requires local Wi-Fi/LAN and gateway p
 7. Test sensor loss, Wi-Fi loss, internet loss, restarts, invalid time, and stale serial-input behavior at the radio.
 8. Package as one appliance and run a multiday soak test with all outputs enabled.
 9. Validate NWS empty/active/multiple/updated/cancelled alerts, stale cache, invalid time, location changes, payload limits, and network failures while reception and serial output continue. Calibrate and assess lux-based sky estimates independently before enabling them by default.
-10. Validate whole-screen orange/red theme priority and stale-state labels. If sound is fitted, test volume, test/mute/silence controls, escalation, duplicate suppression, reboot, quiet hours, cancellation, and stale data under full device load; verify audibility, power stability, and reception.
+10. Validate whole-screen orange/red alert priority and stale-state labels across normal palettes.
 11. Validate swipe navigation and all-page alerts, rolling 24-hour history with gaps and restart recovery, and forecast caching/expiry/failures using [SCREENS.md](SCREENS.md#acceptance-checks). Confirm these tasks do not interrupt reception, history updates, uploads, or serial output.
 
-## Questions to resolve
+## Remaining design decisions
 
-1. Confirm the owned PanelLan `ZX2D80CE02S-V10` revision/schematic, actual flash/PSRAM, internal-flash storage budget, accessible I2C/UART, and full GPIO allocation against the physical board before wiring.
-2. Exact D710 variant (A/E or GA/GE) and available GPS/weather cable.
-3. Sample decoded Atlas JSON covering different message types, plus current receive frequency.
-4. Archive retention beyond the selected rolling 24-hour Trends view, final on-panel layout, and offline cold-start requirements.
-5. Callsign/SSID, site coordinates/ground elevation, CWOP registration/routing, and station configuration for each selected PWS service during implementation. Keep the Atlas's 30 ft mounting height separate from ground elevation.
+Board revision, 8 MB flash/2 MB PSRAM, Atlas message family, 433.92 MHz profile
+and seven-day archive size are established. Current owner settings supply
+location/timezone and destination credentials; keep those private.
+
+- Measure loaded debug-supply voltage/headroom under Wi-Fi/display/RF load.
+  Six expansion GPIOs are used by CC1101; optional I2C/UART needs verified allocation.
+- Decide whether offline cold starts need an RTC; history restoration needs valid UTC.
+- Verify separate CWOP routing/collection and field accuracy at each destination.
+  Ground elevation differs from the Atlas's 30 ft mounting height.
+- Verify exact D710 variant/port levels/cable only if that output is pursued.
+- Broaden station support with reviewed captures, field/identity/integrity rules
+  and appropriate OOK/FSK receiver profiles; decoder availability is not compatibility.
 
 ## Technical references
 
@@ -313,7 +320,7 @@ Local operation during an internet outage requires local Wi-Fi/LAN and gateway p
 ## Setup location picker — owner request, October 20
 
 Implemented in the protected portal; browser/endpoint checks passed and owner
-phone testing is underway. See [map assets and provider notes](assets/web/README.md).
+the owner reports setup/display changes passed their checks. See [map assets and provider notes](assets/web/README.md).
 
 - Preserve manual decimal latitude/longitude entry.
 - Offer US ZIP-code search, followed by an interactive map in the phone/PC
@@ -337,7 +344,7 @@ phone testing is underway. See [map assets and provider notes](assets/web/README
 
 ## Header, transmitter health and setup security — latest owner updates
 
-### TODO: replace provisioning details after setup
+### Post-setup settings access — implemented v0.6.0
 
 Owner request, October 21: after initial setup, opening setup from the display
 should show a **More settings** screen rather than the initial Wi-Fi joining
@@ -352,8 +359,7 @@ location and optional sharing services are not prerequisites. Keep first-run
 provisioning and a deliberate Wi-Fi recovery path available when needed. This
 is backlog work; the current firmware retains its existing setup screen.
 
-Show configured callsign/SSID in the center slot, and a speaker/mute icon by
-Wi-Fi. APRS/CWOP gets a separate session indicator requiring acknowledged
+Show callsign/SSID in the center slot. RF/WiFi/APRS are right-aligned; sound is omitted. APRS/CWOP gets a separate session indicator requiring acknowledged
 login, with verified authentication for the ham route. Keep the session alive
 independently of radio freshness; withhold weather while data is stale.
 
@@ -523,3 +529,60 @@ existing history and provider caches; display presence is separate from strict
 upload validity. No additional controller, storage or component requirement is
 introduced, so PARTS.md needs no hardware change. The dashboard contract and
 validation are in [firmware/WEB_DASHBOARD.md](firmware/WEB_DASHBOARD.md).
+
+Post-setup completion uses saved home Wi-Fi plus a confirmed station binding.
+The implemented More settings view shows URL/admin guidance, hides a custom
+password and retains a deliberate recovery/details button.
+
+## Display preferences and shared themes — current implementation
+
+Local v0.7.2 includes the later owner changes to the v2 reference: WX LINK,
+larger centered callsign, configurable date prefix and 12/24-hour clock,
+right-aligned RF/WiFi/APRS statuses, no sound icon and seconds since the last
+decoded bound-station packet. Repeats prove reception independently of field
+freshness. Receiving replaces the partial-cycle Collecting label.
+
+NWS attribution sits above the weather icon. Local klux includes UV index and
+full level (including Moderate); stale/missing UV is unavailable. BARO may use
+fresh nearby NWS pressure, with source/type/age in details; it is display-only,
+excluded from Atlas uploads/archive. Detailed trends preserve data gaps; only
+the small Home sparkline bridges observed points across missed minutes.
+
+Trends and Forecast return Home after 60 seconds without touch; setup, alerts
+and measurement details are excluded. Keep-on/Dim/Off backlight preferences do
+not sleep the MCU or pause RF, history, NWS or uploads. First-touch wake consumes
+the gesture before normal controls resume. Touch/hold/release reset inactivity.
+
+Station & Wi-Fi → Display & clock offers Midnight (original), Matrix, Amber,
+Ice Blue, Violet, Paper and Night (low light). Browser changes preview locally;
+Save and restart persists one palette for screen and webpage. Old settings
+retain Midnight; invalid/nonstring themes are rejected. Shared JSON generates
+RGB565 colors, embedded CSS and recolored original SVG weather artwork without
+changing geometry. Watch/warning themes retain distinct colors; Paper uses a
+darker readable stale orange. Sound is excluded from this hardware version;
+[earlier audio plans](reference/FUTURE_AUDIO.md) are archived for larger displays.
+
+Night uses near-black surfaces, subdued amber text/artwork/moon, and softer
+olive NWS all-clear/connected indicators. Backlight is 24/255 normally, 2/255
+when idle-dimmed and zero for Off; other themes remain 160/16. Wake returns to
+the selected level. After display initialization, boot leaves the backlight
+off until settings and the first themed frame are ready. Actual dark-room
+appearance/wake checks remain owner validation.
+
+Home uses current provider moon phase. Forecast icons estimate the phase at
+each period midpoint from provider illumination/direction, anchored at noon of
+the current local reference date and advanced with a mean synodic cycle.
+This is a small-icon estimate, not an ephemeris. Invalid/missing current-day
+lunar data remains unknown; hemisphere orientation, crater texture and cloud/
+fog/precipitation overlays are preserved. No extra provider requests are made.
+
+## Friendly settings address — v0.7.2
+
+Advertise wxlink.local with mDNS and HTTP on TCP port 80. First-run and More
+settings views show http://wxlink.local prominently, with current numeric AP/
+LAN IP fallback. The browser header links both. Existing Basic authentication,
+CSRF and private custom admin credentials are unchanged; no secrets are advertised.
+Failed mDNS startup retries every 30 seconds and does not block core weather
+operation. Existing setup DNS and 192.168.4.1 remain available. Default name
+assumes one unit per local network; clients without local multicast support
+can use the IP. No component, GPIO or storage-layout change is required.

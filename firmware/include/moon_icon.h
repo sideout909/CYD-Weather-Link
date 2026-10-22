@@ -22,15 +22,22 @@ inline uint16_t surface(float x,float y){
   return gray(shade);
 }
 
+inline uint16_t nightTint(uint16_t color){
+  const unsigned level=(color>>11)&31;
+  const unsigned r=173*level/31,g=135*level/31,b=83*level/31;
+  return ((r&248)<<8)|((g&252)<<3)|(b>>3);
+}
+
 template <typename Canvas>
-void draw(Canvas& canvas,int cx,int cy,int radius,float illumination,bool waning,bool southern){
+void draw(Canvas& canvas,int cx,int cy,int radius,float illumination,bool waning,bool southern,bool low_light=false){
   for(int y=-radius;y<=radius;++y){
     const float half=std::sqrt(float(radius*radius-y*y));
     for(int x=-int(half);x<=int(half);++x){
       const bool lit=forecast_icon::illuminated(illumination,float(x),half,waning,southern);
-      canvas.drawPixel(cx+x,cy+y,lit?surface(float(x)/radius,float(y)/radius):gray(47));
+      const uint16_t color=lit?surface(float(x)/radius,float(y)/radius):gray(47);
+      canvas.drawPixel(cx+x,cy+y,low_light?nightTint(color):color);
     }
   }
-  canvas.drawCircle(cx,cy,radius,gray(143));
+  canvas.drawCircle(cx,cy,radius,low_light?nightTint(gray(143)):gray(143));
 }
 }

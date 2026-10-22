@@ -265,7 +265,9 @@ bool uploadAprs(const Observation& o,String& result){
 bool portalSelftest(String& failure){
   // Start only after the main task has actually serviced HTTP. Each probe gets
   // a fresh client, so credentials and request headers cannot cross test cases.
-  const String root="http://"+WiFi.softAPIP().toString();
+  // Test the actual HTTP server through SDK-enabled loopback; AP/STA routes
+  // can change during Wi-Fi/mDNS initialization. This still exercises auth/CSRF.
+  const String root="http://127.0.0.1";
   auto expect=[&](const char* stage,const char* path,int expected,const String& password,
                   const char* body=nullptr,const String& token=String(),String* response=nullptr){
     failure=stage;
@@ -294,6 +296,9 @@ bool portalSelftest(String& failure){
   }
   const String token=d["csrf"].as<String>();
   if(!token.length()){failure="Config CSRF token missing";return false;}
+  if(d["display_theme"]!=config.display_theme||d["date_format"]!=config.date_format||d["clock_24h"]!=config.clock_24h||d["display_sleep_mode"]!=config.display_sleep_mode||d["display_timeout_s"]!=config.display_timeout_s){failure="Display preferences schema";return false;}
+  if(!expect("Local address status","/api/status",200,config.setup_key,nullptr,none,&response))return false;
+  if(deserializeJson(d,response)||d["local_url"]!="http://wxlink.local"||!d["mdns_ready"].is<bool>()||!d["ip"].is<const char*>()){failure="Local address schema";return false;}
   if(!expect("Discovery schema","/api/discovery",200,config.setup_key,nullptr,none,&response))return false;
   if(deserializeJson(d,response)||d["duration_s"]!=300||!d["candidates"].is<JsonArray>()){failure="Discovery schema";return false;}
   if(!expect("Discovery CSRF rejection","/api/discovery/start",403,config.setup_key,""))return false;
@@ -321,6 +326,10 @@ bool portalSelftest(String& failure){
   if(!expect("Updater CSRF rejection","/api/update/install",403,config.setup_key,""))return false;
   if(!expect("Settings CSRF rejection","/api/config",403,config.setup_key,"{}"))return false;
   if(!expect("Invalid station rejection","/api/config",400,config.setup_key,"{\"station_id\":65536}",token))return false;
+  if(!expect("Invalid display timeout rejection","/api/config",400,config.setup_key,"{\"display_timeout_s\":65566}",token))return false;
+  if(!expect("Invalid clock setting rejection","/api/config",400,config.setup_key,"{\"clock_24h\":\"false\"}",token))return false;
+  if(!expect("Invalid theme rejection","/api/config",400,config.setup_key,"{\"display_theme\":\"unknown\"}",token))return false;
+  if(!expect("Invalid theme type rejection","/api/config",400,config.setup_key,"{\"display_theme\":false}",token))return false;
   failure="Passed";return true;
 }
 int32_t localDay(){time_t t=time(nullptr);struct tm tm{};localtime_r(&t,&tm);return (tm.tm_year+1900)*10000+(tm.tm_mon+1)*100+tm.tm_mday;}

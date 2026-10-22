@@ -11,9 +11,30 @@ field-age/connection details, callsign/status header, protected browser setup,
 embedded ZIP/map/elevation selection, persistence and opt-in sharing. A separate
 seven-day archive retains five-minute summaries with browser/USB CSV export. Weather
 Underground and Weathercloud adapters are implemented. Live CC1101 reception,
-APRS.fi location/weather display and WU uploads are observed. CWOP/Weathercloud
-ingestion, reference comparison and a full soak remain validation gates. Windy is later work; D710, pressure and sound are
-optional additions.
+APRS.fi location/weather display and WU uploads are observed; the owner also
+confirmed Weathercloud is receiving data. CWOP ingestion, reference comparison
+and a full soak remain validation gates. Windy is later work; D710 serial, a
+local barometer are optional additions. Sound is excluded from this device. Nearby NWS pressure is available as an attributed display fallback.
+
+## Current development status
+
+Firmware **v0.7.4** shows packet age beside the sensor state and uses
+“Receiving” while building a complete weather cycle. Night forecast conditions
+include a moon behind cloud, fog and precipitation artwork. The current
+UI also includes configurable date/12–24-hour time, screen dim/off timeouts,
+60-second Trends/Forecast return, full UV levels and original forecast icons.
+The owner reports the v0.6.0 display/control changes passed their checks.
+The dashboard hides “Get connected” after Wi-Fi, station confirmation and location
+setup are complete; the top tabs remain available. It waits for device connection status on refresh before showing
+Wi-Fi/NWS warnings. Local development and published GitHub releases may differ; see
+[current work and remaining gates](firmware/WORK.md).
+
+Choose a shared screen/webpage palette in **Station & Wi-Fi → Display & clock**:
+Midnight (original), Matrix, Amber, Ice Blue, Violet, Paper or Night (low light). Preview locally,
+then Save and restart to apply. Statuses are RF/WiFi/APRS/CWOP, with no sound icon.
+Night adds subdued amber/olive colors and a lower backlight for dark rooms.
+Forecast moons now follow the lunar cycle for their forecast period.
+Watch/warning colors and stale-data indicators retain their meanings.
 
 ## Live display
 
@@ -35,7 +56,7 @@ Select the **433 MHz hardware variant** where a product also comes in 868 or
 
 | Station / sensor type | Project status |
 | --- | --- |
-| **AcuRite Atlas** | **Supported — live RF, recording, APRS and WU verified on the owner's station** |
+| **AcuRite Atlas** | **Supported — live RF, recording, APRS.fi, WU and Weathercloud ingestion owner-verified** |
 | AcuRite Iris / legacy 5-in-1 | Under development — discovery preview |
 | AcuRite Notos / 3-in-1 | Under development — discovery preview |
 | Sainlogic SA8 / Gevanti SA8 | Under development |
@@ -68,6 +89,15 @@ real hardware validation still apply. One radio cannot receive OOK and FSK
 simultaneously. See the [decoder review and discovery plan](DECODER_SUPPORT.md),
 [433 MHz inventory with source links](reference/decoder-inventory/433-weather.csv)
 and [station research](STATION_SUPPORT.md) for exact scope and remaining work.
+
+## Local browser address
+
+After connecting to the station's setup Wi-Fi or the same home network, open
+**http://wxlink.local**. The device's settings screen also shows its current
+numeric IP as a fallback. This is a local HTTP address, with the existing admin
+login; no domain registration or cloud redirect is involved. Name lookup needs
+mDNS support and multicast on the local network; use the IP if unavailable.
+The default name assumes one CYD Weather Link on that network.
 
 ## Start here
 

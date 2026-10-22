@@ -42,7 +42,7 @@ Full library availability is still not operational support for every model.
 - [Weather/environment candidates, CSV](reference/decoder-inventory/weather-candidates.csv):
   230 entries selected by names and declared fields. This intentionally broad
   heuristic includes unrelated products such as thermostats, probes and TPMS
-  reporting temperature. It is a review list, not 229 weather stations.
+  reporting temperature. It is a review list, not a count of complete weather stations.
 - [Reviewed 433 MHz weather subset, CSV](reference/decoder-inventory/433-weather.csv):
   27 decoder entries; some explicitly require the 433 MHz regional variant.
 - [Complete machine-readable inventory](reference/decoder-inventory/all-decoders.json):

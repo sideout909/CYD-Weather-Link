@@ -17,9 +17,10 @@ def main():
     html = re.search(r'R"WXHTML\((.*)\)WXHTML";', (ROOT/'firmware/include/setup_page.h').read_text(), re.S)[1]
     config = dict(ssid='Example Wi-Fi', station_id=679, channel='A', radio_enabled=True,
                   timezone='EST5EDT,M3.2.0,M11.1.0', location_set=False, latitude=0, longitude=0,
-                  elevation_m=0, wu_enabled=False, weathercloud_enabled=False, aprs_enabled=False,
+                  elevation_m=0, display_theme='midnight',date_format='md',clock_24h=False,display_sleep_mode='never',display_timeout_s=300,
+                  wu_enabled=False, weathercloud_enabled=False, aprs_enabled=False,
                   aprs_profile='ham', callsign='', update_repo='sideout909/CYD-Weather-Link', csrf='synthetic-csrf', wu_key_set=True)
-    status = dict(wifi=False, radio_ready=False, source='none', forecast_state='Not configured',
+    status = dict(ip='192.0.2.10', local_url='http://wxlink.local', mdns_ready=True, wifi=False, radio_ready=False, source='none', forecast_state='Not configured',
                   alert_state='Not configured', packets=0, free_heap=200000,
                   rain_today_in=.12, rain_partial=True, rain_24h_in=.85, rain_24h_partial=False,
                   temperature_F=55.200000076, gust_mph=8.299999237,
@@ -41,6 +42,7 @@ def main():
     alert_entries = []
     freshness = dict(forecast=True, alerts=True)
     api_offline = dict(enabled=False)
+    initial_status = dict(hold=True, requests=[])
     saves = []
     update_requests = []
     update_state = dict(current_version='0.3.0', available=False, busy=False, message='Updates off', progress=0)
@@ -67,6 +69,8 @@ def main():
             result = dict(saved=True, restarting=True)
         elif path == '/api/config': result = config
         elif path == '/api/status':
+            if initial_status['hold']:
+                initial_status['requests'].append(request); return
             if api_offline['enabled']:
                 request.fulfill(status=503, content_type='application/json', body='{}'); return
             result = status
@@ -118,8 +122,39 @@ def main():
         page.on('pageerror', lambda e: errors.append(str(e)))
         page.route('http://weatherlink.test/**', route)
         page.goto('http://weatherlink.test/')
+        page.wait_for_function("document.querySelector('#alerts').textContent.includes('Checking device connection')")
+        assert 'Wi-Fi unavailable' not in page.locator('#alerts').inner_text()
+        page.wait_for_function("document.querySelector('#forecast-status').textContent.includes('Checking device connection')")
+        assert 'alert-watch' not in (page.locator('#station-alert').get_attribute('class') or '')
+        initial_status['hold']=False
+        for pending in initial_status['requests']:
+            pending.fulfill(status=200,content_type='application/json',body=json.dumps(status))
         page.wait_for_function("document.querySelector('#connection').textContent==='Setup Wi-Fi active'")
         page.wait_for_function("document.querySelector('#station-callsign').textContent==='N0CALL'")
+        page.wait_for_function("document.querySelector('#alerts').textContent.includes('Wi-Fi unavailable')")
+        # Reverse arrival order: status completes before the deferred dashboard.
+        status['wifi']=True
+        early=browser.new_page()
+        early.route('http://weatherlink.test/**',route)
+        held_script=[]
+        early.route('http://weatherlink.test/assets/dashboard.js',lambda request:held_script.append(request))
+        early.goto('http://weatherlink.test/',wait_until='commit')
+        early.wait_for_function('window.wxStatus?.wifi===true')
+        assert held_script
+        held_script[0].fulfill(status=200,content_type='application/javascript',body=(ROOT/'assets/web/dashboard.js').read_text())
+        early.wait_for_function("document.querySelector('#station-callsign').textContent==='N0CALL'")
+        early.wait_for_function("document.querySelector('#alerts').textContent.includes('No active alerts')")
+        assert 'Wi-Fi unavailable' not in early.locator('#alerts').inner_text()
+        early.close()
+        status['wifi']=False
+        assert page.locator('#local-address a').nth(0).get_attribute('href')=='http://wxlink.local/'
+        assert page.locator('#local-address a').nth(1).get_attribute('href')=='http://192.0.2.10/'
+        status['mdns_ready']=False
+        page.evaluate('status()')
+        page.wait_for_function("document.querySelector('#local-address').textContent.includes('Local name unavailable; use IP')")
+        status['mdns_ready']=True
+        page.evaluate('status()')
+        page.wait_for_function("!document.querySelector('#local-address').textContent.includes('unavailable')")
         assert page.locator('#temperature').inner_text() == '55.2 °F'
         assert page.locator('#gust').inner_text() == '8.3 mph'
         assert page.locator('#wind').inner_text() == '6.2 mph'
@@ -127,6 +162,8 @@ def main():
         assert page.locator('#lux').inner_text() == '0 lx'
         assert page.locator('#pressure').inner_text() == '29.92 inHg'
         page.wait_for_function("document.querySelectorAll('#forecast-periods article').length===14")
+        assert page.locator('#forecast-periods .forecast-art img').count()==14
+        assert 'partly-cloudy' in page.locator('#forecast-periods .forecast-art img').first.get_attribute('src')
         assert '<b>plain text</b>' in page.locator('#forecast-periods').inner_text()
         assert page.locator('#forecast-periods b').count() == 0
         page.wait_for_function("document.querySelector('#history-chart path')!==null")
@@ -161,6 +198,27 @@ def main():
         archive_failure['enabled'] = False
         page.get_by_role('button', name='Station & Wi-Fi', exact=True).click()
         assert page.locator('#station_id').input_value() == '679'
+        assert page.locator('#station-links span').count()==3
+        assert 'Sound' not in page.locator('#station-links').inner_text()
+        palettes=json.loads((ROOT/'assets/themes/palettes.json').read_text())
+        for theme,palette in palettes.items():
+            page.locator('#display_theme').select_option(theme)
+            assert page.evaluate('document.documentElement.dataset.theme')==theme
+            assert page.evaluate("getComputedStyle(document.documentElement).getPropertyValue('--bg').trim()") == palette['background']
+            assert page.evaluate("getComputedStyle(document.documentElement).getPropertyValue('--cyan').trim()") == palette['accent']
+            assert page.locator('#temperature').inner_text()=='55.2 °F'
+            assert page.locator('#forecast-periods .forecast-art img').first.get_attribute('src').endswith('name=partly-cloudy')
+            assert ('theme='+theme) in page.locator('#forecast-periods .forecast-art img').first.get_attribute('src')
+            if theme in ('matrix','paper','night'):page.screenshot(path=str(artifacts/('theme-'+theme+'-web.png')),full_page=True)
+        page.locator('#display_theme').select_option('night')
+        assert page.evaluate("getComputedStyle(document.documentElement).getPropertyValue('--green').trim()")=='#7d875b'
+        page.locator('#display_theme').select_option('violet')
+        assert page.locator('#display_sleep_mode').input_value()=='never'
+        assert page.locator('#display_timeout_s').input_value()=='300'
+        page.locator('#date_format').select_option('iso')
+        page.locator('#clock_24h').check()
+        page.locator('#display_sleep_mode').select_option('off')
+        page.locator('#display_timeout_s').select_option('30')
         assert page.locator('#wu_key').input_value() == ''
         assert page.locator('#setup_key').input_value() == ''
         page.get_by_role('button', name='Find networks').click()
@@ -213,6 +271,11 @@ def main():
         assert saves[0]['wu_key'] == '' and saves[0]['radio_enabled'] is True
         assert saves[0]['setup_key'] == '' and saves[0]['update_repo'] == 'owner/weather-link'
         assert saves[0]['update_enabled'] is False and saves[0]['update_auto'] is False
+        assert saves[0]['display_theme']=='violet'
+        assert page.evaluate('document.documentElement.dataset.theme')=='violet'
+        assert saves[0]['date_format']=='iso' and saves[0]['clock_24h'] is True
+        assert saves[0]['display_sleep_mode']=='off' and saves[0]['display_timeout_s']==30
+        config['display_theme']='violet'  # Simulated persisted config for subsequent reloads.
         # A second save in the same tab must work after the device restarts.
         page.wait_for_function("!document.querySelector('#save').disabled", timeout=3000)
         page.locator('#wu_id').fill('EXAMPLE2')
@@ -253,13 +316,64 @@ def main():
         assert 'unverified' in page.locator('#alerts').inner_text()
         api_offline['enabled'] = False
         status['wifi'] = True
+        page.evaluate('status()')
+        page.wait_for_function("document.querySelector('#station-alert').textContent.includes('No active alerts')")
+        page.evaluate("WXDashboard.applyTheme('night')")
+        assert page.locator('#station-alert').evaluate('(el)=>getComputedStyle(el).color')=='rgb(125, 135, 91)'
+        config['display_theme']='paper'
         alert_entries.append(dict(id='synthetic-warning',event='Tornado Warning',headline='Synthetic warning <script>bad()</script>',description='Official description <b>text</b>',instruction='Test instruction',expires=now+7200,category=3))
         page.reload()
         page.wait_for_function("document.querySelector('#station-alert').textContent.includes('Tornado Warning')")
         assert page.locator('#station-alert').get_attribute('class').find('alert-warning') >= 0
+        assert page.evaluate('document.documentElement.dataset.theme')=='paper'
+        assert page.locator('#station-alert').evaluate('(el)=>getComputedStyle(el).color')=='rgb(255, 240, 243)'
+        assert page.locator('#alerts-card').evaluate('(el)=>getComputedStyle(el).backgroundColor')=='rgb(98, 29, 45)'
         assert page.locator('#alert-details script').count() == 0
         assert page.locator('#alert-details summary').inner_text() == 'Synthetic warning <script>bad()</script>'
         page.wait_for_function("!document.querySelector('#sky').hidden")
+        label_box=page.locator('#sky small').bounding_box();icon_box=page.locator('.sky-art').bounding_box()
+        assert label_box['y']+label_box['height']<=icon_box['y']+1
+        status['display']['uv']=3
+        page.evaluate('status()')
+        page.wait_for_function("document.querySelector('#uv').textContent==='UV 3 Moderate'")
+        status['display']['stale_fields']=32
+        page.evaluate('status()')
+        page.wait_for_function("document.querySelector('#uv').textContent==='UV —'")
+        status['display']['stale_fields']=0
+        forecast_periods['hourly'][0]['short']='Mostly Cloudy And Breezy'
+        page.reload()
+        page.wait_for_function("!document.querySelector('#sky-cloud').hidden")
+        assert page.locator('#sky-image').get_attribute('src').endswith('name=sunny')
+        forecast_periods['hourly'][0]['daytime']=False
+        page.reload()
+        page.wait_for_function("!document.querySelector('#sky-cloud').hidden && document.querySelector('#sky-image').src.startsWith('data:')")
+        forecast_periods['hourly'][0]['short']='Mostly Clear Then Patchy Fog'
+        forecast_periods['daily'][0]['short']='Mostly Clear Then Patchy Fog'
+        forecast_periods['daily'][0]['daytime']=False
+        page.reload()
+        page.wait_for_function("document.querySelector('#sky-image').classList.contains('small-moon') && document.querySelector('#sky-cloud').src.endsWith('name=fog')")
+        page.wait_for_function("document.querySelector('#forecast-periods .forecast-art .small-moon') && document.querySelector('#forecast-periods .forecast-art .cloud-overlay').src.endsWith('name=fog')")
+        # Late-arriving moon data updates rendered cards; future nights advance phase.
+        from datetime import datetime
+        from zoneinfo import ZoneInfo
+        local_now=datetime.fromtimestamp(now,ZoneInfo('America/New_York'))
+        status['sun_day']=int(local_now.strftime('%Y%m%d'))
+        status['moon_reference']=int(local_now.replace(hour=12,minute=0,second=0,microsecond=0).timestamp())
+        status['moon_illumination']=80
+        status['moon_phase']='Waxing Gibbous'
+        old_moon=page.locator('#forecast-periods .forecast-art img').first.get_attribute('src')
+        page.evaluate('status()')
+        page.wait_for_function("old=>document.querySelector('#forecast-periods .forecast-art img').src!==old",arg=old_moon)
+        forecast_periods['daily'][2]['short']='Mostly Clear'
+        forecast_periods['daily'][2]['daytime']=False
+        page.reload()
+        page.wait_for_function("document.querySelectorAll('#forecast-periods .forecast-art img').length>=14 && document.querySelector('#station-callsign').textContent==='N0CALL'")
+        current_moon=page.locator('#forecast-periods .forecast-art img').nth(0).get_attribute('src')
+        future_moon=page.locator('#forecast-periods .forecast-art img').nth(3).get_attribute('src')
+        assert current_moon.startswith('data:') and future_moon.startswith('data:') and current_moon!=future_moon
+        status['moon_phase']='Waning Gibbous'
+        page.evaluate('status()')
+        page.wait_for_function("old=>document.querySelector('#forecast-periods .forecast-art img').src!==old",arg=current_moon)
         freshness['alerts'] = False; freshness['forecast'] = False
         page.reload()
         page.wait_for_function("document.querySelector('#station-alert').textContent.includes('UNVERIFIED')")
@@ -271,13 +385,16 @@ def main():
         page.wait_for_function("document.querySelector('#station').classList.contains('active')")
         assert page.locator('#onboarding').is_visible()
         assert 'Set up your weather station' in page.locator('#onboarding').inner_text()
+        assert not page.locator('#get-connected').evaluate('node => node.hidden')
         config['ssid'] = 'Example Wi-Fi'; config['location_set'] = True
         page.reload()
         page.wait_for_function("document.querySelector('#onboarding').hidden")
         assert page.locator('#overview').is_visible()
+        assert page.locator('#get-connected').is_hidden()
+        assert page.locator('nav [data-tab=station]').is_visible()
         assert not errors, errors
         browser.close()
-    print('Setup browser checks passed: dashboard rounding, live/partial/missing fields, gapped history, complete day/hourly forecasts, alert text safety, stale/offline states, setup-first onboarding, tabs, settings ownership, secret masking, scan text, CSRF save, repeated saves, cross-tab validation, fractional elevation, mobile layout, no JavaScript errors.')
+    print('Setup browser checks passed: local hostname/IP and unavailable-name fallback, seven shared palettes, preview/save/reload, Paper alert contrast, three link indicators, startup status races, dashboard rounding, live/partial/missing fields, gapped history, complete day/hourly forecasts, alert text safety, stale/offline states, setup-first onboarding, tabs, settings ownership, secret masking, scan text, CSRF save, repeated saves, cross-tab validation, fractional elevation, mobile layout, no JavaScript errors.')
 
 
 if __name__ == '__main__': main()

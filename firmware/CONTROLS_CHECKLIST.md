@@ -4,9 +4,72 @@ Board: PanelLan ZX2D80CE02S-V10, 320×240 landscape. Record date/build and mark
 each result. These checks use touch and a phone/browser; the CC1101 is not
 needed for navigation. Missing local readings are expected until reception.
 
-## Quick check for v0.5.1 automatic discovery
+## New v0.7.2 local address checks
 
-These are the priority owner checks; the remaining checklist can wait.
+- [ ] Open http://wxlink.local on the home LAN; admin authentication and all
+      tabs work normally. The browser header also links the current IP.
+- [ ] Device settings shows wxlink.local prominently with current numeric IP
+      underneath. Custom admin passwords remain hidden.
+- [ ] After Wi-Fi reconnect/restart, the name reaches the device's current IP.
+      If local multicast is blocked, the numeric address remains usable.
+- [ ] On setup Wi-Fi, try the name and 192.168.4.1 fallback. First-run still
+      shows the setup network/key and retains recovery details after setup.
+
+## New v0.7.1 Night and moon checks
+
+- [ ] Night (low light) shows black surfaces, subdued amber/olive colors and
+      softer NWS green. Moon/sun artwork does not remain bright white/yellow.
+- [ ] Night uses a visibly lower backlight. Idle Dim/Off and first-touch wake
+      retain the low level, and restart restores the theme without a bright
+      normal-theme frame. Other palettes retain their existing brightness.
+- [ ] Forecast moons follow phase, including cloudy/fog periods on panel/browser;
+      future nights change phase rather than using a fixed crescent.
+
+## New v0.7.0 theme controls
+
+- [ ] In Station & Wi-Fi → Display & clock, preview all seven color themes.
+      Readings and other unsaved fields stay intact; device colors do not change
+      until Save and restart.
+- [ ] Save a theme; confirm the webpage and display match, including charts and
+      weather graphics. Reload/restart retains it. Midnight restores original colors.
+- [ ] Paper has readable forms/measurements; retained stale values remain orange
+      and warning/watch text retains contrast. The moon stays phase-aware on Home.
+- [ ] No sound icon appears on the display or webpage. RF/WiFi/APRS shift right;
+      tapping the shifted Wi-Fi indicator still opens setup.
+
+## Display preferences — owner reports passed, October 21
+
+The owner reports the v0.6.0 changes passed their hands-on checks. This is
+owner-reported validation; automated and serial evidence is in VALIDATION.md.
+
+- [x] Header shows date before time, callsign centered/larger, and status
+      indicators grouped toward the right. Wi-Fi still opens settings.
+- [x] NWS sits above the main weather icon; klux is followed by UV value and
+      full level (including Moderate). Stale/missing UV has no level.
+- [x] Forecast shows our condition icon for each daily/hourly period. Cloudy
+      night conditions put clouds over the moon. Text remains scrollable.
+- [x] Leave Trends or Forecast untouched for 60 seconds: Home returns even
+      while packets arrive. Touch/drag should restart that minute.
+- [x] In Station & Wi-Fi, save a date format and 24-hour clock preference;
+      verify the display and browser, and that both survive restart.
+- [x] Choose Dim after 30 seconds, then Off after 30 seconds. The first touch
+      wakes without opening a tile; the next touch works normally. Reception,
+      recording and uploads continue. Return to Keep the screen on if desired.
+- [x] After setup, the on-device settings view shows the current URL and admin
+      guidance. Custom admin password is hidden. Wi-Fi recovery/details remains
+      available through its deliberate button.
+
+## New v0.6.2 packet-age and night-icon checks
+
+- [ ] Beside Current, seconds increase between decoded bound-station packets
+      and reset on reception. No age appears before the first packet.
+- [ ] Receiving appears while packets arrive before a complete current cycle.
+- [ ] A night fog/rain/cloud forecast retains a moon behind its artwork on
+      both the panel and browser. Day periods retain the daytime artwork.
+
+## Discovery checks from v0.5.1
+
+These earlier discovery checks remain available for a full setup regression.
 
 - [ ] Open the setup webpage on your phone, refresh it, and choose Station & Wi-Fi.
       Find my station is prominent; sensor ID entry is hidden under Advanced.
@@ -28,8 +91,8 @@ recording or uploads. Other library protocols are not enabled by this change.
 ## Display and navigation
 
 - [ ] Home has the v2 compact header, no page-switching banner, and RAIN TODAY.
-- [ ] If configured, your callsign appears in the header center. The speaker
-      icon beside Wi-Fi is muted while optional audio is not fitted.
+- [ ] If configured, your callsign appears in the header center. RF/WiFi/APRS
+      are right-aligned, with no sound indicator.
 - [ ] APRS X / CWOP X means disconnected or off; APRS + / CWOP + means an
       acknowledged session. RF and Wi-Fi also have a space before + or X.
       Link details distinguish disabled from connection failures.
@@ -91,9 +154,9 @@ recording or uploads. Other library protocols are not enabled by this change.
 - [ ] A bad ZIP or failed map/elevation request gives a useful message; manual
       entry still works. Failed elevation must not reuse the previous site's value.
 
-## After the radio is connected
+## Live radio follow-up
 
-- [ ] Follow [WIRING.md](WIRING.md), including the two debug-header power pins.
+- [x] Owner connected CC1101 using [WIRING.md](WIRING.md), including the two debug-header power pins.
 - [ ] RF + appears, packet count increases and values arrive without replay.
 - [ ] Repeat the swipes/details while fresh packets arrive; ages stay sensible.
 - [ ] After five continuous minutes, gust coverage becomes complete.

@@ -9,9 +9,12 @@
 #include "update_policy.h"
 #include "archive_storage.h"
 #include "nws_pressure.h"
-#include "weather_icons.h"
+#include "theme_icons.h"
+#include "display_themes.h"
+#include "lunar_phase.h"
 #include "web_history.h"
 #include "radio_receiver.h"
+#include "display_preferences.h"
 #include <ArduinoJson.h>
 #include <Preferences.h>
 #include <WebServer.h>
@@ -39,7 +42,17 @@ DNSServer dns;
 Preferences prefs;
 String csrf,ap_name;
 uint32_t restart_at=0,last_link_check=0;
-bool scan_started=false;
+bool scan_started=false,mdns_started=false;
+uint32_t last_mdns_attempt=0;
+constexpr const char* kLocalHostname="wxlink";
+constexpr const char* kLocalUrl="http://wxlink.local";
+void startLocalName(){
+  last_mdns_attempt=millis();
+  if(!MDNS.begin(kLocalHostname)){MDNS.end();return;}
+  MDNS.setInstanceName("CYD Weather Link");
+  if(!MDNS.addService("http","tcp",80)){MDNS.end();return;}
+  mdns_started=true;
+}
 station_discovery::Scan discovery;
 const weather::Store* history_source=nullptr;
 uint64_t (*history_now)()=nullptr;
@@ -58,6 +71,8 @@ void error(const char* message,int code=400) {
 }
 void encodeConfig(JsonDocument& d,bool secrets,const Settings& c=detail::config) {
   d["ssid"]=c.ssid;d["timezone"]=c.timezone;d["station_id"]=c.station_id;
+  d["display_theme"]=c.display_theme;d["date_format"]=c.date_format;d["clock_24h"]=c.clock_24h;
+  d["display_sleep_mode"]=c.display_sleep_mode;d["display_timeout_s"]=c.display_timeout_s;
   d["channel"]=String(c.channel);d["radio_enabled"]=c.radio_enabled;
   d["station_confirmed"]=c.station_confirmed;
   d["location_set"]=c.location_set;d["latitude"]=c.latitude;d["longitude"]=c.longitude;d["elevation_m"]=c.elevation_m;
@@ -70,6 +85,8 @@ void encodeConfig(JsonDocument& d,bool secrets,const Settings& c=detail::config)
 }
 void readConfig(JsonDocument& d,Settings& c,bool keep_empty) {
   c.ssid=d["ssid"]|c.ssid;c.timezone=d["timezone"]|c.timezone;
+  c.display_theme=d["display_theme"]|c.display_theme;c.date_format=d["date_format"]|c.date_format;c.clock_24h=d["clock_24h"]|c.clock_24h;
+  c.display_sleep_mode=d["display_sleep_mode"]|c.display_sleep_mode;c.display_timeout_s=d["display_timeout_s"]|c.display_timeout_s;
   c.station_id=d["station_id"]|c.station_id;
   String channel=d["channel"]|String(c.channel);c.channel=channel.length()?channel[0]:'A';
   c.radio_enabled=d["radio_enabled"]|c.radio_enabled;
@@ -85,6 +102,9 @@ void readConfig(JsonDocument& d,Settings& c,bool keep_empty) {
 }
 bool cleanId(const String& value) {for(char ch:value)if(!isalnum(ch)&&ch!='-'&&ch!='_')return false;return true;}
 const char* validate(const Settings& c) {
+  if(!display_themes::find(c.display_theme.c_str()))return "Choose a supported color theme.";
+  if(!display_preferences::validDate(c.date_format.c_str()))return "Choose a supported date format.";
+  if(!display_preferences::validSleep(c.display_sleep_mode.c_str())||!display_preferences::validTimeout(c.display_timeout_s))return "Choose a supported display sleep mode and timeout.";
   if(c.ssid.length()>32 || c.wifi_password.length()>63)return "Wi-Fi settings exceed supported lengths.";
   if(c.setup_key.length()<8 || c.setup_key.length()>63)return "Admin password must contain 8 to 63 characters.";
   if(c.station_id>1023 || (c.channel!='A'&&c.channel!='B'&&c.channel!='C'))return "Invalid Atlas sensor ID or channel.";
@@ -118,6 +138,9 @@ void configPost() {
   DynamicJsonDocument d(6144);
   if(deserializeJson(d,server.arg("plain")) || !d.is<JsonObject>()){error("Invalid settings JSON.");return;}
   if(d.containsKey("station_id") && (!d["station_id"].is<unsigned>() || d["station_id"].as<unsigned>()>1023)){error("Invalid Atlas sensor ID.");return;}
+  if(d.containsKey("display_timeout_s")&&(!d["display_timeout_s"].is<unsigned>()||!display_preferences::validTimeout(d["display_timeout_s"].as<unsigned>()))){error("Invalid display timeout.");return;}
+  if(d.containsKey("clock_24h")&&!d["clock_24h"].is<bool>()){error("Invalid clock setting.");return;}
+  if(d.containsKey("display_theme")&&(!d["display_theme"].is<const char*>()||!display_themes::find(d["display_theme"].as<const char*>()))){error("Invalid color theme.");return;}
   const auto update=firmware_updates::state();
   if(update.busy||update.boot_pending){error(update.boot_pending?"Wait for updated firmware to pass startup checks before saving.":"Wait for the firmware update operation to finish.",409);return;}
   Settings next=detail::config;readConfig(d,next,true);
@@ -142,7 +165,7 @@ void statusGet() {
   State s=state();Observation o;
   if(xSemaphoreTake(detail::state_mutex,pdMS_TO_TICKS(10))==pdTRUE){o=detail::latest;xSemaphoreGive(detail::state_mutex);}
   DynamicJsonDocument d(4096);
-  d["wifi"]=WiFi.status()==WL_CONNECTED;d["ip"]=portalAddress();d["clock_valid"]=clockValid();
+  d["wifi"]=WiFi.status()==WL_CONNECTED;d["ip"]=portalAddress();d["local_url"]=kLocalUrl;d["mdns_ready"]=mdns_started;d["clock_valid"]=clockValid();
   d["source"]=o.live?"radio":(o.epoch_ms?"usb_replay":"none");d["radio_ready"]=o.radio_ready;
   d["station_confirmed"]=detail::config.station_confirmed;
   d["sensor_status"]=sensor_health::label(sensor_health::State(o.sensor_health));
@@ -155,7 +178,7 @@ void statusGet() {
   if(o.temperature_valid)d["temperature_F"]=o.temperature_f;
   if(o.humidity_valid)d["humidity"]=o.humidity;
   if(o.gust_valid)d["gust_mph"]=o.gust_mph;
-  d["callsign"]=detail::config.callsign;d["aprs_profile"]=detail::config.aprs_profile;d["sound_enabled"]=false;
+  d["callsign"]=detail::config.callsign;d["aprs_profile"]=detail::config.aprs_profile;
   auto display=d.createNestedObject("display");
   auto reading=[&](const char* name,uint8_t bit,float value){if(o.display_present&bit)display[name]=value;};
   reading("temperature_F",Temperature,o.temperature_f);reading("humidity",Humidity,o.humidity);
@@ -171,7 +194,7 @@ void statusGet() {
   d["rain_24h_partial"]=o.rain_24h_observed&&!o.rain_24h_valid;
   d["nws_pressure_pa"]=s.pressure_pa;d["nws_pressure_observed"]=s.pressure_observed;d["nws_pressure_station"]=s.pressure_station;d["nws_pressure_sea_level"]=s.pressure_sea_level;d["nws_pressure_state"]=s.pressure_error;
   d["nws_pressure_valid"]=s.wifi&&clockValid()&&nws_pressure::fresh(s.pressure_observed,time(nullptr));
-  d["sunrise"]=s.sunrise;d["sunset"]=s.sunset;d["sun_day"]=s.sun_day;d["sun_state"]=s.sun_error;d["moon_phase"]=s.moon_phase;d["moon_illumination"]=s.moon_illumination;
+  d["sunrise"]=s.sunrise;d["sunset"]=s.sunset;d["sun_day"]=s.sun_day;d["sun_state"]=s.sun_error;d["moon_reference"]=lunar_phase::referenceNoon(s.sun_day);d["moon_phase"]=s.moon_phase;d["moon_illumination"]=s.moon_illumination;
   d["solar_mode"]=s.sun_status;
   d["forecast_state"]=s.forecast_error;d["forecast_fetched"]=s.forecast_fetched;d["hourly_state"]=s.hourly_error;d["hourly_fetched"]=s.hourly_fetched;d["alert_state"]=s.alert_error;d["alert_last_check"]=s.alert_fetched;d["alert_poll_s"]=s.alert_poll_ms/1000;
   if(s.forecast_count)d["forecast"]=s.forecast[0].name+": "+s.forecast[0].short_text;
@@ -282,6 +305,8 @@ bool clockValid(){return time(nullptr)>1700000000;}
 String setupWifiKey(){return detail::config.setup_wifi_key;}
 String setupSsid(){return ap_name;}
 String portalAddress(){return WiFi.status()==WL_CONNECTED?WiFi.localIP().toString():WiFi.softAPIP().toString();}
+String portalUrl(){return kLocalUrl;}
+bool localNameReady(){return mdns_started;}
 void publish(const Observation& sample){
   if(xSemaphoreTake(detail::state_mutex,pdMS_TO_TICKS(2))==pdTRUE){detail::latest=sample;xSemaphoreGive(detail::state_mutex);}
   if(detail::observations)xQueueOverwrite(detail::observations,&sample);
@@ -309,9 +334,9 @@ void begin(){
   server.on("/assets/discovery.js",HTTP_GET,[]{if(authorize()){server.sendHeader("Content-Encoding","gzip");server.sendHeader("X-Content-Type-Options","nosniff");server.send_P(200,"text/javascript",reinterpret_cast<const char*>(setup_assets::discovery_js),sizeof(setup_assets::discovery_js));}});
   server.on("/assets/weather.png",HTTP_GET,[]{
     if(!authorize())return;const String name=server.arg("name");
-    struct Icon{const char* name;const uint8_t* bytes;size_t size;};
-    const Icon icons[]={{"sunny",weather_icons::sunny,sizeof(weather_icons::sunny)},{"partly-cloudy",weather_icons::partly_cloudy,sizeof(weather_icons::partly_cloudy)},{"cloudy",weather_icons::cloudy,sizeof(weather_icons::cloudy)},{"rain",weather_icons::rain,sizeof(weather_icons::rain)},{"thunderstorm",weather_icons::thunderstorm,sizeof(weather_icons::thunderstorm)},{"snow",weather_icons::snow,sizeof(weather_icons::snow)},{"fog",weather_icons::fog,sizeof(weather_icons::fog)},{"windy",weather_icons::windy,sizeof(weather_icons::windy)},{"unknown",weather_icons::unknown,sizeof(weather_icons::unknown)}};
-    for(const auto& icon:icons)if(name==icon.name){server.send_P(200,"image/png",reinterpret_cast<const char*>(icon.bytes),icon.size);return;}
+    const String theme=server.hasArg("theme")?server.arg("theme"):detail::config.display_theme;
+    const auto* icon=theme_icons::find(theme.c_str(),name.c_str());
+    if(icon){server.send_P(200,"image/png",reinterpret_cast<const char*>(icon->bytes),icon->size);return;}
     error("Unknown weather icon.",404);
   });
   server.on("/assets/leaflet-1.9.4.js",HTTP_GET,[]{if(authorize()){server.sendHeader("Content-Encoding","gzip");server.sendHeader("X-Content-Type-Options","nosniff");server.send_P(200,"text/javascript",reinterpret_cast<const char*>(setup_assets::leaflet_js),sizeof(setup_assets::leaflet_js));}});
@@ -338,9 +363,10 @@ void begin(){
     String body;serializeJson(d,body);server.send(200,"application/json",body);
   });
   server.onNotFound([]{server.sendHeader("Location","http://"+WiFi.softAPIP().toString()+"/",true);server.send(302,"text/plain","");});
-  server.begin();detail::startWorker();firmware_updates::startWorker();
+  server.begin();startLocalName();detail::startWorker();firmware_updates::startWorker();
 }
 void loop(){
+  if(!mdns_started&&uint32_t(millis()-last_mdns_attempt)>=30000)startLocalName();
   dns.processNextRequest();server.handleClient();
   detail::http_serving.store(true);
   if(restart_at && int32_t(millis()-restart_at)>=0){archive_storage::flush();ESP.restart();}

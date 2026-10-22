@@ -1,10 +1,12 @@
 # Device recording and seven-day export
 
-Version 0.4.0 keeps the existing rolling 24-hour, one-minute display history
-and adds a separate seven-day archive of five-minute summaries. Recording
+Current firmware keeps rolling 24-hour, one-minute display history
+and, since v0.4.0, a separate seven-day archive of five-minute summaries. Recording
 uses internal flash; it needs no PC or SD card. Keep the device powered and
 allow its configured Wi-Fi/NTP connection to establish UTC after a cold boot.
-The archive starts with this firmware; older days cannot be reconstructed.
+The archive starts when an archive-capable firmware is installed; earlier
+raw packets/days cannot be reconstructed automatically. Later application
+updates preserve the existing compatible archive.
 
 ## Retention and measurements
 

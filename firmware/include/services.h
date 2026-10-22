@@ -10,6 +10,9 @@ struct Settings {
   String ssid, wifi_password, setup_key, setup_wifi_key;
   bool admin_custom=false;
   String timezone = "EST5EDT,M3.2.0,M11.1.0";
+  String date_format="md",display_sleep_mode="never",display_theme="midnight";
+  bool clock_24h=false;
+  uint16_t display_timeout_s=300;
   uint16_t station_id = 679;
   char channel = 'A';
   bool station_confirmed=false;
@@ -93,5 +96,7 @@ void observeDiscovery(const station_discovery::Packet& packet,uint32_t now);
 String setupWifiKey();
 String setupSsid();
 String portalAddress();
+String portalUrl();
+bool localNameReady();
 bool clockValid();
 }  // namespace services

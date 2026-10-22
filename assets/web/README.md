@@ -1,4 +1,8 @@
-# Embedded setup map assets
+# Embedded browser assets
+
+`dashboard.js` supplies the protected phone overview, bounded minute-history
+reads and cached NWS cards. Clock/date preferences and condition artwork match
+the panel; see [dashboard behavior](../../firmware/WEB_DASHBOARD.md).
 
 `discovery.js` supplies the local automatic-station setup flow in v0.5.1. It
 contacts only authenticated device APIs, never an external discovery service.
@@ -59,3 +63,10 @@ minute history, and cached NWS forecasts/alerts. It requests only same-origin
 device endpoints and local weather icons; it sends no provider requests or
 credentials elsewhere. Pack it with `tools/pack-setup-assets.py`. The display
 contract and test commands are in `firmware/WEB_DASHBOARD.md`.
+
+
+Shared palette source is `assets/themes/palettes.json`. Run
+`python tools/pack-display-themes.py` to regenerate embedded theme CSS, firmware
+RGB565 colors and original weather icon variants; then repack browser assets.
+The dashboard previews theme changes locally and applies the saved theme after
+configuration loads. Warning/watch cards retain independent contrasting colors.
