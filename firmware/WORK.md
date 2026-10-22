@@ -297,3 +297,13 @@ APRS software login and packet comment now use WX-Link in source; reporting test
 assert the packet identity. Local build and host/browser checks pass. All this
 remains local v0.7.6; no flash, live service submission, push or release performed.
 Owner is testing Connect on the USB-connected device; leave USB untouched.
+
+
+## October 22 — 0.8.2 OTA validation repair
+
+Owner reported startup settings rejection HTTP 409; protected device status
+confirmed rollback to 0.8.1-rc.1. Moved the update save lock after all candidate
+validation, retaining its position before credential selection and persistence.
+Added a pending-boot-only no-op probe expecting HTTP 409; invalid probes still
+expect HTTP 400. Build and host checks pass. Stable/Dev update selection is
+recorded in TODO_AUDIT.md for later; no channel code implemented.

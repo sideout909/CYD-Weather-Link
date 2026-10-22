@@ -13,6 +13,16 @@ The owner reports exercising the preceding firmware over the last 24 hours.
 USB startup checks and owner use do not complete interrupted-transfer or
 deliberate failed-boot hosted OTA acceptance tests.
 
+## 0.8.2 startup validation fix
+
+The owner's OTA attempt to 0.8.1 reported `Settings validation rejection (HTTP 409)`
+and rolled back to 0.8.1-rc.1. The pending-boot save lock ran before semantic
+validation, contradicting startup probes expecting HTTP 400 for invalid settings.
+0.8.2 validates the candidate before checking the save lock. Valid requests still
+receive HTTP 409 during boot confirmation; no settings are persisted by the probes.
+Startup checks now test that lock explicitly while an OTA image is pending.
+Build and host checks pass; see [patch notes](RELEASE_0.8.2.md).
+
 ## 0.8.1 Windy patch
 
 Owner confirmed the Windy station online after the TLS fix and approved stable

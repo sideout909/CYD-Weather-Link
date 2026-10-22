@@ -19,9 +19,10 @@ and a full soak remain validation gates. PWSWeather/Windy live ingestion needs o
 
 ## Current development status
 
-**[v0.8.1](https://github.com/sideout909/WX-Link/releases/tag/v0.8.1) is the current stable release**, approved after owner-confirmed Windy ingestion on the 0.8.1-rc.1 candidate.
-The 0.8.1 patch fixes Windy HTTPS certificate-chain validation; the owner confirmed
-the station online. Connection health now exposes safe DNS/HTTP/TLS diagnostics.
+**[v0.8.2](https://github.com/sideout909/WX-Link/releases/tag/v0.8.2) is the current stable release.**
+It fixes startup settings checks that could reject an otherwise healthy OTA boot
+and trigger rollback. The owner-confirmed Windy TLS fix is retained. See the
+[patch notes](firmware/RELEASE_0.8.2.md).
 
 The 0.8.0 feature release adds factory reset, metric/imperial presentation, Barometer naming,
 PWSWeather and Windy v2 uploaders, configurable local hostnames and cleaner setup

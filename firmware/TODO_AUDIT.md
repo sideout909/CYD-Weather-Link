@@ -59,6 +59,11 @@ result and local feature requests; historical baseline entries remain below.
 Implementation order/status: [FEATURE_QUEUE.md](FEATURE_QUEUE.md). Items with
 local software completion still require physical acceptance before release.
 
+- Next release: offer a persisted Stable / Dev update-channel selector in Updates.
+  Default existing/new devices to Stable; require explicit opt-in for development
+  prereleases. Clearly label the selected channel and retain image compatibility,
+  hash and rollback checks. Planning only; no channel implementation yet.
+
 - Signed OTA releases: verify a publisher signature using a trusted public key
   independently of GitHub HTTPS and the manifest hash. Cover image/version/board
   identity, signing-key protection, key rotation and rejected-signature tests.

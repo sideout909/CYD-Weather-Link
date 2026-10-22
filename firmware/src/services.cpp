@@ -170,8 +170,6 @@ void configPost() {
   if(d.containsKey("units")&&!d["units"].is<const char*>()){error("Invalid units setting.");return;}
   if(d.containsKey("clock_24h")&&!d["clock_24h"].is<bool>()){error("Invalid clock setting.");return;}
   if(d.containsKey("display_theme")&&(!d["display_theme"].is<const char*>()||!display_themes::find(d["display_theme"].as<const char*>()))){error("Invalid color theme.");return;}
-  const auto update=firmware_updates::state();
-  if(update.busy||update.boot_pending){error(update.boot_pending?"Wait for updated firmware to pass startup checks before saving.":"Wait for the firmware update operation to finish.",409);return;}
   Settings next=detail::config;readConfig(d,next,true);
   if(d.containsKey("discovery_session")&&(!d["discovery_session"].is<uint32_t>())){error("Invalid discovery session.");return;}
   const uint32_t discovery_session=d["discovery_session"]|uint32_t(0);
@@ -197,6 +195,10 @@ void configPost() {
     next.lux_reference=calibration;
   }
   if(const char* message=validate(next)){error(message);return;}
+  // Validate without side effects before the OTA save lock: startup probes must
+  // reject malformed settings with 400 while a pending image remains protected.
+  const auto update=firmware_updates::state();
+  if(update.busy||update.boot_pending){error(update.boot_pending?"Wait for updated firmware to pass startup checks before saving.":"Wait for the firmware update operation to finish.",409);return;}
   if(d["setup_key"].is<const char*>())setup_credentials::chooseAdmin(next.setup_wifi_key,next.setup_key,next.admin_custom,String(d["setup_key"].as<const char*>()),randomKey);
   DynamicJsonDocument saved(6144);encodeConfig(saved,true,next);
   if(saved.overflowed()){error("Settings exceed storage budget.",413);return;}

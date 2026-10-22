@@ -370,6 +370,10 @@ bool portalSelftest(String& failure){
   // Rejected validation probes cannot save or restart the device.
   for(const char* invalid:{"{\"hostname\":\"bad.local\"}","{\"hostname\":42}","{\"windy_password\":\"bad\\r\\nheader\"}","{\"windy_enabled\":\"yes\"}","{\"pws_enabled\":\"yes\"}","{\"units\":\"unknown\"}","{\"lux_calibrate\":\"yes\"}"})
     if(!expect("Settings validation rejection","/api/config",400,config.setup_key,invalid,token))return false;
+  // During OTA acceptance, a fully valid no-op request must still be locked.
+  // This probe is never sent after confirmation, where it would save/restart.
+  if(firmware_updates::state().boot_pending&&
+      !expect("Pending boot save lock","/api/config",409,config.setup_key,"{}",token))return false;
   // Negative reset probes only: never send the destructive confirmation.
   if(!expect("Reset authentication","/api/factory-reset",401,none,"{}")||
      !expect("Reset CSRF rejection","/api/factory-reset",403,config.setup_key,"{}")||
