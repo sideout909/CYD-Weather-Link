@@ -1,7 +1,7 @@
 #pragma once
 namespace firmware_version {
 inline constexpr const char* current="0.7.4";
-inline constexpr const char* repository="sideout909/CYD-Weather-Link";
+inline constexpr const char* repository="sideout909/WX-Link";
 inline constexpr const char* board="panellan_sc05_x";
 inline constexpr const char* partition_layout="default_8MB-v1";
 }

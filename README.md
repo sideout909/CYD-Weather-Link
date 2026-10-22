@@ -1,4 +1,4 @@
-# CYD Weather Link
+# WX Link
 
 A single-controller weather-station appliance, currently supporting AcuRite Atlas, for the PanelLan
 **ZX2D80CE02S-V10 / SC05_X** ESP32-S3 touchscreen and a 433 MHz CC1101 receiver.

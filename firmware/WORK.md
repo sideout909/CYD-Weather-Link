@@ -183,7 +183,7 @@ original priority checks were:
   optional. Calibrated lux-based cloud inference is deferred; current icons
   derive from NWS forecasts.
 
-Repository: [sideout909/CYD-Weather-Link](https://github.com/sideout909/CYD-Weather-Link).
+Repository: [sideout909/WX-Link](https://github.com/sideout909/WX-Link).
 Original project code is GPL-3.0-only; dependency notices remain separate.
 Keep credentials, captures, backups and release/build artifacts out of source.
 

@@ -3,6 +3,10 @@
 #include <iostream>
 int main(){
   using namespace update_policy;
+  assert(migratedProjectRepository("", "sideout909/WX-Link")=="sideout909/WX-Link");
+  assert(migratedProjectRepository("sideout909/CYD-Weather-Link", "sideout909/WX-Link")=="sideout909/WX-Link");
+  assert(migratedProjectRepository("Sideout909/CYD-Weather-Link", "sideout909/WX-Link")=="sideout909/WX-Link");
+  assert(migratedProjectRepository("owner/custom-fork", "sideout909/WX-Link")=="owner/custom-fork");
   assert(repository("owner/CYD-Weather-Link"));
   for(const char* bad:{"","owner","/repo","owner/","owner/repo/more","../repo","owner/..","owner/repo?token=SECRET","https://github.com/owner/repo"})assert(!repository(bad));
   assert(newer("0.3.1","0.3.0"));assert(newer("1.0.0","0.99.99"));

@@ -96,7 +96,7 @@ void readConfig(JsonDocument& d,Settings& c,bool keep_empty) {
   c.weathercloud_enabled=d["weathercloud_enabled"]|c.weathercloud_enabled;c.weathercloud_id=d["weathercloud_id"]|c.weathercloud_id;
   c.aprs_enabled=d["aprs_enabled"]|c.aprs_enabled;c.aprs_profile=d["aprs_profile"]|c.aprs_profile;c.callsign=d["callsign"]|c.callsign;c.callsign.toUpperCase();
   c.update_repo=d["update_repo"]|c.update_repo;c.update_repo.trim();c.update_enabled=d["update_enabled"]|c.update_enabled;c.update_auto=d["update_auto"]|c.update_auto;
-  if(!c.update_repo.length())c.update_repo=firmware_version::repository;
+  c.update_repo=update_policy::migratedProjectRepository(c.update_repo.c_str(),firmware_version::repository).c_str();
   auto secret=[&](const char* name,String& value){if(d[name].is<const char*>()){String next=d[name].as<String>();if(!keep_empty || next.length())value=next;}};
   secret("wifi_password",c.wifi_password);secret("setup_key",c.setup_key);secret("wu_key",c.wu_key);secret("weathercloud_key",c.weathercloud_key);secret("aprs_passcode",c.aprs_passcode);
 }

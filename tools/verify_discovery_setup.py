@@ -15,7 +15,7 @@ def main():
     config=dict(ssid='',station_id=679,channel='A',radio_enabled=True,station_confirmed=False,
                 timezone='EST5EDT,M3.2.0,M11.1.0',location_set=False,latitude=0,longitude=0,
                 elevation_m=0,wu_enabled=False,weathercloud_enabled=False,aprs_enabled=False,
-                aprs_profile='ham',callsign='',update_repo='sideout909/CYD-Weather-Link',csrf='fixture-token')
+                aprs_profile='ham',callsign='',update_repo='sideout909/WX-Link',csrf='fixture-token')
     scan=dict(session=0,active=False,expired=False,elapsed_s=0,duration_s=300,ready=True,
               overflow=0,profile='433.92 MHz OOK',candidates=[])
     saves=[];errors=[];requests=[]

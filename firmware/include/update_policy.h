@@ -4,6 +4,13 @@
 #include <cstdint>
 #include <string>
 namespace update_policy {
+// Only migrate the renamed project source; user-selected forks remain untouched.
+inline std::string migratedProjectRepository(const std::string& value,
+                                              const std::string& project_default){
+  std::string lower=value;
+  for(char& ch:lower)ch=static_cast<char>(std::tolower(static_cast<unsigned char>(ch)));
+  return value.empty()||lower=="sideout909/cyd-weather-link"?project_default:value;
+}
 inline bool repository(const std::string& value){
   const auto slash=value.find('/');
   if(slash==std::string::npos||slash==0||slash+1==value.size()||value.size()>180||value.find('/',slash+1)!=std::string::npos)return false;

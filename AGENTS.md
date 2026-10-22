@@ -70,7 +70,7 @@ Firmware model checks compile as a host C++17 executable with assertions; the re
 
 ## Commit & Pull Request Guidelines
 
-The GitHub repository is `sideout909/CYD-Weather-Link`; this checkout uses `main`. Keep private captures, backups, credentials and build caches ignored. Use concise, imperative subjects such as `Document CC1101 pin requirements`. Keep changes focused. Pull requests should explain the change, affected requirements, validation performed, and unresolved hardware assumptions; link relevant issues when available.
+The GitHub repository is `sideout909/WX-Link`; this checkout uses `main`. Keep private captures, backups, credentials and build caches ignored. Use concise, imperative subjects such as `Document CC1101 pin requirements`. Keep changes focused. Pull requests should explain the change, affected requirements, validation performed, and unresolved hardware assumptions; link relevant issues when available.
 
 ## Configuration & Architecture Constraints
 

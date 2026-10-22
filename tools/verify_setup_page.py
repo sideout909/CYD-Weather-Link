@@ -19,7 +19,7 @@ def main():
                   timezone='EST5EDT,M3.2.0,M11.1.0', location_set=False, latitude=0, longitude=0,
                   elevation_m=0, display_theme='midnight',date_format='md',clock_24h=False,display_sleep_mode='never',display_timeout_s=300,
                   wu_enabled=False, weathercloud_enabled=False, aprs_enabled=False,
-                  aprs_profile='ham', callsign='', update_repo='sideout909/CYD-Weather-Link', csrf='synthetic-csrf', wu_key_set=True)
+                  aprs_profile='ham', callsign='', update_repo='sideout909/WX-Link', csrf='synthetic-csrf', wu_key_set=True)
     status = dict(ip='192.0.2.10', local_url='http://wxlink.local', mdns_ready=True, wifi=False, radio_ready=False, source='none', forecast_state='Not configured',
                   alert_state='Not configured', packets=0, free_heap=200000,
                   rain_today_in=.12, rain_partial=True, rain_24h_in=.85, rain_24h_partial=False,
@@ -232,7 +232,7 @@ def main():
         page.locator('#update-check').click()
         page.wait_for_function("document.querySelector('#update-feedback').textContent==='Check queued · 0%'")
         assert page.locator('#update-check').is_disabled()
-        assert page.locator('#update_repo').input_value() == 'sideout909/CYD-Weather-Link'
+        assert page.locator('#update_repo').input_value() == 'sideout909/WX-Link'
         update_state.update(busy=False, message='Release lookup failed (HTTP -1)')
         page.evaluate('updateStatus()')
         page.wait_for_function("document.querySelector('#update-feedback').textContent==='Release lookup failed (HTTP -1)'")

@@ -3,7 +3,7 @@
 The development firmware implements opt-in updates from a **public GitHub
 repository**, with manual Check/Install controls and optional daily automatic
 installation. Both automatic settings default off. From v0.4.2 the project
-repository is prefilled as `sideout909/CYD-Weather-Link`; saved custom sources
+repository is prefilled as `sideout909/WX-Link`; saved custom sources
 remain supported. No GitHub token is needed. The first OTA transfer/boot was
 followed by an unexpected owner-reported rollback to v0.4.0; final acceptance
 and unattended update validation remain open.
@@ -15,7 +15,7 @@ not complete the corrected hosted OTA acceptance test.
 ## Owner setup
 
 1. On the setup page, open Updates. The project source is prefilled in newer
-   firmware; older firmware needs `sideout909/CYD-Weather-Link` entered. Save
+   firmware; older firmware needs `sideout909/WX-Link` entered. Save
    and restart if changing it; this does not enable checks or installations.
 2. Check now retrieves the latest compatible release manifest. A normal stable
    release needs the two named assets below; a draft/prerelease is not the
@@ -59,7 +59,7 @@ Upload these files to a normal GitHub Release tagged `vVERSION`. The script
 is used to locate the manifest. Private repositories, tokens, arbitrary OTA
 hosts and cross-board updates are unsupported.
 
-From v0.4.2 the project repository `sideout909/CYD-Weather-Link` is the
+From v0.4.2 the project repository `sideout909/WX-Link` is the
 default for new settings and migrated empty repository fields. A saved custom
 repository is retained. Clearing the field restores the project default on
 save. Daily checks and automatic installation remain separate opt-in settings;
@@ -119,3 +119,12 @@ v0.7.3 startup self-tests use SDK loopback (127.0.0.1) to reach the actual HTTP
 server independently of AP/STA route changes during mDNS initialization. All
 authentication/CSRF/schema tests and boot deadlines remain. A passing USB bench
 probe is not a replacement for the corrected hosted OTA acceptance test.
+
+## Repository rename — October 22, 2026
+
+The canonical project source is now `sideout909/WX-Link`. The next firmware
+build defaults to that source and migrates a saved `sideout909/CYD-Weather-Link`
+source to it on load/save. Custom fork sources and update opt-in flags are
+preserved. The installed v0.7.4 predates this migration; its Updates field can
+be changed manually, or it will migrate when the next firmware is installed.
+No firmware was installed or release assets published as part of this rename.
