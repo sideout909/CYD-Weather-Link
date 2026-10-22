@@ -58,10 +58,11 @@ Watch/warning colors and stale-data indicators retain their meanings.
 
 ## Live display
 
-![Live CYD Weather Link home screen with Atlas readings, connection status, trends and NWS information](assets/screenshots/live-home-screen.png)
+![Live WX Link display showing Atlas readings, a local lux sky estimate, connection status, trends and NWS pressure](assets/screenshots/live-home-screen.png)
 
-Actual display capture from the owner's PanelLan board running v0.5.3,
-with live Atlas reception. The pictured weather icon and barometer use NWS data; 0.8.0 can optionally use calibrated local lux for current daylight sky art.
+Actual display capture from the owner's PanelLan board running v0.8.0-rc.1 on
+October 22, 2026, with live Atlas reception. The LUX-labeled sun uses the calibrated
+local daylight estimate; the barometer and alert status use NWS data.
 
 ## 433 MHz station and sensor support
 
