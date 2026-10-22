@@ -1016,3 +1016,11 @@ page showed NWS / KRNP, reported barometric pressure 30.33 inHg, observed 27 min
 ago. Main screenshot verifies the row order, no APRS outline, lux-only line,
 BARO number/units and NWS directly beneath it. Returned to Home afterward.
 Corrected hosted OTA acceptance remains open; no automatic update was enabled.
+
+### October 22 — 0.8.2 hosted OTA acceptance
+
+Owner device SC05_X upgraded from rolled-back 0.8.1-rc.1 via public GitHub OTA.
+Public manifest/image hash and size verified. Startup portal validation and
+pending-boot save-lock probes passed; confirmation cleared at 33 seconds and
+0.8.2 remained running beyond 100 seconds. No rollback observed. This does not
+claim interrupted-transfer or deliberate failed-boot validation.

@@ -21,7 +21,10 @@ validation, contradicting startup probes expecting HTTP 400 for invalid settings
 0.8.2 validates the candidate before checking the save lock. Valid requests still
 receive HTTP 409 during boot confirmation; no settings are persisted by the probes.
 Startup checks now test that lock explicitly while an OTA image is pending.
-Build and host checks pass; see [patch notes](RELEASE_0.8.2.md).
+Build and host checks pass. The owner device installed the public 0.8.2 image
+through OTA, passed portal startup checks, confirmed the image at 33 seconds and
+remained on 0.8.2 beyond 100 seconds without rollback. Interrupted-transfer and
+deliberate failed-boot tests remain open; see [patch notes](RELEASE_0.8.2.md).
 
 ## 0.8.1 Windy patch
 

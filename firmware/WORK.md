@@ -307,3 +307,9 @@ validation, retaining its position before credential selection and persistence.
 Added a pending-boot-only no-op probe expecting HTTP 409; invalid probes still
 expect HTTP 400. Build and host checks pass. Stable/Dev update selection is
 recorded in TODO_AUDIT.md for later; no channel code implemented.
+
+Published v0.8.2 after build/host checks and uploaded-asset byte comparison.
+Verified public Latest manifest/image size and SHA-256, then installed via the
+protected HTTP OTA controls on the owner device. Portal checks passed at eight
+seconds, boot confirmation cleared at 33 seconds, and the device remained on
+0.8.2 beyond 100 seconds. No USB flash, reset, credential change or channel code.
