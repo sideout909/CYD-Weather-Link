@@ -1,5 +1,7 @@
 # WX Link
 
+<img src="assets/branding/wx-link-icon-v1.png" width="96" alt="WX Link weather and radio icon">
+
 A single-controller weather-station appliance, currently supporting AcuRite Atlas, for the PanelLan
 **ZX2D80CE02S-V10 / SC05_X** ESP32-S3 touchscreen and a 433 MHz CC1101 receiver.
 Amateur-radio weather sharing is a primary use: direct APRS-IS/CWOP is separate
@@ -17,21 +19,20 @@ and a full soak remain validation gates. PWSWeather/Windy live ingestion needs o
 
 ## Current development status
 
-**v0.8.0-rc.1 is an owner-test prerelease**, installed locally over USB; v0.7.5
-remains the published stable release. No 0.8.0 GitHub Release is published yet.
-The candidate adds factory reset, metric/imperial presentation, Barometer naming,
+**[v0.8.0](https://github.com/sideout909/WX-Link/releases/tag/v0.8.0) is the current stable release**, approved after owner use of the 0.8.0-rc.1 candidate.
+The release adds factory reset, metric/imperial presentation, Barometer naming,
 PWSWeather and Windy v2 uploaders, configurable local hostnames and cleaner setup
 tabs. Nearby NWS pressure now falls back to fresh NWS Aviation Weather Center
 METAR data when the normal API lags, with pressure type shown in details.
 
 An optional calibrated daylight cloud estimate uses local lux and solar position.
 Its current-sky label is **LUX** on the display and **LUX*** on the webpage when valid, otherwise **NWS**; forecasts remain
-NWS. It is experimental and never uploaded. See [candidate notes](firmware/RELEASE_0.8.0.md),
+NWS. It is experimental and never uploaded. See [release notes](firmware/RELEASE_0.8.0.md),
 [cloud calibration](firmware/LUX_CLOUDS.md), [pressure investigation](firmware/NWS_PRESSURE.md)
 and [owner acceptance checklist](firmware/CONTROLS_CHECKLIST.md).
 
 
-The v0.7.5 release includes the current UI and setup improvements plus the
+The earlier v0.7.5 release introduced the
 renamed `sideout909/WX-Link` update source. Atlas on the documented SC05_X
 hardware is the operational integration; other station families remain in development.
 For older firmware, enter `sideout909/WX-Link` in Updates before checking for

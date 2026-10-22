@@ -1,6 +1,6 @@
 # Core firmware validation
 
-Current installed candidate: **v0.8.0-rc.1**, October 22, 2026. Published stable: v0.7.5. This is a bench
+Current installed candidate: **v0.8.0-rc.1**, October 22, 2026. Published stable: v0.8.0, owner-approved after candidate use. This is a bench
 log: older version sections describe the state at the time, not current
 limitations. The latest results are below; [WORK.md](WORK.md) tracks remaining
 work and [CONTROLS_CHECKLIST.md](CONTROLS_CHECKLIST.md) tracks owner checks.
@@ -47,7 +47,10 @@ captures/firmware-validation/v080-*.json and PNGs.
 A real destructive reset was not executed against owner data. Physical touch,
 cloudy-day/seasonal classifier accuracy, new service-account ingestion, interrupted
 OTA and the reported overnight touch failure still require owner acceptance.
-Nothing from this prerelease has been published as stable.
+The owner subsequently reported successful operation and approved publication as
+stable 0.8.0. Only the version identifier changed for the stable build; a fresh
+SC05_X build and host suite passed. The installed device was left on rc.1 for an
+owner OTA test; no stable OTA result is claimed yet.
 
 ## Local v0.7.6 build — header targets, Outdoor/status and layered sun
 

@@ -1,7 +1,8 @@
 # Ordered implementation queue — October 22, 2026
 
 Owner requested this order and later authorized USB/device updates again.
-Target is 0.8.0-rc.1 prerelease; commit locally. Final release awaits owner approval.
+Owner approved publication after 0.8.0-rc.1 use. Stable version is 0.8.0;
+remaining field-specific validation gates below stay explicit.
 Save actual checks and next steps here at each feature boundary.
 
 1. **Factory reset — software complete; hardware acceptance pending.** Protected typed-confirmation webpage action;
@@ -43,7 +44,7 @@ and reporting host checks pass; normal live reporting resumed after USB update.
 Owner-marked header split, combined Outdoor/status, browser-settings guide and
 layered sun/cloud weather graphics pass build/tests and are installed in
 0.8.0-rc.1. Owner physical acceptance remains pending.
-No stable release is approved yet.
+Stable 0.8.0 publication was subsequently approved by the owner.
 
 ## Local evidence and next work
 

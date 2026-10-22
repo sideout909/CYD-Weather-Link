@@ -1,9 +1,9 @@
 # PanelLan weather firmware
 
-Current owner-test candidate: **0.8.0-rc.1**, not a published stable release.
+Current stable release: **0.8.0**, owner-approved after the 0.8.0-rc.1 candidate.
 See [release notes](RELEASE_0.8.0.md) for factory reset, units, configurable
 hostnames, new sharing destinations, pressure fallback and experimental local
-cloud estimation. Published stable remains 0.7.5 pending owner approval.
+cloud estimation. The owner can update the installed candidate through OTA.
 
 October 22, 2026 · release version 0.7.5 · owned PanelLan
 `ZX2D80CE02S-V10` / `SC05_X`. This profile is specific to its parallel ST7789

@@ -17,7 +17,7 @@ needed for navigation. Missing local readings are expected until reception.
       overlays across themes. Check clear, partly cloudy, overcast and precipitation.
 
 Candidate is installed over USB. Source/host/browser checks and screenshots do
-not replace your physical control verification. Published stable remains v0.7.5.
+not replace your physical control verification. Published stable is now v0.8.0, approved after owner use of the candidate.
 
 - [ ] Factory reset: first confirm Cancel leaves settings/history intact. Only
       test the actual erase when you are ready to reconfigure everything. Web
@@ -35,7 +35,8 @@ not replace your physical control verification. Published stable remains v0.7.5.
 - [ ] Compare LUX / LUX* estimate to actual clear/cloudy conditions over multiple days.
       NWS returns at low sun/night, stale light or missing calibration. Only
       recalibrate in clear direct sunlight, sun at least 15 degrees above horizon.
-- [ ] Verify final 0.8.0 owner acceptance before approving a stable release.
+- [x] Owner reported successful operation and approved stable 0.8.0 publication.
+      Specific untested field/reset/ingestion checks above remain open.
 
 ## Owner update — October 22, v0.7.5
 

@@ -1,9 +1,9 @@
-# WX Link 0.8.0-rc.1 — owner-test prerelease
+# WX Link 0.8.0
 
-Installed locally on the owner's PanelLan SC05_X. Stable GitHub release stays
-0.7.5; final 0.8.0 publication awaits owner verification. No 0.8.0 release or tag
-has been published by this work. Local application-only packaging is in ignored
-dist; full-flash backups and credentials must never be published.
+Stable release approved by the owner after successful use of the 0.8.0-rc.1
+candidate on the PanelLan SC05_X. Firmware behavior is unchanged from that
+candidate apart from the stable version identifier. Public assets are application-
+only; full-flash backups and credentials are never published.
 
 ## Changes
 
@@ -41,6 +41,8 @@ Still verify actual destructive reset when the owner is ready, physical control
 acceptance, real PWSWeather/Windy ingestion and cloudy/seasonal classifier accuracy.
 The reported overnight dim/touch incident and interrupted/failed-boot OTA tests
 remain open. No physical cause or fix for that overnight incident is claimed.
+
+The new transparent project icon is included as a separate downloadable PNG.
 
 See [validation](VALIDATION.md), [controls](CONTROLS_CHECKLIST.md),
 [Windy](WINDY.md), [PWSWeather](PWSWEATHER.md), [pressure](NWS_PRESSURE.md) and

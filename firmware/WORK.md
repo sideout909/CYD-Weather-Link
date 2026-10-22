@@ -1,9 +1,9 @@
 # Current development state
 
-Updated October 22, 2026 · owner-test prerelease **v0.8.0-rc.1**, installed over
-USB with owner authorization. Published stable remains v0.7.5. Final release
-awaits owner verification; no 0.8.0 assets have been published. See
-[prerelease notes](RELEASE_0.8.0.md), [evidence](VALIDATION.md),
+Updated October 22, 2026 · **v0.8.0 stable release**, approved by the owner after
+use of the USB-installed **v0.8.0-rc.1** candidate. The device remains on that
+candidate so the owner can test the stable update through OTA. See
+[release notes](RELEASE_0.8.0.md), [evidence](VALIDATION.md),
 [owner controls](CONTROLS_CHECKLIST.md) and [completed queue](FEATURE_QUEUE.md).
 
 The candidate includes factory reset, unit preferences, Barometer labeling,

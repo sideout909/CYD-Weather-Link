@@ -13,10 +13,10 @@ The owner reports exercising the preceding firmware over the last 24 hours.
 USB startup checks and owner use do not complete interrupted-transfer or
 deliberate failed-boot hosted OTA acceptance tests.
 
-## 0.8.0 prerelease
+## 0.8.0 stable release and candidate upgrade
 
-0.8.0-rc.1 is an owner-test candidate installed locally. Final 0.8.0 release and
-publication require owner approval. The updater/package tools accept bounded
+The owner approved stable 0.8.0 after using the locally installed 0.8.0-rc.1
+candidate. Stable 0.8.0 is available through Check now; no USB flash is needed. The updater/package tools accept bounded
 `-rc.N` identifiers, order final 0.8.0 after 0.8.0-rc.N and keep GitHub's stable
 `releases/latest` lookup. A prerelease therefore does not become the normal
 stable OTA target. Existing stable numeric versions and strict release-URL,
