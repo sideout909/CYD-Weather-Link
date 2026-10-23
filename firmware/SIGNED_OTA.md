@@ -1,8 +1,9 @@
 # Signed OTA and update channels — local 0.9.0-rc.1
 
-This is a local development candidate, not a published release. Installed and
-published stable remain 0.8.2. No device was accessed or flashed for this work;
-the owner's overnight dim/touch observation continues on the existing firmware.
+Owner authorized prerelease publication and device installation. Stable Latest
+remains 0.8.2; 0.9.0-rc.1 is for further field testing, not production validation.
+The private bootstrap/hosted signed OTA results are recorded in VALIDATION.md.
+The device is being prepared for an overnight dim/touch recurrence check.
 
 ## Owner controls
 
@@ -122,7 +123,9 @@ python3 tools/test-signed-ota.py --mbedtls-source /path/to/mbedtls-2.28.7 \
 Target-device signature timing/heap/stack, actual Stable/Dev GitHub lookups,
 persistence/migration, bootstrap OTA and a second signature-enforced OTA remain
 pending. Existing interrupted-transfer and deliberate failed-boot gates remain.
-Do not label this candidate production-validated or publish it as Latest yet.
+Do not label this prerelease production-validated or publish it as Latest.
+A protected second local signing-key copy is retained outside the repository;
+copy it to independent/offline storage as publisher recovery follow-up.
 
 References: [GitHub release API](https://docs.github.com/en/rest/releases/releases),
 [pinned mbedTLS public-key API](https://github.com/Mbed-TLS/mbedtls/blob/v2.28.7/include/mbedtls/pk.h).

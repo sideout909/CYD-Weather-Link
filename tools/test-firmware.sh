@@ -6,6 +6,10 @@ test_binary=$(mktemp /tmp/cyd-weather-test.XXXXXX)
 trap 'rm -f -- "$test_binary"' EXIT
 g++ -std=c++17 -Wall -Wextra -Werror -Wno-misleading-indentation \
     -I"$project_dir/firmware/include" \
+    "$project_dir/firmware/tests/lightning_test.cpp" -o "$test_binary"
+"$test_binary"
+g++ -std=c++17 -Wall -Wextra -Werror -Wno-misleading-indentation \
+    -I"$project_dir/firmware/include" \
     "$project_dir/firmware/tests/lux_cloud_test.cpp" -o "$test_binary"
 "$test_binary"
 g++ -std=c++17 -Wall -Wextra -Werror \

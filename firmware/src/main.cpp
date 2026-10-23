@@ -27,6 +27,7 @@
 #include "display_preferences.h"
 #include "factory_reset.h"
 #include "weather_units.h"
+#include "lightning.h"
 
 // JSON commands, HTTP handlers and display formatting share the main task.
 // Keep explicit stack headroom; the Arduino default is only 8 KiB.
@@ -67,6 +68,7 @@ uint8_t display_brightness=160;
 int detail_scroll=0;
 uint64_t clock_epoch=0,clock_uptime=0,last_publish=0,last_checkpoint=0;
 weather::DailyRain daily_rain;
+lightning::Tracker lightning_tracker;
 sensor_health::Monitor sensor_monitor;
 services::State network;
 uint64_t source_time = 0, last_receive = 0, last_draw = 0, last_status = 0;
@@ -283,13 +285,29 @@ void renderHome() {
   const auto& rain_font=homeWidth(rain_amount,reading)<=62?reading:home_fonts::clock;
   homeText(rain_amount,119,175,rain_fresh?kWhite:kMuted,rain_font,kCard);
   homeText(weather_units::rainUnit(metricUnits()),119+homeWidth(rain_amount,rain_font)+5,175,kMuted,unit,kCard);
-  homeText("BAROMETER",223,153,kMuted,tile_label,kCard);
-  const bool pressure_fresh=network.wifi&&services::clockValid()&&nws_pressure::fresh(network.pressure_observed,time(nullptr));
-  const String pressure_text=pressure_fresh?String(weather_units::pressure(network.pressure_pa,metricUnits()),metricUnits()?1:2):"--";
-  const auto& pressure_font=homeWidth(pressure_text,reading)<=58?reading:home_fonts::clock;
-  homeText(pressure_text,223,171,pressure_fresh?kWhite:kMuted,pressure_font,kCard);
-  if(pressure_fresh)homeText(weather_units::pressureUnit(metricUnits()),284,170,kMuted,unit,kCard);
-  homeText(pressure_fresh?"NWS":"NWS --",223,182,kMuted,home_fonts::status,kCard);
+  const auto lightning=lightning_tracker.view(now);
+  if(!replay&&lightning.show_lightning){
+    homeText(lightning.complete?"LIGHTNING 10m":"LIGHTNING 10m*",223,153,kMuted,home_fonts::status,kCard);
+    canvas.fillTriangle(229,157,222,168,231,168,kAmber);
+    canvas.fillTriangle(228,164,235,164,226,178,kAmber);
+    const String count=lightning.count>99?"99+":String(lightning.count);
+    const auto& count_font=lightning.count>99?home_fonts::body:homeWidth(count,reading)<=21?reading:home_fonts::clock;
+    homeText(homeFit(count,21,count_font),237,176,kAmber,count_font,kCard);
+    const String distance=lightning.distance_known?String(weather_units::distance(lightning.distance_miles,metricUnits()),metricUnits()?1:0)+" "+weather_units::distanceUnit(metricUnits()):"--";
+    const auto& distance_font=homeWidth("Last "+distance,home_fonts::status)<=51?home_fonts::status:home_fonts::small;
+    homeText(homeFit("Last "+distance,51,distance_font),259,165,kWhite,distance_font,kCard);
+    const uint64_t age=lightning.event_age_ms/1000;
+    const String last=age<60?String(uint32_t(age))+"s ago":String(uint32_t(age/60))+"m ago";
+    homeText(homeFit(last,51,home_fonts::status),259,178,kMuted,home_fonts::status,kCard);
+  }else{
+    homeText("BAROMETER",223,153,kMuted,tile_label,kCard);
+    const bool pressure_fresh=network.wifi&&services::clockValid()&&nws_pressure::fresh(network.pressure_observed,time(nullptr));
+    const String pressure_text=pressure_fresh?String(weather_units::pressure(network.pressure_pa,metricUnits()),metricUnits()?1:2):"--";
+    const auto& pressure_font=homeWidth(pressure_text,reading)<=58?reading:home_fonts::clock;
+    homeText(pressure_text,223,171,pressure_fresh?kWhite:kMuted,pressure_font,kCard);
+    if(pressure_fresh)homeText(weather_units::pressureUnit(metricUnits()),284,170,kMuted,unit,kCard);
+    homeText(pressure_fresh?"NWS":"NWS --",223,182,kMuted,home_fonts::status,kCard);
+  }
 }
 
 bool bucketValue(const weather::Bucket& b, float& out) {
@@ -314,7 +332,7 @@ void detailRow(const String& label,const String& reading,int baseline){
 }
 void renderMeasurement(){
   using namespace home_fonts;
-  const char* titles[]={"OUTDOOR / STATUS","WIND","HUMIDITY","RAIN","PRESSURE"};
+  const char* titles[]={"OUTDOOR / STATUS","WIND","HUMIDITY","RAIN","PRESSURE","OUTDOOR / STATUS","LIGHTNING"};
   homeText("‹ Back",12,26,kCyan,header);homeText(titles[measurement_detail],89,26,kWhite,header);
   if(replay)homeText("REPLAY",263,15,kAmber,home_fonts::status);
   canvas.drawFastHLine(10,44,300,kDivider);
@@ -327,10 +345,8 @@ void renderMeasurement(){
     const auto state=sensorState();
     detailRow("Atlas",sensor_health::label(state),114);
     detailRow("Last packet",!sensor_monitor.received?"None":now<sensor_monitor.last_rx?"Time unknown":String(uint32_t((now-sensor_monitor.last_rx)/1000))+"s ago",131);
-    String missing;for(unsigned i=0;i<3;++i)if(!sensor_monitor.types[i]||now<sensor_monitor.types[i]||now-sensor_monitor.types[i]>=sensor_health::kDataStaleMs){if(missing.length())missing+=" / ";missing+=String(37+i);}
-    detailRow("Missing types",missing.length()?missing:"None",148);
-    detailRow(services::settings().aprs_profile=="cwop"?"CWOP link":"APRS link",network.aprs_connected&&network.wifi?(network.aprs_verified?"Connected · verified":"Connected · CWOP"):!network.wifi&&services::settings().aprs_enabled?String("Wi-Fi unavailable"):network.aprs_state,165);
-    detailRow("Last report",network.aprs_success&&services::clockValid()?String(uint32_t(std::max(time_t(0),time(nullptr)-network.aprs_success)))+"s ago":"None sent",182);
+    detailRow(services::settings().aprs_profile=="cwop"?"CWOP link":"APRS link",network.aprs_connected&&network.wifi?(network.aprs_verified?"Connected · verified":"Connected · CWOP"):!network.wifi&&services::settings().aprs_enabled?String("Wi-Fi unavailable"):network.aprs_state,148);
+    detailRow("Last report",network.aprs_success&&services::clockValid()?String(uint32_t(std::max(time_t(0),time(nullptr)-network.aprs_success)))+"s ago":"None sent",165);
   }else if(measurement_detail==1){
     const auto peak=store->gust(now);
     detailRow("Current",windValue(store->wind)+" "+weather_units::windUnit(metricUnits()),66);
@@ -366,6 +382,15 @@ void renderMeasurement(){
     detailRow("Observed",network.pressure_observed?String(uint32_t(std::max(time_t(0),time(nullptr)-network.pressure_observed))/60)+" min ago":"No observation",132);
     homeText(homeFit(network.pressure_error,296,body),12,155,kMuted,body);
     homeText("Nearby station; Atlas has no barometer.",12,176,kMuted,home_fonts::status);
+  }else if(measurement_detail==6){
+    const auto l=lightning_tracker.view(now);
+    detailRow("Sensor",!l.capable?"Not reported":!l.fresh?"Data old":l.active?"Recent activity":"No recent change",66);
+    detailRow("Last 10 min",l.capable?String(l.count)+(l.complete?"":" * partial"):"--",88);
+    const String distance=l.distance_known?String(weather_units::distance(l.distance_miles,metricUnits()),metricUnits()?1:0)+" "+weather_units::distanceUnit(metricUnits()):"--";
+    detailRow("Last distance",distance,110);
+    detailRow("Last strike",l.event_known?String(uint32_t(l.event_age_ms/60000))+" min ago":"Unknown",132);
+    homeText("Local sensor estimate; not an NWS alert.",12,155,kMuted,home_fonts::status);
+    homeText("Tile expires after 30 min unchanged.",12,176,kMuted,home_fonts::status);
   }
 }
 void renderTrends() {
@@ -565,7 +590,7 @@ void rfStatus(){
   char buffer[1536];const size_t length=serializeJson(d,buffer,sizeof(buffer));Serial.write(reinterpret_cast<const uint8_t*>(buffer),length);Serial.println();
 }
 void status(const char* event = "status") {
-  StaticJsonDocument<3072> out;
+  StaticJsonDocument<3584> out;
   out["event"]=event;out["request_id"]=request_id;out["version"]=kVersion;out["board"]="panellan_sc05_x";
   out["display_initialized"]=display_ok;out["width"]=display.width();out["height"]=display.height();
   out["display_theme"]=services::settings().display_theme;out["display_brightness"]=display_brightness;out["display_idle_s"]=(uptimeMs()-display_idle.last_interaction)/1000;
@@ -597,6 +622,12 @@ void status(const char* event = "status") {
   out["measurement_detail"]=measurement_detail;
   out["sensor_status"]=sensor_health::label(sensorState());out["bound_packets_heard"]=sensor_monitor.received;
   out["aprs_connected"]=network.aprs_connected&&network.wifi;
+  const auto l=lightning_tracker.view(dataNow());auto lightning_status=out.createNestedObject("lightning");
+  lightning_status["capable"]=l.capable;lightning_status["report_fresh"]=l.fresh;
+  lightning_status["active"]=l.active&&!replay;lightning_status["showing"]=l.show_lightning&&!replay;
+  lightning_status["count_10m"]=l.count;lightning_status["partial"]=!l.complete;
+  if(l.distance_known)lightning_status["last_distance_mi"]=l.distance_miles;else lightning_status["last_distance_mi"]=nullptr;
+  if(l.event_known){lightning_status["last_strike_age_s"]=l.event_age_ms/1000;lightning_status["last_change_age_s"]=l.change_age_ms/1000;}
   out["accepted"]=store->accepted;out["duplicates"]=store->duplicates;out["rejected"]=store->rejected;
   const auto archive=archive_storage::state(clock_anchored?liveNow():0);
   out["archive_ready"]=archive.ready;out["archive_records"]=archive.records;out["archive_state"]=archive.message;
@@ -605,7 +636,7 @@ void status(const char* event = "status") {
   auto peak=store->gust(dataNow());if(peak.valid)out["gust_5m_mph"]=peak.value;
   if(store->temperature.valid)out["temperature_F"]=store->temperature.value;
   if(store->lux.valid)out["lux"]=store->lux.value;
-  char buffer[3072];
+  char buffer[3584];
   const size_t length=serializeJson(out,buffer,sizeof(buffer));
   Serial.write(reinterpret_cast<const uint8_t*>(buffer),length);Serial.println();
 }
@@ -616,7 +647,7 @@ void resetData() {
   for (size_t i=0;i<weather::kHistoryBuckets;++i) history[i]=weather::Bucket{};
   for(size_t i=0;i<weather::kRainIntervals;++i)rain_history[i]=weather::RainInterval{};
   store->~Store(); new(store) weather::Store(history,services::settings().station_id,services::settings().channel,rain_history);
-  daily_rain=weather::DailyRain{};have_sample_reply=false;
+  daily_rain=weather::DailyRain{};lightning_tracker=lightning::Tracker{};have_sample_reply=false;
   sensor_monitor.reset(liveNow());
   replay=false;theme_preview=-1;measurement_detail=-1;source_time=last_receive=0;dirty=true;
   services::Observation cleared;services::publish(cleared);
@@ -657,7 +688,7 @@ void command(const char* input) {
   else if (!strcmp(op,"page")) {
     if (doc["page"].is<unsigned>() && doc["page"].as<unsigned>()<3) {interact();page=doc["page"];measurement_detail=-1;dirty=true;status("page");}
   } else if(!strcmp(op,"detail")) {
-    if(doc["detail"].is<unsigned>() && doc["detail"].as<unsigned>()<6){interact();measurement_detail=doc["detail"].as<unsigned>()==5?0:doc["detail"].as<unsigned>();dirty=true;status("detail");}
+    if(doc["detail"].is<unsigned>() && doc["detail"].as<unsigned>()<7){interact();measurement_detail=doc["detail"].as<unsigned>()==5?0:doc["detail"].as<unsigned>();dirty=true;status("detail");}
   } else if (!strcmp(op,"sample")) {
     if(!replay && store->accepted)resetData();
     if(have_sample_reply && request_id && request_id==last_sample_request_id){
@@ -767,7 +798,7 @@ void touch() {
       else if(start_y>=188){alerts_open=true;detail_scroll=0;dirty=true;}
       else if(page==2){if(start_y<62){forecast_hourly=!forecast_hourly;forecast_index=0;}else ++forecast_index;detail_scroll=0;dirty=true;}
       else if(page==1 && start_y>=44 && start_y<187){metric=(metric+1)%4;dirty=true;}
-      else if(page==0 && start_y>=44 && start_y<184){measurement_detail=start_y<136?(start_x<180?0:1):start_x<108?2:start_x<212?3:4;dirty=true;}
+      else if(page==0 && start_y>=44 && start_y<184){measurement_detail=start_y<136?(start_x<180?0:1):start_x<108?2:start_x<212?3:(!replay&&lightning_tracker.view(dataNow()).show_lightning?6:4);dirty=true;}
       status("tap");
     }
   }
@@ -792,6 +823,7 @@ void liveReceive(){
     if(clock_anchored)archive_storage::observe(s,result,store->session_rain_tips-previous,counter.time,
       counter.baseline&&s.time_ms>=counter.time&&s.time_ms-counter.time<weather::kStaleMs&&counter.discontinuities==store->rain_discontinuities);
     if(result==weather::Result::Accepted){
+      if(clock_anchored&&s.strikes.valid)lightning_tracker.observe(s.time_ms,s.strikes.value,s.strike_distance.valid,s.strike_distance.value);
       if(s.rain_tips.valid && clock_anchored)daily_rain.observe(localDay(s.time_ms),s.time_ms,store->session_rain_tips-previous,counter.baseline && s.time_ms>=counter.time && s.time_ms-counter.time<weather::kStaleMs && counter.discontinuities==store->rain_discontinuities);
       dirty=true;
     }

@@ -18,7 +18,9 @@ inline bool decode(JsonVariantConst d,uint64_t now,weather::Sample& s){
   if(!s.wind.valid&&d["wind_avg_m_s"].is<float>()){s.wind.valid=true;s.wind.value=d["wind_avg_m_s"].as<float>()*2.2369363f;}
   load(d["wind_dir_deg"],s.direction);load(d["lux"],s.lux);load(d["uv"],s.uv);
   if(!s.uv.valid)load(d["uvi"],s.uv);
-  load(d["strike_count"],s.strikes);
+  for(const char* name:{"strike_count","strike_distance"})
+    if(d.containsKey(name)&&(!d[name].is<uint16_t>()||d[name].as<uint16_t>()>(!std::strcmp(name,"strike_count")?511:31)))return false;
+  load(d["strike_count"],s.strikes);load(d["strike_distance"],s.strike_distance);
   if(d["rain_in"].is<float>()){const float rain=d["rain_in"].as<float>();if(!std::isfinite(rain)||rain<0||rain>5.11f)return false;s.rain_tips.valid=true;s.rain_tips.value=std::lround(rain*100);}
   else if(d["rain_mm"].is<float>()){const float rain=d["rain_mm"].as<float>();if(!std::isfinite(rain)||rain<0||rain>129.8f)return false;s.rain_tips.valid=true;s.rain_tips.value=std::lround(rain/0.254f);}
   return true;

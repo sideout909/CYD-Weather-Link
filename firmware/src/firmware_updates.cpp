@@ -77,6 +77,9 @@ bool check(const services::Settings& config,State& state){
   DynamicJsonDocument doc(4096);const bool parsed=!deserializeJson(doc,http.getStream(),DeserializationOption::NestingLimit(4));http.end();
   const String version=doc["version"]|String("");
   const String url=doc["firmware_url"]|String(""),sha=doc["sha256"]|String("");
+  if(parsed&&doc["schema"]==1&&!doc.containsKey("signature_schema")){
+    state.message=config.update_channel=="stable"?"No signed Stable release yet; keeping current firmware":"Unsigned release; keeping current firmware";return false;
+  }
   const auto* target=esp_ota_get_next_update_partition(nullptr);
   const uint32_t size=doc["size"]|uint32_t(0);
   if(!parsed||!doc.is<JsonObject>()||doc["schema"]!=1||doc["signature_schema"]!=1||

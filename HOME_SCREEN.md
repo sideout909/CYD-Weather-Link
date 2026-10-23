@@ -196,7 +196,7 @@ session (verified login is required for the ham profile). Network connection
 and successful remote weather ingestion remain separate facts.
 
 Tap the second header row for Link status: Atlas state, last bound-station
-packet, missing types, APRS/CWOP session and last sent report. No receiver,
+packet, APRS/CWOP session and last sent report. No receiver,
 Waiting, Receiving, Current, Data stale and Disconnected are distinct states.
 Show **Data stale** after ten minutes without any accepted weather-value change,
 or after the ten-minute collection grace period if required types/measurements
@@ -333,7 +333,7 @@ calibration, low-sun exclusions and limitations; firmware/NWS_PRESSURE.md for th
 investigated fallback. No inferred cloud data or external pressure enters uploads.
 
 
-## Selected optional lightning concept — October 22
+## Optional lightning tile — implemented in 0.9.0-rc.1
 
 Owner chose B: alternate the Barometer tile with lightning every five seconds
 while validated lightning activity/data changes are recent. Include last-strike
@@ -348,4 +348,6 @@ rules are independent from this Home activity expiry.
 [Selected prototype](concepts/lightning/selected-v2/index.html) ·
 [Both phases](concepts/lightning/selected-v2/proposal.png) ·
 [Behavior and sources](concepts/lightning/selected-v2/README.md).
-Local concept only; no firmware implementation or live lightning reception claimed.
+The selected design is implemented; see [LIGHTNING.md](firmware/LIGHTNING.md)
+for conservative counter/distance handling, freshness, memory limits and pending
+live storm validation. Original concept images remain fictional.

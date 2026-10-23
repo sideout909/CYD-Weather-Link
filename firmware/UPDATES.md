@@ -1,7 +1,8 @@
 # GitHub firmware updates
 
 Local 0.9.0-rc.1 adds Stable/Dev channels and mandatory publisher signatures.
-It is not published or installed; stable/device remain 0.8.2. See
+Owner authorized prerelease publication and installation; Stable Latest remains
+0.8.2. See
 [SIGNED_OTA.md](SIGNED_OTA.md) for key custody, migration, packaging and test gates.
 
 The development firmware implements opt-in updates from a **public GitHub

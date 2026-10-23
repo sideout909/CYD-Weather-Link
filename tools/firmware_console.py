@@ -141,7 +141,7 @@ def main():
     sub.add_parser('checkpoint-save')
     archive = sub.add_parser('archive'); archive.add_argument('output', type=Path)
     page = sub.add_parser('page'); page.add_argument('page', choices=['home', 'trends', 'forecast'])
-    detail = sub.add_parser('detail'); detail.add_argument('detail', choices=['outdoor', 'wind', 'humidity', 'rain', 'pressure', 'link'])
+    detail = sub.add_parser('detail'); detail.add_argument('detail', choices=['outdoor', 'wind', 'humidity', 'rain', 'pressure', 'link', 'lightning'])
     screen = sub.add_parser('screen'); screen.add_argument('output', type=Path)
     replay = sub.add_parser('replay')
     replay.add_argument('input', type=Path)
@@ -192,7 +192,7 @@ def main():
         else:
             op = {'op': args.command.replace('-', '_')}
             if args.command == 'page': op['page'] = ['home', 'trends', 'forecast'].index(args.page)
-            if args.command == 'detail': op['detail'] = ['outdoor', 'wind', 'humidity', 'rain', 'pressure', 'link'].index(args.detail)
+            if args.command == 'detail': op['detail'] = ['outdoor', 'wind', 'humidity', 'rain', 'pressure', 'link', 'lightning'].index(args.detail)
             rid = send(port, op)
             # Flash write/replace/CRC diagnostics can exceed the ordinary
             # five-second reply budget while network work is also running.

@@ -314,3 +314,21 @@ Verified public Latest manifest/image size and SHA-256, then installed via the
 protected HTTP OTA controls on the owner device. Portal checks passed at eight
 seconds, boot confirmation cleared at 33 seconds, and the device remained on
 0.8.2 beyond 100 seconds. No USB flash, reset, credential change or channel code.
+
+
+## 0.9.0-rc.1 lightning implementation and publication authorization
+
+Owner selected option B, requested last-strike distance, five-second Barometer/
+lightning rotation and thirty-minute unchanged expiry. Implemented bounded,
+native-confirmed-only live tracking, conservative reset/gap/wrap baselines,
+partial coverage, distance handling and theme-aware tile/detail rendering.
+Removed Missing types from Outdoor/status and closed the remaining rows up.
+Host/model/native adapter and packed-font tests pass; real storm validation open.
+
+Owner subsequently authorized prerelease publication and device installation,
+superseding the temporary no-device restriction while Connect was under test.
+Device initially reports 0.8.2, healthy portal/radio and restored history.
+A private 0.8.3-rc.1 bootstrap of this source will exercise the on-device verifier
+before installing the signed public 0.9.0-rc.1 target. Bootstrap is not published.
+Protected local publisher-key backup exists outside the repo; offline backup
+remains recommended. Device backup and final bench result follow separately.

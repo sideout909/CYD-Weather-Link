@@ -148,7 +148,8 @@ recording or uploads. Other library protocols are not enabled by this change.
       Link details distinguish disabled from connection failures.
 - [ ] Tap the RF/source or APRS part of the status row for Link status;
       the padded Wi-Fi area opens setup. Back returns Home. Verify Atlas
-      status, last packet, missing packet types and APRS report age are clear.
+      status, last packet and APRS report age are clear. Missing types was removed
+      from this view in 0.9.0-rc.1.
 - [ ] Swipe left: Home → Trends → Forecast → Home.
 - [ ] Swipe right: Home → Forecast → Trends → Home.
 - [ ] A swipe does not also open a tile, setup, or an alert.
@@ -257,3 +258,16 @@ Full reception, outage, persistence and sharing gates are in [VALIDATION.md](VAL
       signature-verification timing/heap/stack and rejection behavior.
 
 Host crypto/model/browser checks pass; these are separate physical acceptance tasks.
+
+
+## 0.9.0-rc.1 lightning and overnight checks
+
+- [ ] Without a lightning event, Barometer remains; no fake zero/event on reboot.
+- [ ] During a storm, compare count/distance with Atlas; verify five-second phases,
+      imperial/metric distance, partial marker and full NWS alert visibility.
+- [ ] Unchanged repeats do not extend thirty-minute activity expiry; quiet returns
+      to Barometer. Communication loss hides lightning earlier as stale data.
+- [ ] Lightning phase tap opens lightning details; pressure phase keeps pressure details.
+- [ ] Outdoor/status no longer shows Missing types; APRS/report rows fit.
+- [ ] Leave prerelease powered overnight. If dim/touch stops responding, preserve
+      that state and inspect it before resetting. No overnight fix is claimed.

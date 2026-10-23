@@ -1,5 +1,6 @@
 #include "atlas_packet.h"
 #include "sensor_health.h"
+#include "lightning.h"
 #include <cassert>
 #include <cmath>
 #include <fstream>
@@ -28,6 +29,26 @@ int main(int argc,char** argv){
     R"({"model":"Acurite-Atlas","id":679,"channel":"A","message_type":39,"lux":0,"uv":0,"wind_avg_mi_h":0})"};
   uint64_t stamp=1200000;for(auto json:cycle){assert(!deserializeJson(d,json));assert(atlas::decode(d.as<JsonVariantConst>(),stamp++,s));monitor.observe(s,live.ingest(s));}
   assert(monitor.state(true,true,stamp,live)==sensor_health::State::Current);
+  // Exact native adapter -> selected weather store -> optional lightning input.
+  lightning::Tracker lightning;weather::Store lightning_store;
+  auto native=[&](const char* json,uint64_t time){
+    d.clear();assert(!deserializeJson(d,json));
+    if(!atlas::decode(d.as<JsonVariantConst>(),time,s))return false;
+    const auto result=lightning_store.ingest(s);
+    if(result==weather::Result::Accepted&&s.strikes.valid)lightning.observe(s.time_ms,s.strikes.value,s.strike_distance.valid,s.strike_distance.value);
+    return result==weather::Result::Accepted;
+  };
+  const char* baseline=R"({"model":"Acurite-Atlas","id":679,"channel":"A","message_type":37,"strike_count":4,"strike_distance":8})";
+  assert(native(baseline,1000000)&&!lightning.view(1000000).active);
+  assert(native(R"({"model":"Acurite-Atlas","id":679,"channel":"A","message_type":37,"strike_count":5,"strike_distance":6})",1010000));
+  assert(lightning.view(1010000).active&&lightning.view(1010000).distance_miles==6);
+  assert(!native(R"({"model":"Acurite-Atlas","id":680,"channel":"A","message_type":37,"strike_count":6,"strike_distance":2})",1020000));
+  assert(!native(R"({"model":"Acurite-Atlas","id":679,"channel":"B","message_type":37,"strike_count":6,"strike_distance":2})",1020000));
+  assert(!native(R"({"model":"Acurite-Atlas","id":679,"channel":"A","message_type":37,"exception":1,"strike_count":6,"strike_distance":2})",1020000));
+  assert(!native(R"({"model":"Acurite-Atlas","id":679,"channel":"A","message_type":37,"strike_count":512})",1020000));
+  assert(!native(R"({"model":"Acurite-Atlas","id":679,"channel":"A","message_type":37,"strike_count":6,"strike_distance":32})",1020000));
+  assert(!native(R"({"model":"Acurite-Atlas","id":679,"channel":"A","message_type":37,"strike_count":"6"})",1020000));
+  assert(lightning.view(1020000).count==1&&lightning.view(1020000).distance_miles==6);
   unsigned accepted=0,duplicates=0,flagged=0,other=0,parsed=0;
   // Exercise the same live parser against a complete original SDR capture.
   if(argc>1){std::ifstream file(argv[1]);assert(file.good());std::string line;weather::Store reference;uint64_t now=1700000000000ULL;

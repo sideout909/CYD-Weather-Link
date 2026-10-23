@@ -62,14 +62,15 @@ is 0.9.0-rc.1, not installed or published; see [SIGNED_OTA.md](SIGNED_OTA.md).
   publisher-key backup, target-device resource checks, bootstrap and enforced
   subsequent OTA acceptance remain pending. Rotation/recovery still need a
   dual-key transition implementation. No Secure Boot/eFuse/flash-encryption changes.
-- **Optional lightning on Home — selected concept B.** Alternate Barometer and
+- **Optional lightning on Home — implemented, storm validation pending.** Alternate Barometer and
   lightning every five seconds while activity is recent; include last-strike
   estimated distance/age. After thirty minutes with no real lightning-data
   change, hide lightning and show only Barometer. Identical packets do not reset
   expiry; absent capability stays hidden. Atlas protocol notes say miles, converted
   to km for metric; reserved codes and counter/coverage semantics need validation.
   See [selected prototype](../concepts/lightning/selected-v2/index.html).
-  No firmware implementation yet.
+  See [implementation and tests](LIGHTNING.md). Validate real strike/distance
+  agreement and reserved codes; session-only history restarts after reboot.
 - **Multiple sensor sources.** Explicitly assign temperature/wind/pressure devices
   to one station with per-source/per-field freshness and provenance. Deferred.
 - **More station families.** Use community Connect captures, review native identity,

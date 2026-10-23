@@ -2,7 +2,8 @@
 
 Local source candidate: **0.9.0-rc.1**, not published or installed. See
 [SIGNED_OTA.md](SIGNED_OTA.md) and [waveform review](CONNECT_WAVEFORM_REVIEW.md).
-Stable/device remain 0.8.2 for overnight observation.
+Stable Latest remains 0.8.2; owner authorized prerelease installation for a new
+overnight observation. Optional lightning implementation: [LIGHTNING.md](LIGHTNING.md).
 
 Current stable release: **0.8.2**, fixing OTA startup settings validation while
 retaining the owner-verified Windy TLS fix. See [patch notes](RELEASE_0.8.2.md)

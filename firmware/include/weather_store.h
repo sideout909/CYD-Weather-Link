@@ -31,7 +31,7 @@ struct Sample {
   // Missing fields stay absent. The serial adapter sets validity explicitly.
   Field<float> temperature, wind, direction, uv;
   Field<uint32_t> lux;
-  Field<uint16_t> humidity, rain_tips, strikes;
+  Field<uint16_t> humidity, rain_tips, strikes, strike_distance;
 };
 
 struct Bucket {
@@ -199,7 +199,7 @@ class Store {
   static bool samePayload(const Sample& a, const Sample& b) {
     return a.type == b.type && equal(a.temperature,b.temperature) && equal(a.humidity,b.humidity) &&
            equal(a.wind,b.wind) && equal(a.direction,b.direction) && equal(a.lux,b.lux) &&
-           equal(a.uv,b.uv) && equal(a.rain_tips,b.rain_tips) && equal(a.strikes,b.strikes);
+           equal(a.uv,b.uv) && equal(a.rain_tips,b.rain_tips) && equal(a.strikes,b.strikes) && equal(a.strike_distance,b.strike_distance);
   }
   static bool range(const Field<float>& f, float low, float high) {
     return !f.valid || (std::isfinite(f.value) && f.value >= low && f.value <= high);
@@ -207,7 +207,8 @@ class Store {
   static bool valid(const Sample& s) {
     return range(s.temperature,-40,158) && range(s.wind,0,200) && range(s.direction,0,360) &&
            range(s.uv,0,15) && (!s.humidity.valid || s.humidity.value <= 100) &&
-           (!s.lux.valid || s.lux.value <= 120000) && (!s.rain_tips.valid || s.rain_tips.value <= 511);
+           (!s.lux.valid || s.lux.value <= 120000) && (!s.rain_tips.valid || s.rain_tips.value <= 511) &&
+           (!s.strikes.valid || s.strikes.value <= 511) && (!s.strike_distance.valid || s.strike_distance.value <= 31);
   }
 };
 }  // namespace weather
