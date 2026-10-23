@@ -1,7 +1,7 @@
 # CYD Weather Link — architecture and requirements
 
-Status: October 22, 2026. Installed/published stable v0.8.2; local source
-v0.9.0-rc.1 adds signed OTA/channels (not installed/published). Firmware targets the owned PanelLan
+Status: October 22, 2026. Published stable v0.8.2; installed/published prerelease
+v0.9.0-rc.1 adds signed OTA/channels and optional lightning. Signed OTA confirmation passed. Firmware targets the owned PanelLan
 ZX2D80CE02S-V10 / SC05_X; see [firmware scope](firmware/README.md) and
 [bench validation](firmware/VALIDATION.md). Live Atlas/CC1101, display/touch,
 protected setup, NWS and history restoration are observed. The owner confirms

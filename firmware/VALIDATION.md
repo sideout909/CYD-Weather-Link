@@ -1,6 +1,7 @@
 # Core firmware validation
 
-Current installed and published stable: **v0.8.2**, October 22, 2026. Hosted OTA
+Current installed prerelease: **v0.9.0-rc.1**; published stable remains **v0.8.2**.
+See the latest signed-OTA acceptance entry below. Historical stable hosted OTA
 passed startup confirmation at 33 seconds and remained running beyond 100 seconds.
 Windy ingestion is owner-confirmed. This is a bench
 log: older version sections describe the state at the time, not current
@@ -1043,3 +1044,27 @@ Owner separately confirmed PWSWeather ingestion; this is not a new host-side
 field comparison. Cloudy-day lux, overnight and reset checks are planned.
 Read-only Connect replay passed 16 public fixtures/40 callbacks; no new production
 station enabled. See CONNECT_WAVEFORM_REVIEW.md.
+
+
+## October 22 — 0.9.0-rc.1 signed prerelease acceptance
+
+Published v0.9.0-rc.1 as a prerelease, leaving stable Latest at v0.8.2. Public
+assets matched the local package; manifest signature and image hash/size passed.
+A private USB bootstrap with the signature verifier installed the public target
+through real GitHub OTA. Device rejected unsigned Stable, verified the Dev
+publisher signature, confirmed startup and remained running beyond 100 seconds.
+Original update preferences were restored; a controlled restart retained
+0.9.0-rc.1 with portal checks passed and checkpoint/history restored.
+Free heap was 128,276 bytes and loop-stack free space 9,900 bytes after restart.
+No factory reset, replay, synthetic strikes or owner credential changes occurred.
+A protected full-flash backup was retained before installation. No claim is made
+that the latest RAM-only weather state was checkpointed.
+
+Real-storm lightning/distance checks, interrupted OTA, deliberate failed-boot
+rollback and overnight dim/touch reliability remain open. Radio initialized but
+initial post-restart diagnostics showed zero decoded messages, with captures
+reaching the decoder and no capture/decoder/application queue drops. A runtime-only
+capture-margin reduction from 9 to 3 dB recovered live Atlas reception: one accepted
+packet and two duplicates, sensor status Receiving. Left at 3 dB for the overnight
+run; reboot restores the unchanged 9 dB firmware default. This is a bench workaround,
+not a permanent RF tuning change or an SDR comparison.

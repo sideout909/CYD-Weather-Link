@@ -26,7 +26,7 @@ This repository contains hardware and firmware planning documents, display conce
 - `firmware/include/display_preferences.h` defines persisted clock/date choices, display inactivity policy, UV levels and compact status layout; touch wakes the display without pausing reception or network services.
 - `firmware/include/lunar_phase.h` projects current provider lunar data to forecast-period midpoints for small moon icons; missing data stays unknown. Night tint preserves phase/crater geometry.
 - `firmware/include/sensor_health.h` distinguishes missing hardware, stale station cycles and silent transmitters; do not infer a freeze from stable weather values alone.
-- Local source 0.9.0-rc.1 implements Stable/Dev channels and mandatory publisher signatures; installed/published stable remain 0.8.2. See `firmware/SIGNED_OTA.md`; private publisher keys stay outside the repository and device. No Secure Boot/eFuse changes.
+- Published/installed prerelease 0.9.0-rc.1 implements Stable/Dev channels, mandatory publisher signatures and optional lightning on Home; signed OTA/startup confirmation passed. Stable Latest remains 0.8.2. See `firmware/SIGNED_OTA.md`; private publisher keys stay outside the repository and device. No Secure Boot/eFuse changes.
 - `firmware/src/firmware_updates.cpp` handles opt-in GitHub OTA; `tools/package-firmware-release.py` creates ignored `dist/` artifacts without publishing. Keep image/manifest/rollback validation requirements in `firmware/UPDATES.md`.
 - `firmware/WIRING.md` maps the owner's CC1101 photo to exact expansion pins and power constraints.
 - `reference/` stores public CC1101 and PanelLan manufacturer PDFs with source links; module header numbering remains in the wiring guide.

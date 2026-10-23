@@ -17,10 +17,12 @@ APRS.fi location/weather display and WU uploads are observed; the owner also
 confirmed Weathercloud is receiving data. CWOP ingestion, reference comparison
 and a full soak remain validation gates. Windy and PWSWeather ingestion are owner-confirmed; D710 serial and a local barometer are optional additions. Sound is excluded from this device. Nearby NWS pressure is available as an attributed display fallback.
 
-## Local development candidate
+## Current prerelease
 
 Source version 0.9.0-rc.1 adds Stable/Dev update channels, publisher-signed OTA
-and refreshed browser branding/repository controls. It is not published or installed;
+and refreshed browser branding/repository controls, plus optional lightning on Home.
+[v0.9.0-rc.1](https://github.com/sideout909/WX-Link/releases/tag/v0.9.0-rc.1)
+is published as a prerelease and installed on the owner’s device; signed OTA and startup confirmation passed;
 see [signed OTA](firmware/SIGNED_OTA.md) and the
 [Connect waveform review](firmware/CONNECT_WAVEFORM_REVIEW.md).
 PWSWeather ingestion is now owner-confirmed alongside the other configured services.

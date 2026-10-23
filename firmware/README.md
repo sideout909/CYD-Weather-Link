@@ -1,6 +1,6 @@
 # PanelLan weather firmware
 
-Local source candidate: **0.9.0-rc.1**, not published or installed. See
+Published and installed prerelease: **0.9.0-rc.1**. Signed OTA and startup confirmation passed. See
 [SIGNED_OTA.md](SIGNED_OTA.md) and [waveform review](CONNECT_WAVEFORM_REVIEW.md).
 Stable Latest remains 0.8.2; owner authorized prerelease installation for a new
 overnight observation. Optional lightning implementation: [LIGHTNING.md](LIGHTNING.md).
@@ -12,7 +12,7 @@ See [release notes](RELEASE_0.8.0.md) for factory reset, units, configurable
 hostnames, new sharing destinations, pressure fallback and experimental local
 cloud estimation. The owner can update the installed candidate through OTA.
 
-October 22, 2026 · release version 0.8.2 · owned PanelLan
+October 22, 2026 · prerelease version 0.9.0-rc.1 · owned PanelLan
 `ZX2D80CE02S-V10` / `SC05_X`. This profile is specific to its parallel ST7789
 LCD and FT5x06 touch, 8 MB flash and 2 MB PSRAM. Do not flash a generic CYD or
 SC01 Plus with this profile. See [validation](VALIDATION.md) for the distinction

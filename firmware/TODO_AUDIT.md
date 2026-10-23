@@ -1,8 +1,8 @@
 # Remaining work — stable 0.8.2, October 22, 2026
 
-Published GitHub Latest and installed device are **0.8.2**. This is the current
-TODO index; dated work/validation logs retain historical results. Local source
-is 0.9.0-rc.1, not installed or published; see [SIGNED_OTA.md](SIGNED_OTA.md).
+Published GitHub Latest remains **0.8.2**; installed prerelease is **0.9.0-rc.1**.
+Signed OTA/startup confirmation and preference restoration passed. This is the current
+TODO index; dated work/validation logs retain historical results; see [SIGNED_OTA.md](SIGNED_OTA.md).
 
 ## Completed
 
@@ -55,12 +55,12 @@ is 0.9.0-rc.1, not installed or published; see [SIGNED_OTA.md](SIGNED_OTA.md).
 
 - **Stable / Dev selector — implemented locally in 0.9.0-rc.1.** Stable migration
   default, explicit Dev opt-in, saved selection and no downgrades. Browser/model
-  checks pass; target-device lookup/persistence acceptance remains pending.
+  checks and target-device lookup/persistence acceptance pass.
 - **Signed OTA — implemented locally.** Trusted embedded public key, ECDSA P-256/
   SHA-256 envelope, fail-closed verification and required matching-key packaging.
   Actual firmware verifier passes host mbedTLS tamper/wrong-key tests. Offline
-  publisher-key backup, target-device resource checks, bootstrap and enforced
-  subsequent OTA acceptance remain pending. Rotation/recovery still need a
+  publisher-key backup and extended resource/soak checks remain pending. Bootstrap and
+  signature-enforced subsequent OTA acceptance passed. Rotation/recovery still need a
   dual-key transition implementation. No Secure Boot/eFuse/flash-encryption changes.
 - **Optional lightning on Home — implemented, storm validation pending.** Alternate Barometer and
   lightning every five seconds while activity is recent; include last-strike

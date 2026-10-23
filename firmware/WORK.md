@@ -1,19 +1,19 @@
 # Current development state
 
-## Local source: 0.9.0-rc.1
+## Published/installed prerelease: 0.9.0-rc.1
 
 Stable/Dev selection and mandatory signed OTA are implemented locally, with
 repository editing unlock and revised WX Link header/subtitle/GitHub link.
 Build, host, browser and actual mbedTLS signature tests pass. Signed package is
-local under dist/v0.9.0-rc.1; nothing published/flashed. Publisher key is outside
+under dist/v0.9.0-rc.1; public prerelease installed through signature-enforced OTA. Publisher key is outside
 source/device; see SIGNED_OTA.md before any distribution. Owner confirmed
 PWSWeather ingestion and plans cloudy-day lux, overnight and later reset checks.
 Connect's public waveform suite passed read-only review (16 fixtures/40 packets);
 all 20 decoder C sources match our pinned library. See CONNECT_WAVEFORM_REVIEW.md.
 
-## Current release: 0.8.2 — October 22, 2026
+## Prior stable release: 0.8.2 — October 22, 2026
 
-Published stable and installed firmware are **0.8.2**. The public GitHub image
+Published stable remains **0.8.2**; device now runs prerelease **0.9.0-rc.1**. The public GitHub image
 installed through OTA, passed portal startup checks, confirmed at 33 seconds and
 remained running beyond 100 seconds. The semantic-settings validation/save-lock
 deadlock and resulting 0.8.1 rollback are fixed; normal OTA acceptance is complete.
@@ -332,3 +332,27 @@ A private 0.8.3-rc.1 bootstrap of this source will exercise the on-device verifi
 before installing the signed public 0.9.0-rc.1 target. Bootstrap is not published.
 Protected local publisher-key backup exists outside the repo; offline backup
 remains recommended. Device backup and final bench result follow separately.
+
+
+## October 22 — 0.9.0-rc.1 signed prerelease acceptance
+
+Published v0.9.0-rc.1 as a prerelease, leaving stable Latest at v0.8.2. Public
+assets matched the local package; manifest signature and image hash/size passed.
+A private USB bootstrap with the signature verifier installed the public target
+through real GitHub OTA. Device rejected unsigned Stable, verified the Dev
+publisher signature, confirmed startup and remained running beyond 100 seconds.
+Original update preferences were restored; a controlled restart retained
+0.9.0-rc.1 with portal checks passed and checkpoint/history restored.
+Free heap was 128,276 bytes and loop-stack free space 9,900 bytes after restart.
+No factory reset, replay, synthetic strikes or owner credential changes occurred.
+A protected full-flash backup was retained before installation. No claim is made
+that the latest RAM-only weather state was checkpointed.
+
+Real-storm lightning/distance checks, interrupted OTA, deliberate failed-boot
+rollback and overnight dim/touch reliability remain open. Radio initialized but
+initial post-restart diagnostics showed zero decoded messages, with captures
+reaching the decoder and no capture/decoder/application queue drops. A runtime-only
+capture-margin reduction from 9 to 3 dB recovered live Atlas reception: one accepted
+packet and two duplicates, sensor status Receiving. Left at 3 dB for the overnight
+run; reboot restores the unchanged 9 dB firmware default. This is a bench workaround,
+not a permanent RF tuning change or an SDR comparison.

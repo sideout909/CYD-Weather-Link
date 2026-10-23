@@ -5,13 +5,13 @@ Join the station’s home Wi-Fi and open http://wxlink.local, or use the
 numeric IP shown alongside it on the display.
 Use the existing admin login. The setup access point also serves the page.
 
-## Local 0.9.0-rc.1 header and update settings
+## Prerelease 0.9.0-rc.1 header and update settings
 
 Header retains YOUR STATION. YOUR DATA., uses WX Link, and describes Live
 conditions · Local history · Weather sharing. A GitHub project link sits on a
 separate line below the local address/IP. Updates offers Stable/Dev selection;
 repository editing requires an unchecked-by-default unlock checkbox. Changes are
-local, not installed yet. See [SIGNED_OTA.md](SIGNED_OTA.md).
+published and installed in the prerelease. See [SIGNED_OTA.md](SIGNED_OTA.md).
 
 ## Local address — v0.7.2
 

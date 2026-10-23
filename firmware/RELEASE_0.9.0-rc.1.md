@@ -32,3 +32,10 @@ requires a trusted publisher signature for subsequent OTA checks. Back up the
 publisher key outside this repository; no key or token is needed on user devices.
 Returning from Dev to Stable waits for a newer signed stable release, never a
 downgrade. Existing users can still use USB/custom builds; no eFuses change.
+
+## Owner-device installation check
+
+Public signature-enforced OTA, startup confirmation beyond 100 seconds, original
+update-preference restoration and a controlled restart passed. Live Atlas reception
+was confirmed after a temporary 3 dB capture-margin adjustment (default remains
+9 dB after reboot). Overnight dim/touch and real-storm validation remain open.

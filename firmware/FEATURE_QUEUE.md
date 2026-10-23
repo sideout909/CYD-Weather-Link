@@ -1,7 +1,7 @@
 # Ordered implementation queue — October 22, 2026
 
 Owner requested this order and later authorized USB/device updates again.
-Published stable and installed device are 0.8.2; hosted OTA startup confirmation
+Published stable remains 0.8.2; installed prerelease is 0.9.0-rc.1. Signed OTA startup confirmation
 and beyond-100-second operation passed. Windy ingestion is owner-confirmed;
 remaining field-specific validation gates below stay explicit.
 Save actual checks and next steps here at each feature boundary.
@@ -70,11 +70,11 @@ Windy live ingestion is owner-confirmed.
 USB access was reauthorized for the 0.8.0 prerelease bench checks.
 
 
-## Local 0.9.0-rc.1 / deferred roadmap
+## Prerelease 0.9.0-rc.1 / deferred roadmap
 
 Stable/Dev channels, signed OTA verification/packaging, repository edit unlock and
 web header branding/GitHub link are implemented and software-tested locally.
-Not published or installed; stable/device remain 0.8.2. See [SIGNED_OTA.md](SIGNED_OTA.md)
+Published and installed as a prerelease; signed OTA and controlled restart passed. Stable Latest remains 0.8.2. See [SIGNED_OTA.md](SIGNED_OTA.md)
 for remaining target-device tests, key backup and future rotation requirements.
 
 Multiple selected sensor sources, additional station families, D710/local barometer

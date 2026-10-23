@@ -120,9 +120,11 @@ python3 tools/test-signed-ota.py --mbedtls-source /path/to/mbedtls-2.28.7 \
   --mbedtls-build /tmp/wxlink-mbedtls-build
 ```
 
-Target-device signature timing/heap/stack, actual Stable/Dev GitHub lookups,
-persistence/migration, bootstrap OTA and a second signature-enforced OTA remain
-pending. Existing interrupted-transfer and deliberate failed-boot gates remain.
+Actual Stable/Dev lookups, unsigned Stable rejection, signed Dev verification,
+bootstrap plus signature-enforced OTA, preference restoration and controlled
+restart passed on the owner’s device. Post-restart free heap was 128,276 bytes
+and loop-stack free space 9,900 bytes. Dedicated signature timing, extended
+resource/soak, interrupted-transfer and deliberate failed-boot gates remain.
 Do not label this prerelease production-validated or publish it as Latest.
 A protected second local signing-key copy is retained outside the repository;
 copy it to independent/offline storage as publisher recovery follow-up.
