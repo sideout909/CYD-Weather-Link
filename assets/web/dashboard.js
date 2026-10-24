@@ -196,7 +196,8 @@
       card.append(element('div',finite(period.temperature_F)?rounded(temperature(period.temperature_F))+' '+temperatureUnit():'Temperature unavailable','forecast-temp'));
       card.append(element('p',period.short));card.append(element('p','Wind '+windDescription(period.wind||'unavailable'),'muted'));
       if(finite(period.rain_probability)&&period.rain_probability>=0)card.append(element('p','Rain chance '+Math.round(period.rain_probability)+'%','muted'));
-      if(period.detail){const detail=element('details');detail.open=period===list[0];detail.append(element('summary','Full forecast'));detail.append(element('p',period.detail,'detail'));card.append(detail);}
+      const normalizedForecast=value=>String(value||'').trim().replace(/\s+/g,' ').toLowerCase();
+      if(normalizedForecast(period.detail)&&normalizedForecast(period.detail)!==normalizedForecast(period.short)){const detail=element('details');detail.open=period===list[0];detail.append(element('summary','Full forecast'));detail.append(element('p',period.detail,'detail'));card.append(detail);}
       card.append(element('small',time(period.start)+' – '+time(period.end)));$('forecast-periods').append(card);
     }
   }
