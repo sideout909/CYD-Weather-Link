@@ -4,6 +4,7 @@
 #include <esp_heap_caps.h>
 #include <esp_timer.h>
 #include <esp_task_wdt.h>
+#include <esp_system.h>
 #include <new>
 #include <time.h>
 #include "weather_store.h"
@@ -78,6 +79,21 @@ uint32_t last_sample_request_id = 0;
 unsigned last_sample_result = 0;
 bool have_sample_reply = false;
 uint64_t uptimeMs() { return uint64_t(esp_timer_get_time()) / 1000; }
+const char* resetReason(){
+  switch(esp_reset_reason()){
+    case ESP_RST_POWERON:return "Power on";
+    case ESP_RST_EXT:return "External reset";
+    case ESP_RST_SW:return "Software restart";
+    case ESP_RST_PANIC:return "Panic / exception";
+    case ESP_RST_INT_WDT:return "Interrupt watchdog";
+    case ESP_RST_TASK_WDT:return "Task watchdog";
+    case ESP_RST_WDT:return "Other watchdog";
+    case ESP_RST_DEEPSLEEP:return "Deep sleep wake";
+    case ESP_RST_BROWNOUT:return "Brownout";
+    case ESP_RST_SDIO:return "SDIO reset";
+    default:return "Unknown";
+  }
+}
 uint64_t liveNow(){return clock_anchored ? clock_epoch+uptimeMs()-clock_uptime : uptimeMs()+1;}
 uint64_t dataNow() { return replay && source_time ? source_time + uptimeMs() - last_receive : liveNow(); }
 int32_t localDay(uint64_t now){time_t seconds=now/1000;struct tm t{};localtime_r(&seconds,&t);return (t.tm_year+1900)*10000+(t.tm_mon+1)*100+t.tm_mday;}
@@ -445,7 +461,11 @@ void renderForecast() {
   const auto& f=forecast_hourly?network.hourly[forecast_index]:network.forecast[forecast_index];
   String period_name=f.name;if(forecast_hourly){struct tm local{};localtime_r(&f.start,&local);char day[8],clock[16];strftime(day,sizeof(day),"%a",&local);display_preferences::clockText(clock,sizeof(clock),local,services::settings().clock_24h);period_name=String(day)+" "+clock;}
   text(period_name.substring(0,22),12,64,kWhite);text(String(forecast_index+1)+"/"+String(count),282,47,kMuted,&fonts::Font0);
-  text((f.temperature_valid?String(weather_units::temperature(f.temperature,metricUnits()),metricUnits()?1:0):String("--"))+" "+weather_units::temperatureUnit(metricUnits()),12,87,kWhite,&fonts::Font4);
+  const String forecast_temperature=f.temperature_valid?String(weather_units::temperature(f.temperature,metricUnits()),metricUnits()?1:0):String("--");
+  text(forecast_temperature,12,87,kWhite,&fonts::Font4);
+  // Font4 has only ASCII glyphs; draw the Unicode degree/unit with packed DejaVu.
+  const int forecast_unit_x=12+canvas.textWidth(forecast_temperature)+4;
+  homeText(weather_units::temperatureUnit(metricUnits()),forecast_unit_x,106,kWhite,home_fonts::event_bold);
   text(f.rain_probability>=0?"Rain "+String(f.rain_probability)+"%":"Rain --",116,89,kMuted,&fonts::Font0);
   const bool fresh=forecast_error=="Current"&&network.wifi&&services::clockValid()&&time(nullptr)>=(forecast_hourly?network.hourly_fetched:network.forecast_fetched)&&time(nullptr)-(forecast_hourly?network.hourly_fetched:network.forecast_fetched)<7200;
   text(fresh?"NWS":"NWS / STALE",116,102,fresh?kMuted:kAmber,&fonts::Font0);
@@ -573,6 +593,7 @@ void draw() {
 void rfStatus(){
   const auto r=radio_receiver::diagnostics();StaticJsonDocument<1536> d;
   d["event"]="rf_status";d["request_id"]=request_id;d["version"]=kVersion;d["uptime_ms"]=millis();
+  d["reset_reason"]=resetReason();d["reset_reason_code"]=unsigned(esp_reset_reason());
   d["radio_ready"]=r.ready;d["receiver_enabled"]=r.enabled;d["source"]=replay?"usb_replay":"radio";
   d["current_rssi_dbm"]=r.current_rssi;d["average_rssi_dbm"]=r.average_rssi;d["threshold_dbm"]=r.threshold;
   d["capture_margin_db"]=r.margin;
@@ -596,6 +617,9 @@ void status(const char* event = "status") {
   out["display_theme"]=services::settings().display_theme;out["display_brightness"]=display_brightness;out["display_idle_s"]=(uptimeMs()-display_idle.last_interaction)/1000;
   out["flash_bytes"]=ESP.getFlashChipSize();out["psram_bytes"]=ESP.getPsramSize();
   out["free_heap"]=ESP.getFreeHeap();out["loop_stack_free"]=uxTaskGetStackHighWaterMark(nullptr);out["free_psram"]=ESP.getFreePsram();
+  out["minimum_free_heap"]=ESP.getMinFreeHeap();
+  out["largest_free_heap_block"]=heap_caps_get_largest_free_block(MALLOC_CAP_INTERNAL|MALLOC_CAP_8BIT);
+  out["reset_reason"]=resetReason();out["reset_reason_code"]=unsigned(esp_reset_reason());
   out["uptime_ms"]=uptimeMs();out["source"]=replay?"usb_replay":store->accepted?"radio":"none";
   out["radio_ready"]=radio_receiver::ready();out["radio_dropped"]=radio_receiver::dropped();
   out["wifi"]=network.wifi;out["clock_valid"]=services::clockValid();out["setup_ip"]=services::portalAddress();out["local_url"]=services::portalUrl();out["mdns_ready"]=services::localNameReady();
